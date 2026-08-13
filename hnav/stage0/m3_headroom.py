@@ -482,7 +482,7 @@ def main() -> int:
         emb = build_embedder(cfg)
     print("=" * 74)
 
-    data = json.load(open(DATA))
+    data = json.load(open(DATA, encoding="utf-8"))
     states = {}
     for item in data:
         name = subset_name(item)

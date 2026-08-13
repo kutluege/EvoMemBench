@@ -110,7 +110,13 @@ This decides **attribution** and must be reported prominently whatever it says.
 
 ---
 
-## 5. M0 — live-index fidelity  ⚠ NOT YET SCRIPTED
+## 5. M0 — live-index fidelity  ✅ NOW SCRIPTED
+
+> **Update.** `hnav/stage0/m0_live_fidelity.py` now exists and writes
+> `hnav/_out/m0_replica_fidelity.json` with the fields `report.py` reads. It
+> needs the `:8001` embedding server (see the corrected §6 below). Run it as
+> `python hnav/stage0/m0_live_fidelity.py`; exit 2 means S1 fired. The
+> description below of what was missing is kept for context.
 
 > **Correction to PROMPT_B step 6.** It says `pytest test_replica_fidelity.py`
 > gives "≥99.9% exact top-k identity vs the native retriever". That test compares
@@ -143,11 +149,25 @@ correct behaviour, not a bug to work around — do not hand-write the file.
 > one inner call, all four edits keep their native branch. The run-level
 > byte-identity claim needs two real benchmark runs and is a separate job.
 
-> **Correction 2 to PROMPT_B step 7.** `serve_embeddings.sh` on `:8001` is **not
-> needed** for the MemoryAgentBench arena. `Qwen3Embedding4BEmbeddings`
-> (`methods/embedding_retriever.py:52`) loads the model **in-process** via
-> transformers. The `:8001` endpoint is only for CrossEp-Know's
-> `Qwen3EmbeddingMemory`, which does use an OpenAI-compatible embeddings API.
+> **Correction 2 to PROMPT_B step 7 — ⚠ THIS CORRECTION WAS ITSELF WRONG.
+> Superseded; see below.**
+>
+> ~~`serve_embeddings.sh` on `:8001` is **not needed** for the MemoryAgentBench
+> arena. `Qwen3Embedding4BEmbeddings` (`methods/embedding_retriever.py:52`) loads
+> the model **in-process** via transformers.~~
+>
+> `Qwen3Embedding4BEmbeddings` exists at `embedding_retriever.py:51` but
+> **`TextRetriever.__init__` never selects it.** Line 176 routes
+> `"Qwen/Qwen3-Embedding-4B"` to LangChain `OpenAIEmbeddings` against
+> `OPENAI_BASE_URL`, read via `dotenv.dotenv_values()` — i.e. from the `.env` in
+> the **current working directory**, not the repo root. The in-process class is
+> dead code on this path.
+>
+> Consequences: **`:8001` IS required** for M0 and T4, and the MemoryAgentBench
+> directory needs its own `.env`. Because embeddings read the file and the LLM's
+> bare `OpenAI()` reads only `os.environ`, the two can point at different ports:
+> put `OPENAI_BASE_URL=:8001` in `MemoryAgentBench/.env` and `export
+> OPENAI_BASE_URL=:8000` in the shell. See `hnav/deploy/mab.env.template`.
 
 The run-level check, on the primary arena:
 

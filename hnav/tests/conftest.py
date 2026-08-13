@@ -30,7 +30,7 @@ def embedder() -> HashEmbedder:
 def conflict_data() -> list[dict]:
     if not DATA.exists():
         pytest.skip(f"missing {DATA}")
-    return json.load(open(DATA))
+    return json.load(open(DATA, encoding="utf-8"))
 
 
 @pytest.fixture(scope="session")

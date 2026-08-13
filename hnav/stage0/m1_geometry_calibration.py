@@ -233,7 +233,7 @@ def main() -> int:
     print(f"   model={model}  device=cuda:{device}  dtype={dtype}")
     print("=" * 74)
 
-    data = json.load(open(DATA))
+    data = json.load(open(DATA, encoding="utf-8"))
     rng = random.Random(args.seed)
     emb = Embedder(model, device, dtype, batch, cache)
 

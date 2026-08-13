@@ -213,7 +213,7 @@ def main() -> int:
         emb = build_embedder(cfg)
     print("=" * 74)
 
-    data = json.load(open(DATA))
+    data = json.load(open(DATA, encoding="utf-8"))
     results = []
     for item in data:
         name = item["metadata"]["qa_pair_ids"][0].rsplit("_no", 1)[0] \

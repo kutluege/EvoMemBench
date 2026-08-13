@@ -281,7 +281,7 @@ def main() -> int:
               f"dtype={cfg.embed_dtype}  top_m={cfg.top_m}  k={cfg.churn_k}")
     print("=" * 74)
 
-    data = json.load(open(DATA))
+    data = json.load(open(DATA, encoding="utf-8"))
     if args.smoke_embedder:
         from hnav.core.embedding import HashEmbedder
         emb = HashEmbedder(dim=64)

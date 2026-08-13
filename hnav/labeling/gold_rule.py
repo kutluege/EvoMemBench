@@ -6,7 +6,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from conflict_analysis import parse, D  # reuse templates
 
 import json as _j
-d = _j.load(open(D))
+d = _j.load(open(D, encoding="utf-8"))
 
 for item in d:
     name = item["metadata"]["qa_pair_ids"][0].rsplit("_no", 1)[0]

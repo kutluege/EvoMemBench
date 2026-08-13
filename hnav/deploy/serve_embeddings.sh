@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 # Serve Qwen3-Embedding-4B on :8001, pinned to GPU1.
 #
-# NOT needed for T1 — M1 loads the embedder in-process, so the Stage-0 gate is
-# reachable without any serving infrastructure. You need this from T4 onward,
-# when the actual benchmark code path runs and expects an OpenAI-compatible
-# /v1/embeddings endpoint.
+# NOT needed for T1/T2/T5/T7 — those embed in-process via hnav/core/embedding.py,
+# so the Stage-0 gate is reachable without any serving infrastructure.
+#
+# REQUIRED for M0 (hnav/stage0/m0_live_fidelity.py) and T4, where the benchmark's
+# own code path runs. NEXT_STEPS.md §6 "Correction 2" claims otherwise — it says
+# TextRetriever loads Qwen3-Embedding-4B in-process. That is wrong. The class
+# Qwen3Embedding4BEmbeddings exists at methods/embedding_retriever.py:51 but
+# TextRetriever.__init__ never selects it; line 176 routes
+# "Qwen/Qwen3-Embedding-4B" to LangChain OpenAIEmbeddings against
+# OPENAI_BASE_URL. See hnav/deploy/mab.env.template.
 #
 #   tmux new -s embed
 #   bash hnav/deploy/serve_embeddings.sh

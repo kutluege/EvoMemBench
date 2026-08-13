@@ -11,7 +11,7 @@ import math
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from conflict_analysis import parse, D
 
-d = json.load(open(D))
+d = json.load(open(D, encoding="utf-8"))
 
 
 def ngrams(s, n=3):

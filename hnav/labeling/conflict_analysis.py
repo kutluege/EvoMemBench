@@ -11,7 +11,7 @@ from collections import Counter, defaultdict
 
 D = str(pathlib.Path(__file__).resolve().parents[2] /
         "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/data/Conflict_Resolution.json")
-d = json.load(open(D))
+d = json.load(open(D, encoding="utf-8"))
 
 # ── relation templates ───────────────────────────────────────────────────────
 # "{s} MID {o}." family

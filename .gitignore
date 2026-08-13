@@ -148,4 +148,5 @@ EvoMemBench-Memory-Systems/mem0/openmemory/api/.openmemory*/
 hnav/_cache/
 hnav/_out/
 .venv-hnav/
+.venv-hnav-local/
 .env
