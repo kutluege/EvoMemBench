@@ -41,24 +41,34 @@ hnav_gpu_report
 echo
 
 # ── 1. system conda ──────────────────────────────────────────────────────────
-if ! command -v conda >/dev/null 2>&1; then
-    _ok=0
+# `command -v conda` is NOT sufficient: /opt/anaconda3/condabin/conda is on PATH
+# but is a standalone binary, while `conda activate` is a shell FUNCTION that
+# only exists after conda's hook is sourced. Testing the binary and then calling
+# activate yields "CondaError: Run 'conda init' before 'conda activate'".
+# The right test is `type -t conda` = function.
+if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
     for _c in activate_conda "$HOME/activate_conda" /opt/activate_conda; do
         # shellcheck disable=SC1090
-        if source "$_c" >/dev/null 2>&1; then _ok=1; break; fi
+        source "$_c" >/dev/null 2>&1 && break
     done
-    if [ "$_ok" -eq 0 ] && [ -f /opt/anaconda3/etc/profile.d/conda.sh ]; then
-        # shellcheck disable=SC1091
-        source /opt/anaconda3/etc/profile.d/conda.sh
-    fi
 fi
-command -v conda >/dev/null 2>&1 || {
-    echo "!! conda still not on PATH after trying 'source activate_conda' and"
-    echo "   /opt/anaconda3/etc/profile.d/conda.sh."
-    echo "   Do NOT install your own — ask the admin where the helper lives."
+if [ "$(type -t conda 2>/dev/null)" != "function" ] && command -v conda >/dev/null 2>&1; then
+    eval "$(conda shell.bash hook 2>/dev/null)" || true
+fi
+if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
+    for _h in /opt/anaconda3/etc/profile.d/conda.sh /opt/miniconda3/etc/profile.d/conda.sh; do
+        # shellcheck disable=SC1090
+        [ -f "$_h" ] && { source "$_h"; break; }
+    done
+fi
+if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
+    echo "!! 'conda activate' unavailable (shell function not defined)."
+    echo "   Do NOT install your own conda. Activate by hand and re-run:"
+    echo "       conda activate $ENV_NAME"
+    echo "       HNAV_NO_ACTIVATE=1 bash hnav/deploy/setup_ozonderlab2.sh"
     exit 1
-}
-echo "[1/5] conda: $(conda --version)  at  $(command -v conda)"
+fi
+echo "[1/5] conda: $(conda --version)  (activate function available)"
 
 # ── 2. env ───────────────────────────────────────────────────────────────────
 if conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
@@ -67,8 +77,10 @@ else
     echo "[2/5] creating env '$ENV_NAME' (python $PYVER) ..."
     conda create -y -n "$ENV_NAME" "python=$PYVER"
 fi
-# shellcheck disable=SC1091
-conda activate "$ENV_NAME"
+if [ "${HNAV_NO_ACTIVATE:-0}" != "1" ] && [ "${CONDA_DEFAULT_ENV:-}" != "$ENV_NAME" ]; then
+    # shellcheck disable=SC1091
+    conda activate "$ENV_NAME"
+fi
 python -m pip install -q --upgrade pip wheel setuptools
 echo "        python: $(python -V 2>&1)  at  $(command -v python)"
 

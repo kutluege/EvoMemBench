@@ -4,9 +4,21 @@
 #
 # Lab policy: do NOT install your own conda. A system-wide install lives at
 # /opt/anaconda3. `conda init` is deliberately not run at login (it slows bash
-# down), so `conda` is not on PATH until you source the lab's helper —
-# `source activate_conda`. Every script that needs python must do this itself;
-# inheriting it from an interactive shell is not reliable under nohup/tmux.
+# down), so every script must make conda usable itself — inheriting it from an
+# interactive shell is not reliable under nohup/tmux.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY `command -v conda` IS THE WRONG TEST
+# ─────────────────────────────────────────────────────────────────────────────
+# /opt/anaconda3/condabin/conda is on PATH by default, so `command -v conda`
+# succeeds — but that is a standalone BINARY. `conda activate` is a shell
+# FUNCTION that only exists after `conda init` or after sourcing conda's hook.
+# Testing the binary and then calling activate gives:
+#
+#     CondaError: Run 'conda init' before 'conda activate'
+#
+# The correct test is `type -t conda` = "function". `conda shell.bash hook` is
+# the canonical way to define it from the binary without touching ~/.bashrc.
 #
 # Override the env name with HNAV_CONDA_ENV. Set HNAV_NO_ACTIVATE=1 to skip
 # entirely (useful if you have already activated something by hand).
@@ -17,37 +29,53 @@ if [ "${HNAV_NO_ACTIVATE:-0}" = "1" ]; then
     return 0 2>/dev/null || exit 0
 fi
 
-# ── make `conda` available ───────────────────────────────────────────────────
-if ! command -v conda >/dev/null 2>&1; then
-    _activated=0
-    # The lab's helper. `source` searches PATH, so the bare name works if it is
-    # on PATH; the explicit paths cover the case where it is not.
-    for _c in activate_conda "$HOME/activate_conda" /opt/activate_conda; do
-        # shellcheck disable=SC1090
-        if source "$_c" >/dev/null 2>&1; then _activated=1; break; fi
-    done
-    if [ "$_activated" -eq 0 ]; then
-        # Fall back to conda's own hook under the system-wide install.
+# ── already in the target env? then there is nothing to do ───────────────────
+if [ "${CONDA_DEFAULT_ENV:-}" = "$HNAV_CONDA_ENV" ]; then
+    _hnav_already=1
+else
+    _hnav_already=0
+fi
+
+if [ "$_hnav_already" -eq 0 ]; then
+    # ── make `conda activate` available (the FUNCTION, not the binary) ───────
+    if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
+        # 1. the lab's own helper. `source` searches PATH for a bare name.
+        for _c in activate_conda "$HOME/activate_conda" /opt/activate_conda; do
+            # shellcheck disable=SC1090
+            source "$_c" >/dev/null 2>&1 && break
+        done
+    fi
+    if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
+        # 2. conda's own hook, driven by whatever conda binary is on PATH.
+        if command -v conda >/dev/null 2>&1; then
+            eval "$(conda shell.bash hook 2>/dev/null)" || true
+        fi
+    fi
+    if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
+        # 3. source the profile script from the known system-wide installs.
         for _h in /opt/anaconda3/etc/profile.d/conda.sh \
                   /opt/miniconda3/etc/profile.d/conda.sh; do
             # shellcheck disable=SC1090
-            if [ -f "$_h" ]; then source "$_h"; _activated=1; break; fi
+            [ -f "$_h" ] && { source "$_h"; break; }
         done
     fi
-    if [ "$_activated" -eq 0 ] || ! command -v conda >/dev/null 2>&1; then
-        echo "!! conda not available."
-        echo "   Expected the system-wide install at /opt/anaconda3 and the lab helper:"
-        echo "       source activate_conda"
-        echo "   Do NOT install your own conda. Ask the admin if the helper has moved."
+
+    if [ "$(type -t conda 2>/dev/null)" != "function" ]; then
+        echo "!! 'conda activate' is unavailable (the shell function is not defined)."
+        echo "   Tried: source activate_conda / conda shell.bash hook /"
+        echo "          /opt/anaconda3/etc/profile.d/conda.sh"
+        echo "   Do NOT install your own conda. Either ask the admin where the"
+        echo "   helper lives, or activate by hand and re-run with:"
+        echo "       conda activate $HNAV_CONDA_ENV"
+        echo "       HNAV_NO_ACTIVATE=1 bash <script>"
         return 1 2>/dev/null || exit 1
     fi
-fi
 
-# ── activate the H-Nav env ───────────────────────────────────────────────────
-if ! conda activate "$HNAV_CONDA_ENV" 2>/dev/null; then
-    echo "!! conda env '$HNAV_CONDA_ENV' not found."
-    echo "   Create it once with:  bash hnav/deploy/setup_ozonderlab2.sh"
-    return 1 2>/dev/null || exit 1
+    if ! conda activate "$HNAV_CONDA_ENV" 2>/dev/null; then
+        echo "!! conda env '$HNAV_CONDA_ENV' not found."
+        echo "   Create it once with:  bash hnav/deploy/setup_ozonderlab2.sh"
+        return 1 2>/dev/null || exit 1
+    fi
 fi
 
 # ── caches on the nvme, not the home dir (weights are ~8 GB) ─────────────────
