@@ -118,6 +118,28 @@ class NVEmbedV2Embeddings(Embeddings):
         embedding = F.normalize(embedding, p=2, dim=1)
         return embedding.cpu().numpy()[0].tolist()
 
+# ── [HNAV] shadow-mode hook ──────────────────────────────────────────────────
+# Returns None unless HNAV_MODE is shadow/live, and never raises: a missing or
+# misconfigured H-Nav degrades to "no instrumentation", never to a broken run.
+_HNAV_ADAPTER = "unset"
+
+
+def _hnav_adapter():
+    global _HNAV_ADAPTER
+    if _HNAV_ADAPTER == "unset":
+        _HNAV_ADAPTER = None
+        try:
+            import sys as _sys, pathlib as _pathlib
+            _root = str(_pathlib.Path(__file__).resolve().parents[4])
+            if _root not in _sys.path:
+                _sys.path.insert(0, _root)
+            from hnav.adapters.mab_adapter import get_adapter
+            _HNAV_ADAPTER = get_adapter()
+        except Exception:
+            _HNAV_ADAPTER = None
+    return _HNAV_ADAPTER
+
+
 class  TextRetriever:
     def __init__(self,
                  embedding_model_name: str = "text-embedding-3-large",
@@ -191,12 +213,41 @@ class  TextRetriever:
             top_k: Number of documents to retrieve from vector store
         """
         initial_k = top_k
-        
-        # Perform similarity search to get initial results
-        results = self.vectorstore.similarity_search(query, k=initial_k)
-        retrieved_docs = [doc.page_content for doc in results]
-        
-        # Return results (truncated to top_k if needed)
+
+        hnav = _hnav_adapter()
+        if hnav is None:
+            # Perform similarity search to get initial results
+            results = self.vectorstore.similarity_search(query, k=initial_k)
+            retrieved_docs = [doc.page_content for doc in results]
+
+            # Return results (truncated to top_k if needed)
+            return retrieved_docs[:top_k]
+
+        # [HNAV] Same search, asked for the FULL pre-truncation ranking so H-Nav
+        # can see rank/margin/entropy over the whole store. FAISS flat search is
+        # exact, so the first top_k entries are the same documents in the same
+        # order the k=top_k search returned. The value returned below is
+        # byte-identical to the branch above.
+        n_docs = len(self._current_documents) if self._current_documents else initial_k
+        query_vector = self.embedding_model.embed_query(query)
+        scored = self.vectorstore.similarity_search_with_score_by_vector(
+            query_vector, k=max(n_docs, initial_k))
+        retrieved_docs = [doc.page_content for doc, _ in scored]
+        try:
+            decision = hnav.on_retrieve(
+                query=query,
+                ranked_texts=retrieved_docs,
+                scores=[float(s) for _, s in scored],
+                top_k=top_k,
+                query_vector=query_vector,
+                score_kind="l2sq",   # LangChain FAISS returns squared L2 distance
+            )
+            assert decision.shadow, "H-Nav returned an actionable decision in shadow mode"
+        except AssertionError:
+            raise
+        except Exception:
+            pass
+
         return retrieved_docs[:top_k]
     
 
