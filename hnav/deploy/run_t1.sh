@@ -10,12 +10,32 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-VENV="${HNAV_VENV:-$REPO_ROOT/.venv-hnav}"
-[ -d "$VENV" ] && source "$VENV/bin/activate"
+# System-wide conda + nvme caches. conda init is off at login, so this must
+# happen inside the script — a nohup'd job does not inherit an interactive shell.
+# shellcheck source=/dev/null
+source hnav/deploy/_activate.sh
+# shellcheck source=/dev/null
+source hnav/deploy/gpu_guard.sh
 
 mkdir -p hnav/_out
 LOG="hnav/_out/m1.log"
 
+# ── GPU preflight — there is no scheduler on these boxes ─────────────────────
+DEV="${HNAV_EMBED_DEVICE:-$(grep -E '^HNAV_EMBED_DEVICE=' .env 2>/dev/null | cut -d= -f2 | tr -d ' ' || echo 1)}"
+DEV="${DEV:-1}"
+DTYPE="${HNAV_EMBED_DTYPE:-$(grep -E '^HNAV_EMBED_DTYPE=' .env 2>/dev/null | cut -d= -f2 | tr -d ' ' || echo float32)}"
+NEED=17; [ "$DTYPE" = "float16" ] && NEED=9
+
+hnav_gpu_report
+echo
+echo "Target: GPU$DEV, dtype=$DTYPE"
+hnav_gpu_guard "$DEV" "$NEED" || {
+    echo
+    echo "Aborting before anything allocates. Nothing has been run."
+    exit 1
+}
+
+echo
 echo "Pre-flight ..."
 python hnav/deploy/check_env.py || { echo "check_env failed — fix before running M1."; exit 1; }
 

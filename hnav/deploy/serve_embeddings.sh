@@ -19,22 +19,33 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-VENV="${HNAV_VENV:-$REPO_ROOT/.venv-hnav}"
-[ -d "$VENV" ] && source "$VENV/bin/activate"
+# shellcheck source=/dev/null
+source hnav/deploy/_activate.sh
+# shellcheck source=/dev/null
+source hnav/deploy/gpu_guard.sh
 
 MODEL="${HNAV_EMBED_MODEL:-Qwen/Qwen3-Embedding-4B}"
 PORT="${HNAV_EMBED_PORT:-8001}"
 DEV="${HNAV_EMBED_DEVICE:-1}"
 
 if ! python -c "import vllm" 2>/dev/null; then
-    echo "vllm not installed. Install it into this venv:"
+    echo "vllm not installed in the '${HNAV_CONDA_ENV:-hnav}' conda env."
     echo "    python -m pip install vllm"
     echo
-    echo "Note: GPU0 already runs your Qwen3-4B-Instruct LLM server. This script"
-    echo "pins the embedder to GPU${DEV} via CUDA_VISIBLE_DEVICES so the two never"
-    echo "contend. Do not remove that pin."
+    echo "Note: GPU0 already runs the LLM server. This script pins the embedder"
+    echo "to GPU${DEV} via CUDA_VISIBLE_DEVICES so the two never contend."
+    echo "Do not remove that pin."
     exit 1
 fi
+
+# vLLM takes --gpu-memory-utilization 0.85 of the WHOLE card, so it needs the
+# card effectively to itself. Refuse if something else is already on it.
+hnav_gpu_report
+echo
+hnav_gpu_guard "$DEV" 9 || {
+    echo "Aborting — not starting a second allocator on a busy card."
+    exit 1
+}
 
 echo "Serving $MODEL on :$PORT (GPU$DEV) ..."
 # --task embed is the flag on vLLM >=0.6; older builds use --task embedding and

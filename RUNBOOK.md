@@ -13,17 +13,44 @@ judgment — that is what the gates are for.
 
 ---
 
-## 0. Box facts this runbook assumes
+## 0. Lab rules — these override anything else in this repo
+
+**There is no workload manager (no Slurm).** Nothing stops two jobs landing on
+the same card, so the discipline is manual:
+
+1. **Always `nvidia-smi` before running anything.** The launcher scripts do this
+   for you and *refuse to start* if the target GPU already has a compute process
+   (`hnav/deploy/gpu_guard.sh`). Override only deliberately, with
+   `HNAV_FORCE_GPU=1`.
+2. **Monitor in a second terminal:** `watch -n 1 nvidia-smi`
+3. **Always target an explicit device.** `HNAV_EMBED_DEVICE` for H-Nav,
+   `CUDA_VISIBLE_DEVICES` for the benchmark. Never let something pick "auto".
+
+**Conda: do not install your own.** A system-wide install lives at
+`/opt/anaconda3`. `conda init` is deliberately *not* run at login, so `conda` is
+not on `PATH` until you run:
+
+```bash
+source activate_conda
+conda activate hnav
+```
+
+Every H-Nav launcher does this internally via `hnav/deploy/_activate.sh`, so
+`nohup`/`tmux` jobs work without an interactive shell. Setup **creates an env
+inside the system conda** — it never installs a conda of its own.
+
+### Box facts this runbook assumes
 
 | | |
 |---|---|
-| GPU0 | **busy** — your vLLM server, PID 52520, ~15.6 GB. Never allocate on it. |
+| GPU0 | **busy** — the vLLM server, PID 52520, ~15.6 GB. Never allocate on it. |
 | GPU1 | idle, ~24.5 GB free → embedder goes here, `float32` fits (needs ~17 GB) |
 | Work dir | `/mnt/nvmes/nvme1/egekutlu` |
 | HF cache | `/mnt/nvmes/nvme1/egekutlu/hf_cache` — already exists, reused |
 
-If GPU1 stops being free, or GPU0's server is restarted with a different model,
-stop and re-check §2 before running anything that produces a number.
+Lab machines have device numbers `0, 1, 2`; **this** box showed two. Re-check
+with `nvidia-smi` — GPU1 being free is an assumption with a shelf life, and the
+guard will stop you if it has expired.
 
 ---
 
@@ -42,17 +69,20 @@ git log --oneline -1        # should be at or after the "M0 harness" commit
 ## 2. Setup — once
 
 ```bash
+nvidia-smi                              # rule 1 — look before you touch
 bash hnav/deploy/setup_ozonderlab2.sh
 ```
 
-This wraps the generic installer with this box's specifics: it pins `HF_HOME` to
-the nvme (the embedder weights are ~8 GB), refuses to install into the conda env
-that serves GPU0, and writes both `.env` files from templates.
+Creates the conda env `hnav` (python 3.11) **inside the system-wide
+`/opt/anaconda3`**, installs torch cu124 + deps, pre-caches nltk/punkt and
+tiktoken, pulls the ~8 GB embedder into `HF_HOME` on the nvme, and writes both
+`.env` files. It allocates no GPU memory. Idempotent.
 
-Then:
+Then, in any new shell:
 
 ```bash
-source .venv-hnav/bin/activate
+source activate_conda
+conda activate hnav
 export HF_HOME=/mnt/nvmes/nvme1/egekutlu/hf_cache
 ```
 
@@ -184,6 +214,8 @@ as provisional. **That is correct behaviour — never hand-write the JSON.**
 ## 8. T4 — shadow neutrality  ← **GATE (S2)**
 
 ```bash
+source activate_conda && conda activate hnav
+nvidia-smi                             # rule 1
 cd In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench
 
 export CUDA_VISIBLE_DEVICES=1          # keep everything off GPU0
@@ -255,6 +287,11 @@ live arms, do not set `HNAV_MODE=live`. A human evaluates the §4 gate in
 ## 11. Operational reminders
 
 - Everything long-running goes in `tmux` or `nohup`. SSH will drop.
+- **No scheduler.** `nvidia-smi` before every launch; `watch -n 1 nvidia-smi` in
+  a second pane while things run. The launchers refuse a busy card — if you
+  override with `HNAV_FORCE_GPU=1`, know whose process you are sharing with.
+- **Never install conda.** Use `source activate_conda` + `conda activate hnav`.
+  If `conda` is missing after that, ask the admin; do not work around it.
 - **Do not delete `hnav/_cache/emb/`.** T1 pays for it once; everything else is
   then free. Do not copy it between machines — the key is
   `sha256(model|dtype||text)` and a dtype mismatch is silent.
