@@ -84,28 +84,33 @@ def analyze(item):
     return facts, parsed, unparsed, groups, conflicts, n_conf_facts
 
 
-print("=" * 78)
-print("FACT-STORE CONFLICT STRUCTURE (Conflict_Resolution / factconsolidation)")
-print("=" * 78)
-rows = []
-for item in d:
-    name = item["metadata"]["qa_pair_ids"][0].rsplit("_no", 1)[0]
-    facts, parsed, unparsed, groups, conflicts, n_conf = analyze(item)
-    cov = 100 * len(parsed) / len(facts)
-    sizes = Counter(len(v) for v in conflicts.values())
-    rows.append((name, len(facts), cov, len(groups), len(conflicts), n_conf,
-                 100 * n_conf / len(facts), dict(sorted(sizes.items()))))
-    print(f"\n{name}")
-    print(f"  facts={len(facts):>6}  template_coverage={cov:5.1f}%  unparsed={len(unparsed)}")
-    print(f"  distinct (relation,subject) keys : {len(groups)}")
-    print(f"  CONFLICTED keys (>1 distinct obj): {len(conflicts)} "
-          f"({100*len(conflicts)/len(groups):.1f}% of keys)")
-    print(f"  facts inside conflicted keys     : {n_conf} ({100*n_conf/len(facts):.1f}% of facts)")
-    print(f"  conflict group-size histogram    : {dict(sorted(sizes.items()))}")
-    if name == "factconsolidation_mh_6k":
-        print("  unparsed sample:", unparsed[:5])
-        print("  example conflicts:")
-        for k, v in list(conflicts.items())[:5]:
-            print(f"    key={k[1]!r} rel={k[0]!r}")
-            for num, txt, obj in sorted(v):
-                print(f"       #{num:>5}  obj={obj}")
+def main() -> None:
+    print("=" * 78)
+    print("FACT-STORE CONFLICT STRUCTURE (Conflict_Resolution / factconsolidation)")
+    print("=" * 78)
+    rows = []
+    for item in d:
+        name = item["metadata"]["qa_pair_ids"][0].rsplit("_no", 1)[0]
+        facts, parsed, unparsed, groups, conflicts, n_conf = analyze(item)
+        cov = 100 * len(parsed) / len(facts)
+        sizes = Counter(len(v) for v in conflicts.values())
+        rows.append((name, len(facts), cov, len(groups), len(conflicts), n_conf,
+                     100 * n_conf / len(facts), dict(sorted(sizes.items()))))
+        print(f"\n{name}")
+        print(f"  facts={len(facts):>6}  template_coverage={cov:5.1f}%  unparsed={len(unparsed)}")
+        print(f"  distinct (relation,subject) keys : {len(groups)}")
+        print(f"  CONFLICTED keys (>1 distinct obj): {len(conflicts)} "
+              f"({100*len(conflicts)/len(groups):.1f}% of keys)")
+        print(f"  facts inside conflicted keys     : {n_conf} ({100*n_conf/len(facts):.1f}% of facts)")
+        print(f"  conflict group-size histogram    : {dict(sorted(sizes.items()))}")
+        if name == "factconsolidation_mh_6k":
+            print("  unparsed sample:", unparsed[:5])
+            print("  example conflicts:")
+            for k, v in list(conflicts.items())[:5]:
+                print(f"    key={k[1]!r} rel={k[0]!r}")
+                for num, txt, obj in sorted(v):
+                    print(f"       #{num:>5}  obj={obj}")
+
+
+if __name__ == "__main__":
+    main()
