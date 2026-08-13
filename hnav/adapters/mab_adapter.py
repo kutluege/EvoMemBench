@@ -50,6 +50,15 @@ __all__ = ["FACT_RE", "MABAdapter", "explode_facts", "fact_key", "native_page_fr
 # conflict_analysis.analyze and by T1 — deliberately not a second dialect.
 FACT_RE = re.compile(r"^\s*(\d+)\.\s+(.*)$", re.M)
 
+# ...but a memorize chunk is NOT the raw context. `chunk_text_into_sentences`
+# (utils/eval_other_utils.py:173) splits the context with nltk and rejoins with
+# `" ".join(...)`, so wherever punkt found a sentence boundary the newline
+# between two facts becomes a space and the line-anchored regex above stops
+# matching. FACT_RE is still tried first — it is the prescribed regex and it is
+# exact on the raw context — and this inline scanner takes over when the chunk
+# has been through the joiner. Each fact runs to the next serial or to the end.
+FACT_RE_INLINE = re.compile(r"(?:(?<=\s)|(?<=\A))(\d+)\.\s+(.+?)(?=\s+\d+\.\s|\Z)", re.S)
+
 
 def _text_id(prefix: str, text: str) -> str:
     return f"{prefix}:{hashlib.sha1(text.encode()).hexdigest()[:12]}"
@@ -68,8 +77,16 @@ def fact_key(text: str) -> tuple[tuple[str, str] | None, str | None]:
 
 
 def explode_facts(message: str) -> list[tuple[int, str]]:
-    """A memorize chunk -> ``[(serial, fact_text)]``."""
-    return [(int(n), t) for n, t in FACT_RE.findall(message)]
+    """A memorize chunk -> ``[(serial, fact_text)]``.
+
+    Tries the line-anchored ``FACT_RE`` first and falls back to
+    ``FACT_RE_INLINE`` when the chunk has been through the benchmark's
+    sentence-joining chunker and yields fewer facts. Serials are the
+    benchmark's own and are preserved exactly; text is right-stripped only.
+    """
+    primary = [(int(n), t.strip()) for n, t in FACT_RE.findall(message)]
+    inline = [(int(n), t.strip()) for n, t in FACT_RE_INLINE.findall(message)]
+    return inline if len(inline) > len(primary) else primary
 
 
 def native_page_from_scored(scored: Sequence[tuple[Any, float]], top_k: int) -> list[str]:
