@@ -85,14 +85,25 @@ python -m pip install -q --upgrade pip wheel setuptools
 echo "        python: $(python -V 2>&1)  at  $(command -v python)"
 
 # ── 3. torch ─────────────────────────────────────────────────────────────────
-# cu124 wheels run fine under the 580 / CUDA 13.0 driver (drivers are backward
-# compatible with older runtimes) and the 4090 is Ada sm_89, fully covered.
-TORCH_INDEX="${HNAV_TORCH_INDEX:-https://download.pytorch.org/whl/cu124}"
+# Plain PyPI: on Linux, `pip install torch` ships CUDA 12.x wheels by default,
+# which run fine under the 580 / CUDA 13.0 driver (backward compatible) on the
+# 4090 (Ada, sm_89). The dedicated cu124 index is only a FALLBACK — used as the
+# sole index it replaces PyPI entirely and pip can fail with
+# ResolutionImpossible while resolving torch's own dependencies there.
 if python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
     echo "[3/5] torch present with CUDA: $(python -c 'import torch;print(torch.__version__)')"
 else
-    echo "[3/5] installing torch from $TORCH_INDEX ..."
-    python -m pip install -q torch --index-url "$TORCH_INDEX"
+    echo "[3/5] installing torch from PyPI (CUDA wheels are the Linux default) ..."
+    if ! python -m pip install -q torch; then
+        TORCH_INDEX="${HNAV_TORCH_INDEX:-https://download.pytorch.org/whl/cu124}"
+        echo "      PyPI failed; retrying with --extra-index-url $TORCH_INDEX ..."
+        python -m pip install -q torch --extra-index-url "$TORCH_INDEX"
+    fi
+    python -c "import torch; assert torch.cuda.is_available(), 'torch installed but CUDA unavailable'" || {
+        echo "!! torch imported but torch.cuda.is_available() is False."
+        echo "   Check the driver (nvidia-smi) and that you are not in a CPU-only wheel."
+        exit 1
+    }
 fi
 
 # ── 4. deps + nltk/tiktoken data ─────────────────────────────────────────────
