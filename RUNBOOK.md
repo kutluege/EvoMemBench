@@ -103,6 +103,56 @@ changes cosines and moves every threshold.
 
 ---
 
+## 2b. UNATTENDED MODE — run T1→T8 overnight with one command
+
+There is no coding agent on this box, so the whole Stage-0 campaign is scripted:
+
+```bash
+tmux new -s stage0
+bash hnav/deploy/run_stage0.sh
+# detach: Ctrl-b d        reattach later: tmux attach -t stage0
+```
+
+(or `nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console.log 2>&1 &`)
+
+What it does, in order: preflight (check_env + 151 tests, auto-syncs
+`HNAV_LLM_MODEL` to what `:8000` serves) → T1 smoke → **T1 full (gate S3)** →
+T2 → starts the `:8001` embed server out of your existing `vllm_0.9.1` env on
+GPU1 → **M0 (gate S1)** → **T4 both arms + diff (gate S2)** → kills the server,
+waits for VRAM to drain → M2 (with the fallback-chunker tripwire) → M3 (the big
+LLM item) → M4 → T8 report.
+
+**Gate semantics:** a gate that *passes* lets the pipeline continue — that is
+what a human would order. A gate that *fires* **halts everything downstream
+instantly**; the status file names the gate and a human decides. The T8 GO/NO_GO
+gate is never evaluated by the pipeline at all — it only writes the report and
+stops, as the brief requires.
+
+**If M0/T4's benchmark dependencies are missing** (langchain etc. — they need
+`pip install -r In-Episode-Knowledge/INEP-KNOW/requirements.txt`), those two
+stages are **SKIPped with the reason recorded** and the pipeline continues:
+M2–M4 use H-Nav's own offline replica and do not depend on them, and `report.py`
+renders missing measurements as NOT RUN by design.
+
+**Monitoring and control:**
+
+```bash
+tail -f hnav/_out/pipeline/*.log          # everything logs per-stage
+cat hnav/_out/pipeline/SUMMARY.md         # state of every stage
+watch -n 1 nvidia-smi                     # rule 2
+```
+
+**Resume:** interrupted for any reason → run the same command again. Completed
+stages (PASS/SKIP) are skipped; a FAILed stage re-runs. Force one stage over:
+`bash hnav/deploy/run_stage0.sh --redo m2`. T1's embedding cache
+(`hnav/_cache/emb/`) survives interruption, so a resumed T1 is much cheaper.
+
+When it finishes: `STAGE0_REPORT.md` is in the repo root, per-stage outputs in
+`hnav/_out/`. Both are gitignored except the report — **commit what you want to
+keep**, then bring the report and `SUMMARY.md` back for the human gate decision.
+
+---
+
 ## 3. T0 — confirm the data is intact
 
 ```bash
