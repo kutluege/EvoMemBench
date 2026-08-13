@@ -37,15 +37,59 @@ def test_joined_and_raw_forms_give_identical_facts(sh_6k):
 
 
 def test_every_fact_survives_chunking(sh_6k):
-    """No fact is lost or duplicated across chunk boundaries."""
+    """Fact recovery across chunk boundaries — with the boundary-loss bound.
+
+    Discovered on the GPU box the first time the REAL chunker ran (2026-08-14;
+    it was on BUILD_NOTES' untested list): ``chunk_text_into_sentences`` can
+    split a fact so that its serial ends one chunk ("... 306. <text> 307.")
+    while its text opens the next, serial-less. The serial-less head is
+    unrecoverable from the chunk stream by any parser — this is a property of
+    the benchmark's own chunker, not of ``explode_facts``. On sh_6k it eats
+    fact 307, 1 of 455 (0.22%).
+
+    So the honest invariant is NOT "nothing is lost". It is:
+      - nothing is duplicated or reordered,
+      - nothing is corrupted (recovered facts match the raw parse exactly),
+      - at most one fact is lost per chunk boundary,
+      - and every lost fact exhibits exactly the dangling-serial mechanism.
+    The loss rate is measured and asserted, never silently absorbed.
+    """
     chunks, used_fallback = build_chunks(sh_6k["context"], chunk_size=4096)
     assert chunks, "chunker produced nothing"
 
     recovered = [f for c in chunks for f in explode_facts(c)]
     expected = explode_facts(sh_6k["context"])
-    assert [s for s, _ in recovered] == [s for s, _ in expected]
-    if not used_fallback:
+
+    if used_fallback:
+        # line grouping never splits a line, so recovery must be perfect
         assert recovered == expected
+        return
+
+    rec_serials = [s for s, _ in recovered]
+    exp_by_serial = dict(expected)
+
+    # no duplicates, no reordering
+    assert len(rec_serials) == len(set(rec_serials)), "duplicate serials"
+    assert rec_serials == sorted(rec_serials), "serials out of order"
+
+    # no corruption: every recovered fact is byte-identical to the raw parse
+    for s, t in recovered:
+        assert t == exp_by_serial[s], f"fact {s} corrupted by chunking"
+
+    # boundary-loss bound: each of the (n_chunks - 1) boundaries can eat ≤ 1
+    lost = sorted(set(exp_by_serial) - set(rec_serials))
+    assert len(lost) <= len(chunks) - 1, (
+        f"{len(lost)} facts lost but only {len(chunks) - 1} boundaries: "
+        f"something beyond the boundary mechanism is eating facts: {lost[:10]}"
+    )
+
+    # every loss must be the dangling-serial mechanism, nothing else:
+    # the lost fact's serial sits at the very end of some non-final chunk
+    for s in lost:
+        assert any(c.rstrip().endswith(f"{s}.") for c in chunks[:-1]), (
+            f"fact {s} lost but no chunk ends with its dangling serial — "
+            f"an unknown loss mechanism"
+        )
 
 
 def test_fallback_chunker_respects_its_budget():
