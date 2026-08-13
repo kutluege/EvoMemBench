@@ -589,10 +589,13 @@ def main() -> int:
         print(f"   read : n={rd['n_reads']}  " +
               "  ".join(f"{k}={v['rate']:.2f}" for k, v in sorted(rd["strata"].items())))
 
-        # per-candidate rows are the input to M4 and are written out in full
-        rows_path = cfg.out_dir / f"m3_write_rows_{name}.json"
-        rows_path.write_text(json.dumps(w_rows))
+        # per-candidate rows and outcomes are M4's input, written out in full
+        (cfg.out_dir / f"m3_write_rows_{name}.json").write_text(json.dumps(w_rows))
         (cfg.out_dir / f"m3_read_rows_{name}.json").write_text(json.dumps(r_rows))
+        (cfg.out_dir / f"m3_write_outcomes_{name}.json").write_text(
+            json.dumps(w_outcomes))
+        (cfg.out_dir / f"m3_read_outcomes_{name}.json").write_text(
+            json.dumps(r_outcomes))
 
     out = cfg.out_dir / ("m3_headroom_SMOKE.json" if args.smoke_embedder
                          else "m3_headroom.json")

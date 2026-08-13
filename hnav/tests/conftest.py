@@ -1,4 +1,4 @@
-"""Shared fixtures. No torch, no GPU, no network."""
+"""Shared fixtures.  [T3–T8]  No torch, no GPU, no network."""
 from __future__ import annotations
 
 import json
