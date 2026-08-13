@@ -115,19 +115,60 @@ python -m pip install -q \
     nltk tiktoken \
     openai python-dotenv httpx tqdm pytest
 
+# nltk's downloader REFUSES world/group-writable target trees (its CVE
+# hardening), and /home on this box is exactly that — so `nltk.download` was
+# silently a no-op and the real chunker never ran (m2's tripwire caught it).
+# Fetch the punkt zips by hand into $NLTK_DATA instead: only the DOWNLOADER
+# has the permission check, the loader does not.
+export NLTK_DATA="${NLTK_DATA:-$NVME/nltk_data}"
 python - <<'PYEOF'
-import nltk, tiktoken
-for pkg in ("punkt", "punkt_tab"):
-    try:
-        nltk.download(pkg, quiet=True)
-    except Exception as e:
-        print(f"   warn: nltk {pkg}: {e}")
+import os, pathlib, sys, urllib.request, zipfile
+
+root = pathlib.Path(os.environ["NLTK_DATA"])
+tok = root / "tokenizers"
+tok.mkdir(parents=True, exist_ok=True)
 try:
-    tiktoken.encoding_for_model("gpt-4o-mini")
+    os.chmod(root, 0o700)   # best effort; the manual path works regardless
+except OSError:
+    pass
+
+for pkg in ("punkt", "punkt_tab"):
+    if (tok / pkg).exists():
+        print(f"   nltk {pkg}: present")
+        continue
+    url = f"https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/tokenizers/{pkg}.zip"
+    z = tok / f"{pkg}.zip"
+    print(f"   nltk {pkg}: fetching ...")
+    urllib.request.urlretrieve(url, z)
+    with zipfile.ZipFile(z) as f:
+        f.extractall(tok)
+    z.unlink()
+
+import nltk
+try:
+    n = len(nltk.sent_tokenize("One sentence. Two sentences."))
+    assert n == 2
+    print("   nltk punkt: VERIFIED (sent_tokenize works)")
 except Exception as e:
-    print(f"   warn: tiktoken: {e}")
-print("   nltk + tiktoken cached")
+    sys.exit(f"!! punkt still unusable after manual install: {e}")
+
+import tiktoken
+tiktoken.encoding_for_model("gpt-4o-mini")
+print("   tiktoken cached")
 PYEOF
+
+# ── 4b. minimal benchmark deps, for M0 + T4 ──────────────────────────────────
+# The full MemoryAgentBench requirements.txt drags in deepspeed, bitsandbytes,
+# faiss-gpu (broken on pip) and a dozen memory backends. The m0/t4 import
+# chains actually need only this subset — mapped by reading the imports of
+# main.py → agent.py → embedding_retriever.py → utils/*. faiss-cpu is correct
+# here: LangChain's FAISS.from_documents builds IndexFlatL2 on CPU either way,
+# and flat search is exact.
+echo "[4b/6] installing minimal benchmark deps (m0/t4) ..."
+python -m pip install -q \
+    pyyaml datasets rouge-score \
+    langchain langchain-community langchain-openai langchain-core \
+    faiss-cpu
 
 # ── 5. weights + .env files ──────────────────────────────────────────────────
 EMBED_MODEL="${HNAV_EMBED_MODEL:-Qwen/Qwen3-Embedding-4B}"

@@ -82,3 +82,9 @@ fi
 NVME="${HNAV_NVME:-/mnt/nvmes/nvme1/egekutlu}"
 export HF_HOME="${HF_HOME:-$NVME/hf_cache}"
 export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_HOME/hub}"
+
+# nltk refuses to DOWNLOAD into a world/group-writable tree (CVE hardening in
+# its downloader) — /home on this box is exactly that, so punkt silently never
+# arrived and the chunker fell back (caught by m2's tripwire). Setup places the
+# data here by hand, bypassing the downloader; the LOADER has no such check.
+export NLTK_DATA="${NLTK_DATA:-$NVME/nltk_data}"

@@ -78,7 +78,8 @@ log()  { echo "[$(date '+%F %T')] $*"; }
 mark() { echo "$2 $(date '+%F %T') $3" > "$PIPE/$1.status"; }
 
 done_already() {  # $1=stage → 0 if PASS/SKIP recorded and not being redone
-    [ "$REDO" = "$1" ] && return 1
+    # --redo accepts a comma list: --redo m0,t4
+    case ",$REDO," in *",$1,"*) return 1 ;; esac
     [ -f "$PIPE/$1.status" ] && grep -qE '^(PASS|SKIP)' "$PIPE/$1.status"
 }
 
