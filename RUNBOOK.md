@@ -91,7 +91,7 @@ serves. Then:
 
 ```bash
 python hnav/deploy/check_env.py     # ← GATE. Must exit 0.
-pytest hnav/tests/ -q               # ← must be 151 passed, WITH torch installed
+pytest hnav/tests/ -q               # ← must be 153 passed, WITH torch installed
 ```
 
 `check_env.py` prints the model id `:8000` reports and warns if it disagrees with
@@ -115,7 +115,7 @@ bash hnav/deploy/run_stage0.sh
 
 (or `nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console.log 2>&1 &`)
 
-What it does, in order: preflight (check_env + 151 tests, auto-syncs
+What it does, in order: preflight (check_env + 153 tests, auto-syncs
 `HNAV_LLM_MODEL` to what `:8000` serves) → T1 smoke → **T1 full (gate S3)** →
 T2 → starts the `:8001` embed server out of your existing `vllm_0.9.1` env on
 GPU1 → **M0 (gate S1)** → **T4 both arms + diff (gate S2)** → kills the server,

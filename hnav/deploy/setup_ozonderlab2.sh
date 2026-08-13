@@ -171,6 +171,6 @@ cat <<EOF
 
  Next:
      python hnav/deploy/check_env.py     # must exit 0
-     pytest hnav/tests/ -q               # must be 151 passed
+     pytest hnav/tests/ -q               # must be 153 passed
 ==============================================================
 EOF

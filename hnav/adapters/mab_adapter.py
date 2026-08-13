@@ -59,6 +59,17 @@ FACT_RE = re.compile(r"^\s*(\d+)\.\s+(.*)$", re.M)
 # has been through the joiner. Each fact runs to the next serial or to the end.
 FACT_RE_INLINE = re.compile(r"(?:(?<=\s)|(?<=\A))(\d+)\.\s+(.+?)(?=\s+\d+\.\s|\Z)", re.S)
 
+# The benchmark's chunker can end a chunk with a DANGLING SERIAL: punkt attaches
+# the next fact's number to the previous sentence, the token budget cuts there,
+# and the chunk tail reads "...Thomas Kyd was born in the city of Leeds. 307."
+# while fact 307's text opens the next chunk. Discovered the first time the real
+# chunker ran (sh_6k, fact 307). The inline scanner would otherwise glue that
+# " 307." onto fact 306's text. The pattern requires the previous fact's
+# terminal period before the number, so a genuine "...is 42." ending (no period
+# before the number) is never touched. Applied to the LAST fact of a blob only —
+# anywhere else the lookahead in FACT_RE_INLINE already stops at the next serial.
+DANGLING_SERIAL_TAIL = re.compile(r"(?<=\.)\s+\d+\.\s*$")
+
 
 def _text_id(prefix: str, text: str) -> str:
     return f"{prefix}:{hashlib.sha1(text.encode()).hexdigest()[:12]}"
@@ -82,11 +93,20 @@ def explode_facts(message: str) -> list[tuple[int, str]]:
     Tries the line-anchored ``FACT_RE`` first and falls back to
     ``FACT_RE_INLINE`` when the chunk has been through the benchmark's
     sentence-joining chunker and yields fewer facts. Serials are the
-    benchmark's own and are preserved exactly; text is right-stripped only.
+    benchmark's own and are preserved exactly; text is right-stripped only —
+    except that a dangling next-fact serial on the last fact (see
+    ``DANGLING_SERIAL_TAIL``) is removed, because it belongs to a fact whose
+    text lives in the next chunk, not to this one.
     """
     primary = [(int(n), t.strip()) for n, t in FACT_RE.findall(message)]
     inline = [(int(n), t.strip()) for n, t in FACT_RE_INLINE.findall(message)]
-    return inline if len(inline) > len(primary) else primary
+    facts = inline if len(inline) > len(primary) else primary
+    if facts:
+        serial, text = facts[-1]
+        cleaned = DANGLING_SERIAL_TAIL.sub("", text)
+        if cleaned != text:
+            facts[-1] = (serial, cleaned)
+    return facts
 
 
 def native_page_from_scored(scored: Sequence[tuple[Any, float]], top_k: int) -> list[str]:

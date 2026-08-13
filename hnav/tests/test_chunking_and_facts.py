@@ -112,6 +112,12 @@ def test_unparseable_lines_are_skipped_not_guessed(sh_6k):
     ("", []),
     ("no facts here at all", []),
     ("7. only one.", [(7, "only one.")]),
+    # dangling next-fact serial at a chunk boundary is stripped from the last
+    # fact (the real chunker produces exactly this tail — sh_6k fact 307) ...
+    ("0. a fact. 1. another fact. 2.", [(0, "a fact."), (1, "another fact.")]),
+    # ... but a genuine number at the end of a fact's own sentence is not:
+    # no terminal period precedes it, so DANGLING_SERIAL_TAIL cannot match
+    ("0. a fact. 1. the answer is 42.", [(0, "a fact."), (1, "the answer is 42.")]),
 ])
 def test_explode_facts_edge_cases(blob, expected):
     assert explode_facts(blob) == expected
