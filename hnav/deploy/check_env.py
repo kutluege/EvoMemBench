@@ -136,12 +136,21 @@ def check_embed_weights(env: dict) -> None:
     model = env.get("HNAV_EMBED_MODEL", "Qwen/Qwen3-Embedding-4B")
     try:
         from huggingface_hub import snapshot_download
-        path = snapshot_download(model, local_files_only=True)
+        # Probe with allow_patterns: setup downloads a FILTERED snapshot
+        # (*.json / *.safetensors / tokenizer*), so demanding every repo file
+        # (README, .gitattributes, ...) via a bare local_files_only call would
+        # false-negative on a perfectly good cache. config.json + weights are
+        # what the embedder actually needs.
+        path = snapshot_download(model, local_files_only=True,
+                                 allow_patterns=["config.json", "*.safetensors"])
         report(OK, "embed weights", f"{model} cached at {path}")
     except ImportError:
         report(WARN, "embed weights", "huggingface_hub missing; cannot verify")
     except Exception:  # noqa: BLE001
-        report(FAIL, "embed weights", f"{model} not cached — run hnav/deploy/setup_remote.sh")
+        hf_home = os.environ.get("HF_HOME", "~/.cache/huggingface (default)")
+        report(FAIL, "embed weights",
+               f"{model} not found under HF_HOME={hf_home} — run setup, and note "
+               f"HF_HOME must match where setup cached it")
 
 
 # ── 5/6. endpoints ───────────────────────────────────────────────────────────

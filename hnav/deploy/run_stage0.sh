@@ -98,12 +98,14 @@ run_stage() {  # $1=stage $2...=command. PASS on 0, FAIL+halt on nonzero.
     local stage="$1"; shift
     if done_already "$stage"; then log "── $stage: already $(cut -d' ' -f1 "$PIPE/$stage.status"), skipping"; return 0; fi
     log "── $stage: starting  →  $PIPE/$stage.log"
-    if "$@" > "$PIPE/$stage.log" 2>&1; then
+    # capture rc directly: `if cmd; then...fi` with no else leaves $?=0 after fi
+    "$@" > "$PIPE/$stage.log" 2>&1
+    local rc=$?
+    if [ "$rc" -eq 0 ]; then
         mark "$stage" "PASS" "-"
         log "── $stage: PASS"
         return 0
     fi
-    local rc=$?
     mark "$stage" "FAIL" "exit=$rc"
     log "── $stage: FAILED (exit $rc) — pipeline halted. See $PIPE/$stage.log"
     summary
