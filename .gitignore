@@ -64,6 +64,7 @@ lerna-debug.log*
 .env.*
 !.env.example
 !.env-example
+!hnav/deploy/.env.template
 variables.env
 *.pem
 *.key
