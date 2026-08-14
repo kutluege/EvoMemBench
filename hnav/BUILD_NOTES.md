@@ -259,3 +259,51 @@ Deliberately untested / known limits:
   where the balance is chosen deliberately.
 - The gate has not yet seen real embeddings end-to-end (no adapter wiring
   yet); that wiring plus threshold tuning is Faz B's first task.
+
+## 8. T10 — CrossEp instrumentation repair + M5 write-headroom (measurement only)
+
+Charter: `HNAV_VISION_GAP.md` §4 step 4. Full findings and the [GATE]-feeding
+numbers: `CROSSEP_HEADROOM_RAPORU.md` (repo root). No policy code anywhere.
+
+1. **`CLBenchAdapter.on_extract` blind spot killed**: geometry / diff /
+   retrieval_effect now flow when modules are injected. Signals are computed
+   in ONE space — the adapter re-embeds bank texts with its own embedder
+   (memoized; native DashScope vectors are dimensionally incompatible with
+   H-Nav candidate vectors, so the old mixed-space path would have crashed
+   and been swallowed). Predecessor = nearest admitted neighbour (no
+   keys/serials in this arena; no look-ahead). Probe = the candidate's own
+   text (`simulate_insert` default). `on_retrieve` got the same single-space
+   fix. Wrapper recovers `context_id` from the backend's per-context
+   `memory_dir`; the inner extract call receives the caller's kwargs
+   untouched. Shadow legality unchanged: PASS-only, no LLM calls, identity
+   returns, off = exact no-op.
+2. **CrossEp calibration split frozen**: `hnav/labeling/crossep_split.json`
+   (+ derivation in `crossep_split.py`, seed 20260815) — cluster-level
+   (`context_id`), stratified by category: 48 calibration / 72 held-out
+   clusters (347/537 samples). Any CrossEp threshold may be fit on
+   calibration clusters ONLY; the suite fails if artifact and derivation
+   ever disagree.
+3. **`hnav/stage0/crossep_m5_write_headroom.py`**: replays a per-context
+   write stream through the wired shadow instrumentation; cluster-first
+   stats (never candidate-pooled); streams: qwen3_embedding (reconstructed
+   exactly, transcribed 1024-token chunker, `fallback_chunker` recorded),
+   mem0_history (reads any run's `history.db`; no run exists yet),
+   generic_jsonl. Optional offline NLI reuses the T9 cross-encoder
+   (labeling privilege; stub engine only under `--smoke-embedder`).
+4. **Measured (box, CPU, real chunker, smoke embedder)** — MD5-dup and
+   lexical-Jaccard are embedder-free and REAL; cosine numbers in the smoke
+   file are meaningless by construction: 120 contexts, 7,879 write events;
+   exact-dup cluster-mean **0.117 calibration / 0.072 held-out** (89/120
+   clusters have dups; worst 0.706); Jaccard≥0.9 rate 0.164/0.112. Versus
+   the MAB substrate's duplicate_rate 0.000 everywhere: the write-cascade
+   question is live on this substrate, pending the real-embedder run
+   (≈0.3–0.4 GPU-h, orchestrator-scheduled) + NLI base rates.
+5. **MemOS triage**: `.gitignore:90` (`memories/`) swallowed
+   `MemOS/src/memos/memories/` at vendoring — never committed, hence
+   `_MEMOS_AVAILABLE=False` on every checkout. Cheap fix documented in the
+   report; excluded from M5 scope (its stream is LLM-extracted and no run
+   artifact exists).
+
+Tests 175 → 196 (`test_crossep_adapter_signals.py`, `test_crossep_split.py`,
+`test_crossep_m5_headroom.py`), all green locally and on the box; leakage
+audit and no-torch-at-import untouched and green.
