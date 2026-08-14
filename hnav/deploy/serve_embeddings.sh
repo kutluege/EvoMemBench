@@ -27,6 +27,11 @@ source hnav/deploy/gpu_guard.sh
 MODEL="${HNAV_EMBED_MODEL:-Qwen/Qwen3-Embedding-4B}"
 PORT="${HNAV_EMBED_PORT:-8001}"
 DEV="${HNAV_EMBED_DEVICE:-1}"
+# Serve in the campaign's pinned dtype (hnav/config.py, default float32 — what
+# T1 calibrated with). vLLM's default is the checkpoint's bf16, whose
+# quantization leaves "normalized" vectors at norms 1±2e-3 and fired gate S1
+# in M0 on 2026-08-14. Do not drop this flag.
+DTYPE="${HNAV_EMBED_DTYPE:-float32}"
 
 if ! python -c "import vllm" 2>/dev/null; then
     echo "vllm not installed in the '${HNAV_CONDA_ENV:-hnav}' conda env."
@@ -53,5 +58,7 @@ echo "Serving $MODEL on :$PORT (GPU$DEV) ..."
 CUDA_VISIBLE_DEVICES="$DEV" exec vllm serve "$MODEL" \
     --task embed \
     --port "$PORT" \
+    --dtype "$DTYPE" \
+    --max-model-len 16384 \
     --gpu-memory-utilization 0.85 \
     --served-model-name "$MODEL"

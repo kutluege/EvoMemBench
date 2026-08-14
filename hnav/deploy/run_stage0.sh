@@ -54,6 +54,13 @@ mkdir -p "$PIPE"
 EMBED_DEV="${HNAV_EMBED_DEVICE:-1}"
 EMBED_VLLM_PY="${HNAV_EMBED_VLLM_PY:-/mnt/nvmes/nvme1/egekutlu/programs/conda/vllm_0.9.1/bin/python3.11}"
 EMBED_MODEL="${HNAV_EMBED_MODEL:-Qwen/Qwen3-Embedding-4B}"
+# The campaign's pinned embedding dtype (hnav/config.py: HNAV_EMBED_DTYPE,
+# default float32 — the dtype T1 calibrated with). MUST match the served dtype:
+# vLLM otherwise defaults to the checkpoint's bf16, whose quantization leaves
+# the "normalized" served vectors at norms 1±2e-3, which breaks the unit-norm
+# assumption FaissFlatReplica's dot-product ordering relies on and fired S1 on
+# 2026-08-14 (m0 topk_agreement 0.24 on sh_32k, bank norms 0.9981–1.0022).
+EMBED_DTYPE="${HNAV_EMBED_DTYPE:-float32}"
 MAB="$REPO_ROOT/In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench"
 
 REDO="${2:-}"
@@ -182,21 +189,57 @@ stage_t1() {
 }
 
 # ═══ embed server lifecycle (m0 + t4 only) ═══════════════════════════════════
+embed_server_is_fp32_normalized() {
+    # Probe :8001: fp32-normalized embeddings have ||v|| = 1 ± ~1e-7; a bf16
+    # server leaves norms at 1 ± ~2e-3 (the S1 signature). Threshold 5e-5.
+    HNAV_PROBE_MODEL="$EMBED_MODEL" python - <<'PYEOF'
+import json, os, sys, urllib.request
+import numpy as np
+req = urllib.request.Request(
+    "http://localhost:8001/v1/embeddings",
+    data=json.dumps({"model": os.environ["HNAV_PROBE_MODEL"],
+                     "input": ["dtype probe alpha", "dtype probe beta"],
+                     "encoding_format": "float"}).encode(),
+    headers={"Content-Type": "application/json", "Authorization": "Bearer EMPTY"})
+try:
+    d = json.load(urllib.request.urlopen(req, timeout=60))
+except Exception as e:  # noqa: BLE001
+    print(f"probe request failed: {e}"); sys.exit(2)
+dev = max(abs(float(np.linalg.norm(np.asarray(r["embedding"], dtype=np.float64))) - 1.0)
+          for r in d["data"])
+print(f"probe max |norm-1| = {dev:.2e}")
+sys.exit(0 if dev < 5e-5 else 1)
+PYEOF
+}
+
 start_embed_server() {
-    # a previous crashed run may have left a server up — reuse it
+    # a previous crashed run may have left a server up — reuse it, but only
+    # after checking it serves in the calibrated dtype (a leftover bf16 server
+    # would silently reintroduce the S1 failure this script guards against)
     if curl -sf http://localhost:8001/v1/models -o /dev/null 2>/dev/null; then
-        log "embed server already answering on :8001 — reusing it"
+        if embed_server_is_fp32_normalized >> "$PIPE/embed_server.log" 2>&1; then
+            log "embed server already answering on :8001 and unit-norm to fp32 precision — reusing it"
+            SERVER_PID=""
+            return 0
+        fi
+        log "server on :8001 fails the fp32-normalization probe (likely bf16) — killing it and starting fresh"
         SERVER_PID=""
-        return 0
+        stop_embed_server
     fi
     [ -x "$EMBED_VLLM_PY" ] || { log "no vllm python at $EMBED_VLLM_PY"; return 1; }
     hnav_gpu_guard "$EMBED_DEV" 20 || return 1
     log "starting embed server :8001 on GPU$EMBED_DEV (vllm_0.9.1 env) ..."
     local task
     for task in embed embedding; do
+        # --dtype: serve in the calibrated dtype (see EMBED_DTYPE above).
+        # --max-model-len 16384: fp32 weights are ~15.1 GiB of the 20.4 GiB
+        #   budget; profiling at the checkpoint's native 40960 risks OOM (vLLM
+        #   warns exactly this). No MAB input comes near 16384 tokens (chunks
+        #   are 4096), so truncation behaviour is unchanged.
         CUDA_VISIBLE_DEVICES="$EMBED_DEV" HF_HOME="$HF_HOME" \
         nohup "$EMBED_VLLM_PY" -m vllm.entrypoints.openai.api_server \
             --model "$EMBED_MODEL" --task "$task" --port 8001 \
+            --dtype "$EMBED_DTYPE" --max-model-len 16384 \
             --gpu-memory-utilization 0.85 \
             --served-model-name "$EMBED_MODEL" \
             > "$PIPE/embed_server.log" 2>&1 &
