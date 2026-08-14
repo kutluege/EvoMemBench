@@ -310,12 +310,17 @@ stage_t4() {
         sed -e "s|^model:.*|model: $sid|" -e "s|^output_dir:.*|output_dir: $off_dir|" "$MAB/$base" > "$off_cfg"
         sed -e "s|^model:.*|model: $sid|" -e "s|^output_dir:.*|output_dir: $sha_dir|" "$MAB/$base" > "$sha_cfg"
 
+        # HNAV_DOTENV_NO_OVERRIDE=1 (both arms, identically — S2 compares the
+        # arms against each other): stops main.py's load_dotenv(override=True)
+        # from letting MAB/.env's OPENAI_BASE_URL=:8001 (the *embedding*
+        # endpoint) clobber the shell's :8000, which sent LLM chat completions
+        # to the embed server (choices=None crash, 2026-08-14).
         log "t4/$subset: arm off ..."
-        (cd "$MAB" && CUDA_VISIBLE_DEVICES="" HNAV_MODE=off \
+        (cd "$MAB" && CUDA_VISIBLE_DEVICES="" HNAV_MODE=off HNAV_DOTENV_NO_OVERRIDE=1 \
             OPENAI_BASE_URL=http://localhost:8000/v1 OPENAI_API_KEY=EMPTY \
             python main.py --agent_config "$off_cfg" --dataset_config "$ds") || return 1
         log "t4/$subset: arm shadow ..."
-        (cd "$MAB" && CUDA_VISIBLE_DEVICES="" HNAV_MODE=shadow \
+        (cd "$MAB" && CUDA_VISIBLE_DEVICES="" HNAV_MODE=shadow HNAV_DOTENV_NO_OVERRIDE=1 \
             OPENAI_BASE_URL=http://localhost:8000/v1 OPENAI_API_KEY=EMPTY \
             python main.py --agent_config "$sha_cfg" --dataset_config "$ds") || return 1
 
