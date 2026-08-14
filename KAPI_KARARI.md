@@ -1,78 +1,102 @@
 # KAPI KARARI — H-Nav Stage-0 → Stage-1 Geçiş Değerlendirmesi
 
-> **KARAR DURUMU: `TASLAK / BEKLEMEDE`** — m3'ün son subset'i (sh_262k), m4 ve
-> `report.py --strict` henüz tamamlanmadı (box'a erişim 14 Ağustos ~18:20'den beri
-> kesik; m3 nohup altında box'ta koşuyor/koştu). Bu dosya, eksik hücreler
-> doldurulup **KARAR: GO / NO_GO** satırı yazılana kadar Stage-1'i TETİKLEMEZ.
-> Tarih: 2026-08-15 (gece taslağı). Kaynaklar: `DURUM_RAPORU_STAGE0.md`,
-> `stage0_results/`, commit geçmişi.
+> **KARAR DURUMU: `TAMAMLANDI — AYRIŞIK VERDİKT (§6)`** — Stage-0'ın 10 aşaması
+> da ölçüldü; `report.py --strict: COMPLETE` (2026-08-15 01:52). Bu dosya 10
+> dakikada okunacak şekilde yazılmıştır. Ham veriler: `STAGE0_REPORT.md` +
+> `stage0_results/final/` (7 ölçüm JSON'u, commit `e6c6d77`).
 
 ---
 
-## 1. Bileşen bazında ön-değerlendirme tablosu
+## 1. Bileşen bazında verdikt tablosu
 
-| # | Bileşen | Ölçüm | Sonuç | Ön-verdikt | Verdikt tipi |
+| # | Bileşen | Ölçüm | Sonuç | Verdikt | Verdikt tipi |
 |---|---|---|---|---|---|
-| 1 | Geometri öncülü (çakışan çiftler ayrışır) | T1/M1 | median sim ~0.964 vs kontrol ~0.60; AUC ≥ 0.9999, 4/4 subset; S3 ateşlemedi | **GO** | detection |
-| 2 | Geometri gruplama (regex-oracle'a karşı) | T2/M1b | F1: 0.892 (6k) → 0.757 (262k); precision 0.83–0.90 | **GO (beyanlı)** — F1 mağaza büyüklüğüyle düşüyor, 262k'daki 0.757 açıkça raporlanacak | detection |
-| 3 | Replika sadakati (canlı indeksle özdeşlik) | m0 | top1=topk=τ=1.0000, 400/400 çift, 4/4 subset (fp32 düzeltmesi sonrası) | **GO** | benchmark |
-| 4 | Retrieval sinyalleri dejenere mi? | m2 | **NOT_DEGENERATE 4/4** — önceki BFCL dejenerasyon bulgusunu bu arenada ÇÜRÜTÜR. Margin p50 1.235→0.318, etkin komşuluk 1.44→36.41 (6k→262k) | **GO** | detection |
-| 5 | Shadow-mode nötrlüğü | t4/S2 | off↔shadow fark %2.42 < off↔off gürültü tabanı %3.04; TOST ±2.0 marjda eşdeğerlik (p=0.0008/0.017). Kullanıcı kararı (14 Ağu): **PASS-by-statistical-equivalence** | **GO (uyarlanmış kriter, tam beyan)** | benchmark |
-| 6 | Müdahale tavanı (headroom) | m3 | `BEKLİYOR — sh_262k + nihai JSON'lar`. Kısmi (sh_32k): yazıların %36,1'i bayat-çakışan; would-intervene %10,4 → veto sonrası %1,6; READ_CONFLICT=1.00, READ_STALE=1.00 | `BEKLİYOR` | policy |
-| 7 | Marginal-diff testi | m4 | `BEKLİYOR` (yalnız kalibrasyon split'i) | `BEKLİYOR` | detection |
-| 8 | Bütünleşik rapor | report --strict | `BEKLİYOR` | — | — |
+| 1 | Geometri öncülü | T1/M1 | median sim ~0.964 vs kontrol ~0.60; AUC ≥ 0.9999, 4/4; S3 ateşlemedi | **GO** | detection |
+| 2 | Geometri gruplama | T2/M1b | F1 0.892→0.757 (6k→262k), precision 0.83–0.90 | **GO (beyanlı)** | detection |
+| 3 | Replika sadakati | m0 | top1=topk=τ=1.0000, 400/400 (fp32 sonrası) | **GO** | benchmark |
+| 4 | Sinyal dejenerasyonu | m2 | **NOT_DEGENERATE 4/4** (BFCL bulgusunu çürütür); margin p50 1.235→0.318 | **GO** | detection |
+| 5 | Shadow nötrlüğü | t4/S2 | off↔shadow %2.42 < off↔off %3.04; TOST ±2.0 eşdeğerlik; kullanıcı kararı | **GO (uyarlanmış kriter)** | benchmark |
+| 6 | Müdahale tavanı | m3 | Aşağıda §2 — yazı-yolu tavanı ~%0–1,6; okuma-yolu karışık, 262k'da net ZARARLI | **AYRIŞIK — §6** | policy |
+| 7 | Marginal-diff (H2) | m4 | delta_auc +0.1185 yönü pozitif; ön-kayıtlı konjonksiyon **GEÇMEDİ** (key-clustered CI [−0.046,+0.188] 0'ı içeriyor) | **NO (ön-kayıtlı test)** | detection |
+| 8 | Bütünleşik rapor | report --strict | COMPLETE, 10/10 aşama PASS | **TAMAM** | — |
 
-**Kalibrasyon eşikleri (dondurulmuş, yalnız sh_6k+sh_32k):** `nmargin<0.0048`,
-`H_z>1.9569`, `r_min<0.1924`. Held-out (sh_64k/sh_262k) üzerinde hiçbir eşik
-ayarlanmadı ve ayarlanmayacak.
+**Dondurulmuş eşikler (yalnız sh_6k+sh_32k):** `nmargin<0.0048`, `H_z>1.9569`,
+`r_min<0.1924`. Son koşuda bit-özdeş yeniden üretildi (`unfit_for_analysis: false`).
 
-## 2. Nihai karar için eksikler
+## 2. M3 headroom — kararın kalbi
 
-1. **M3 headroom (4/4 subset):** could-change-correctness oranları = Stage-1'de
-   kazanılabilecek MAKSİMUM. Karar ancak bu tavan görülünce verilebilir — tavan
-   gürültü tabanının (±2–4 puan) altındaysa NO_GO/REDESIGN tartışılır.
-2. **M4** kalibrasyon-split sonucu.
-3. **`report.py --strict`** çıktısı (`STAGE0_REPORT.md`).
+| subset | split | write n | bayat-çakışan | müdahale (veto sonrası) | could-change-correctness | native başarısızlık (CONFLICT) | onarım yardım/zarar |
+|---|---|---|---|---|---|---|---|
+| sh_6k | kalib | 455 | 0.352 | 0.002 → 0.000 | — | 0.67 | 0/0 |
+| sh_32k | kalib | 2.310 | 0.361 | 0.104 → **0.016** | **0.20** | 0.53 | 2/1 |
+| sh_64k | doğrulama | 4.580 | 0.368 | 0.063 → **0.013** | **0.00** | 0.56 | **6/1** |
+| sh_262k | doğrulama | 18.333 | 0.392 | 0.023 → **0.004** | — | 0.80 | **3/5** |
 
-## 3. Substrat bulguları (tez için, karar bağlamı)
+Okuma bayrakları: READ_CONFLICT/STALE/RELEVANT_BELOW_K = 1.00 her yerde
+(yapısal doygunluk — ayırt edici değil); READ_MISSING 0.28→0.61; dup 0.000.
 
-- **S1/bf16 olayı:** :8001 embed sunucusu bf16'ya düşünce top-k özdeşliği 0.24'e
-  çöktü; fp32 ile 1.0000. Kapının gerçek bir hassasiyet hatasını yakalaması —
-  metodolojinin çalıştığının kanıtı olarak teze girecek (kullanıcı onayı 14 Ağu).
-- **Değerlendirme substratı deterministik DEĞİL:** temperature=0'da iki özdeş
-  baseline koşusu 100 çıktının 5'inde farklı, exact_match 26.0 vs 30.0
-  (±2–4 puan gürültü tabanı). vLLM sürekli-batçleme + prefix-cache kaynaklı;
-  seri özdeş istekler bitwise deterministik, çapraz-istek durumu değil.
-  **Stage-1 karşılaştırma tasarımı tek-koşu FARKINI sonuç sayamaz** — çok-koşu
-  ortalaması + eşleştirilmiş analiz + gürültü tabanının üstünde etki büyüklüğü şart.
-- **Bağlam penceresi:** benchmark istemleri sh_64k'da ~56k, sh_262k'da 100k+
-  token'a ulaşıyor; 32k'lık sunucuda bu subset'ler hiç koşamazdı. Stage-1
-  sunucu konfigürasyonu buna göre boyutlandırılmalı.
+**Üç yük taşıyan gözlem:**
+1. **Yazı-yolu tavanı veto sonrası %0–1,6** ve doğrulama subset'inde (sh_64k)
+   could-change-correctness **0.00** — yazı müdahalesinin doğruluğa
+   çevrilebileceği ölçülebilir alan YOK.
+2. **Okuma-yolu onarımı ölçekle tersine dönüyor:** sh_64k'da 6 yardım / 1 zarar,
+   sh_262k'da 3 yardım / **5 zarar** — koruyucu koşul harm≈0 en büyük mağazada
+   İHLAL ediliyor (küçük örneklemle).
+3. **Substrat gürültü tabanı ±2–4 puan** (A/A ölçümü): 100 soruluk tek koşuda
+   bu tavanların hiçbiri gürültüden ayırt edilemez; her Stage-1 iddiası N≥5
+   koşu + eşleştirilmiş analiz gerektirir.
 
-## 4. Beyan edilecek sapmalar (şimdiye kadar birikenler)
+## 3. KARAR (§6'da gerekçesiyle)
 
-1. Embed sunucusu fp32 servis (checkpoint native bf16) — kampanya dtype sabitlemesi gereği; kullanıcı onaylı.
-2. S2 kriteri bayt-özdeşlikten istatistiksel eşdeğerliğe uyarlandı (ön-kayıtlı protokol `7cb8323`; deterministik substrat fiziksel olarak kurulamadı — kanıtıyla).
-3. m3 LLM'i :8000 yerine özel :8003 sunucusunda (pencere gereksinimi); subset başına `max-model-len` farkları katmanlı raporda beyanlı.
-4. M0 kapsamı 400/400 (protokol hedefi 1.000; arena eksiksiz tarandı) — kullanıcı onaylı.
-5. `--max-model-len 16384` embed sunucu bayrağı (fp32 OOM önlemi; davranışsal etkisi yok).
-6. Chunker sınır mekanizması: fact 307 kaybı + sarkan seri düzeltmesi (`explode_facts`), test edilmiş.
-7. Kullanıcının :8000 sunucusu 14 Ağu akşamı kullanıcı talimatıyla durduruldu (gürültü tabanı karakterizasyonu ÖNCE tamamlandı; Stage-1 karşılaştırmaları kendi kontrol ettiğimiz sunucuda koşacak).
+- **Enstrümanlar (bileşen 1–5): GO.** H-Nav'ın tespit katmanı bu arenada
+  geçerli, kalibre ve nötr — tezin metodoloji bölümü sağlam.
+- **Yazı-yolu canlı müdahale (write_policy): NO_GO.** Tavan yok (madde 2.1).
+  Bu, tasarımın değil ARENANIN cevabı: tek-atlama fact-consolidation'da
+  retrieval zaten LATEST'i buluyor; veto mekanizması doğru çalışıp geriye
+  müdahale edilecek bir şey bırakmıyor. NO_GO yolu tezde savunulabilir bulgudur.
+- **Okuma-yolu canlı müdahale (read_policy): KOŞULLU — kullanıcı kararı gerekli.**
+  Pozitif sinyal var (native başarısızlık 0.53–0.80, sh_64k onarımı 6/1) ama
+  262k'da net zarar ve tüm örneklemler gürültü tabanının altında. Stage-1'e
+  ancak YENİDEN TASARLANMIŞ bir çerçeveyle girilebilir (aşağıda §4 önerisi).
+  **Kullanıcı yetkilendirmesindeki "açık GO → otomatik devam" koşulu
+  SAĞLANMADI; Stage-1 ajanı başlatılMAdı, kullanıcı bekleniyor.**
 
-## 5. Stage-1 ilk adım önerisi (karar GO ise — TASLAK)
+## 4. Önerilen Stage-1 çerçevesi (kullanıcı onayına sunulur)
 
-- **Tek bileşen:** okuma-yolu (read-path) müdahalesi DEĞİL, önce **yazma-yolu
-  stale-conflict tespiti** — M1b geometri F1'i (0.76–0.89) + m3 yazı sinyalleri
-  (%36 bayat-çakışan taban oranı) en güçlü kanıt burada. (m3 nihai sayıları bu
-  öneriyi değiştirebilir — read-side READ_STALE=1.00 sinyali de aday.)
-- **Eşikler:** yukarıdaki dondurulmuş kalibrasyon eşikleri; held-out'a TEK ATIŞ.
-- **Karşılaştırma protokolü (Agent C):** aynı ajan/retriever/LLM, HNAV_MODE=off
-  vs live; N≥5 koşu/kol; eşleştirilmiş analiz; başarı = doğruluk artışı + token
-  verimliliği BİRLİKTE, harm≈0; ön-kayıt zorunlu.
+Orijinal iddia ("H-Nav doğruluğu artırır") bu arenada ölçülebilir değil.
+Kanıtın işaret ettiği savunulabilir üç alternatif, tercih sırasıyla:
 
-## 6. KARAR
+1. **Okuma-yolu, sh_64k-sınıfı ölçek, çok-koşulu protokol:** onarım stratejisi
+   262k zararını açıklayacak şekilde revize edilir (ör. yalnız yüksek-güven
+   çakışmalarda müdahale); N≥5 koşu/kol, eşleştirilmiş analiz, ön-kayıt.
+   Başarı: doğruluk Δ > gürültü tabanı VE harm≈0 VE token nötr.
+2. **Tespit-katmanı tezi (müdahalesiz):** Stage-0'ın kendisi ana katkı olur —
+   geçerli, kalibre, nötr bir bellek-gözetim katmanı + iki substrat bulgusu
+   (bf16/S1, nondeterminizm). Ek koşu gerektirmez; en düşük risk.
+3. **İkincil arena (CrossEp-Know) pilotu:** çapraz-epizot bellekte müdahale
+   tavanı bu arenadakinden farklı olabilir; küçük ön-çalışma tavanı ölçer,
+   sonra karar verilir. (ICC=0.346 kümeleme uyarısı geçerli.)
 
-> **BEKLEMEDE.** m3/m4/report tamamlanınca bu bölüm doldurulacak:
-> bileşen 6–8 verdiktleri + nihai GO/NO_GO + gerekçe. Stage-1 ajanı ancak bu
-> bölümde açık "**KARAR: GO**" satırı yazılıysa otomatik başlar
-> (kullanıcı yetkilendirmesi 2026-08-14).
+## 5. Beyan edilecek sapmalar (nihai liste)
+
+1. Embed fp32 servis (native bf16) — kullanıcı onaylı.
+2. S2 kriteri: bayt-özdeşlik → ön-kayıtlı istatistiksel eşdeğerlik (`7cb8323`); deterministik substrat kurulamadı (kanıtıyla).
+3. m3 LLM'i :8003'te (`--max-model-len 106496 --kv-cache-dtype fp8 --enforce-eager`); yapısal istem tavanı ~104,6k token ÖLÇÜLDÜ (top-10 chunk 49,6–52,2k + ~14k injected fact).
+4. M0 400/400 (arena eksiksiz) — kullanıcı onaylı.
+5. Embed sunucu `--max-model-len 16384` (davranışsal etkisiz).
+6. Chunker sınır düzeltmeleri (fact kaybı + sarkan seri), test edilmiş.
+7. m2/m3 statüleri manuel-koşu yorumlu (runner GATE kilidi nedeniyle); ledger tutarlı.
+8. Kullanıcının :8000 durdurma talimatı izin katmanı engeli nedeniyle uygulanamadı; sunucu HÂLÂ AÇIK (kullanıcı `kill 52259` komutunu kendisi koşmadı). Stage-0 sonuçlarına etkisi yok (m3 :8003 kullandı).
+
+## 6. Gerekçeli sonuç
+
+Stage-0 tam olarak yapması gerekeni yaptı: **enstrümanları doğruladı ve
+müdahale tavanını ÖLÇTÜ.** Tavan, yazı yolunda yok; okuma yolunda var ama
+ölçekle tersine dönüyor ve mevcut örneklem gürültünün altında. "GO/NO_GO"
+ikiliği bu kanıtı taşımıyor; dürüst cevap ayrışıktır:
+
+> **KARAR: Enstrümanlar GO · write_policy NO_GO · read_policy KOŞULLU.**
+> Stage-1'in çerçevesi (§4'teki 1/2/3) kullanıcı seçimine bağlı — otomatik
+> devam tetiklenmedi. NO_GO bileşeni dahil her sonuç tez bulgusudur.
+
+*Orkestratör taslağı, 2026-08-15 02:0x. T8 nihai onayı insana aittir.*
