@@ -182,6 +182,20 @@ Kullanıcı kararı (orkestratör aracılığıyla): (1) tekrarlı denemelerle g
 
 ---
 
+## 2g. S2 kapanışı (kullanıcı kararı) ve m3'ün bağlam-sınırı arızası (sınıf 2: alt-katman kapasitesi, düzeltme :8003)
+
+**S2 kapanışı:** Kullanıcı, ön-kayıtlı istatistiksel eşdeğerlik çerçevesini uygulayarak S2'yi **PASS** ilan etti (commit `89d4f02`; `t4.status: PASS ... s2-closed-by-statistical-equivalence`). Karar insana aitti ve insan tarafından verildi; ajan yalnız kanıt üretti.
+
+**m3 arızası (15:56):** İlk m3 koşumu sh_6k'nın TAMAMINI bitirdi (374 answer çağrısı; eşikler kalibrasyon splitinde donduruldu: `nmargin<0.0048  H_z>1.9569  r_min<0.1924`) ve sh_32k'nın LLM fazının başında öldü: `BadRequestError — 39,931 token istendi (mesajlarda 39,803), sunucu sınırı 32,000`.
+
+**Teşhis — sınıf 2 (protokole sadık; bağlayıcı kısıt alt-katman):** m3'ün okuma-tarafı sayacı, benchmark'ın KENDİ cevap yolunu birebir aynalar: top-10 **chunk** çek, birleştir, cevapla (`counterfactual.py::retrieve_texts` + `m3_headroom.py:261` chunk_store). sh_32k = 9 chunk × ~4,4k Qwen token ≈ 39,8k — yani **benchmark'ın kendisi de (t4/sh_32k) :8000'in 32k sınırında aynı 400'ü alırdı**; t4 oraya hiç ulaşamadığı için görünmemişti. m3 fazla bağlam GÖNDERMİYOR; sınır, kullanıcının sunucu konfigürasyonu (`--max-model-len 32000`).
+
+**Düzeltme (beyan edilen sapma):** Kullanıcının :8000'ine dokunulmadı. GPU1'de kendi sohbet sunucumuz `:8003` — aynı yerel checkpoint (Qwen3-4B-Instruct-2507), aynı `--dtype auto --max-num-seqs 32`, tek fark `--max-model-len 53248` (en uzun m3 istemi: top-10 chunk ≈ ~45k token + 128 tamamlama; 53248 marjlı) ve boş GPU1'de `--gpu-memory-utilization 0.90`. **Substrat tutarlılığı için m3 4 subsetin DÖRDÜNDE de :8003'te yeniden koşuluyor** (sh_6k'yı :8000 sonucuyla karışık bırakmak yerine) — gerekçe: tabakalı raporda tek substrat beyanı; sh_6k'nın yeniden hesabı ucuz. Eşikler aynı önbellekli embeddinglerden deterministik olarak yeniden üretilecek — YENİDEN AYAR DEĞİL; log'daki değerlerin donmuş değerlerle (0.0048/1.9569/0.1924) bire bir eşleştiği koşum sonrası doğrulanacak.
+
+**GPU1 çakışması çözümü:** m3'ün in-process fp32 embedder'ı (16 GiB) :8003 (22,7 GiB) ile GPU1'e sığmaz. m3 yeniden koşumu `CUDA_VISIBLE_DEVICES=""` ile başlatıldı → `HFEmbedder` CPU'ya yüklenir (embedding.py:161 fallback); ilk koşum tüm metinleri embed'lediği için pass'ler %100 disk-önbellek isabeti — CPU modeli hiç forward koşmaz. Kod değişikliği yok.
+
+---
+
 ## 3. Boru hattının şu anki durumu ve kalan aşamalar
 
 Güncel koşum (tüm düzeltmeler sonrası, 12:34, box'ta nohup, `console9.log`):
@@ -197,11 +211,11 @@ nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console9.log 2>&1 &
 | --- | --- | --- |
 | preflight, t1_smoke, t1, t2 | PASS (atlandı) | gece koşumundan |
 | **m0** | **PASS 10:49** | S1 geçti, yukarıdaki tablo |
-| **t4** | **GATE S2 (12:36) — statü korunuyor** | §2e-2f: fark alt-katman gürültüsü içinde; bayt-özdeşlik hiçbir yığında sağlanamadı → hüküm CANNOT ADJUDICATE, karar T8'de |
+| **t4** | **PASS 16:05 — KULLANICI KARARI** | s2-closed-by-statistical-equivalence (commit `89d4f02`); kanıt zinciri §2e-2f |
 | **m2** | **PASS 13:05** (manuel koşum, `HNAV_EMBED_BATCH=8`) | `fallback_chunker=false` 4/4; ham-entropi 4/4 NOT_DEGENERATE |
-| **m3** | **KOŞUYOR** (15:1x'ten beri, pid `hnav/_out/pipeline/m3_manual.pid`, log `m3_manual.log`) | doğrudan nohup (runner t4 GATE'i yeniden koşardı); GPU1'de fp32 embedder, LLM :8000 |
-| m4 | m3 sonrası ELLE koşulmalı | `python hnav/stage0/m4_marginal_diff_test.py` (runner kullanılacaksa önce t4 kararı gerekli) |
-| report | m4 sonrası ELLE | `python hnav/stage0/report.py` + `--strict`; T8 = İNSAN KAPISI |
+| **m3** | **YENİDEN KOŞUYOR** (:8003, 4/4 subset; pid `m3_manual.pid`) | §2g: ilk koşum sh_32k'da bağlam sınırına takıldı (sınıf 2); sh_6k dahil tüm subsetler tek substratta |
+| m4 | m3 sonrası (runner devralacak) | m3.status PASS yazılınca `run_stage0.sh` m4+report'u koşar |
+| report | m4 sonrası | `report.py` + `--strict`; T8 = İNSAN KAPISI |
 
 - Boru hattı S2 ile kendini durdurdu (tasarım gereği); GPU1 boş, embed sunucu kapalı, :8000 sağlıklı (tek dinleyici).
 - GPU0/:8000 (kullanıcının LLM'i, PID 52520) hiç dokunulmadı.
