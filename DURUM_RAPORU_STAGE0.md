@@ -171,6 +171,10 @@ Kullanıcı kararı (orkestratör aracılığıyla): (1) tekrarlı denemelerle g
 
 **Deterministik hakem (:8002, GPU1):** vLLM 0.9.1, yerel Qwen3-4B-Instruct-2507 ağırlıkları, `--enforce-eager --max-num-seqs 1 --no-enable-prefix-caching --max-model-len 12288 --gpu-memory-utilization 0.60`; embeddings :8001 **bf16** (yalnız bu test için belgelenmiş sapma — fp32 embed + chat GPU1'e birlikte sığmıyor; iki kol özdeş retrieval görür, determinizm kanıtı tüm yolu kapsar).
 
+## 2h. m3'ün bağlam-sınırı yinelemeleri ve nihai sunucu boyutlandırması (sonradan eklendi)
+
+§2g'deki 53.248 penceresi de yetmedi: sh_64k 55.835, sh_262k 66.435 token istedi. Ölçüm (Qwen tokenizer, offline): top-10 chunk toplamı sh_64k 49.590 / sh_262k 52.242; gözlenen 66.307'lik istem, okuma-tarafı `injected` (getirilen chunk'lardaki bayat fact'lerin en yeni sürümleri) listesinin ~14k token katkısını gösterdi. Yapısal tavan: injected ⊆ chunk-içi fact'lerin yeni sürümleri → ≤ 2×top10 + soru ≈ **104,6k**. Nihai boyutlandırma (BİR kez): `--max-model-len 106496 --kv-cache-dtype fp8 --enforce-eager` (bf16 KV 106k'da GPU1'e sığmaz; fp8-KV koordinatör/kullanıcı onaylı beyan edilen sapmadır ve 4 subsetin dördü de bu tek konfigürasyonda koşulmuştur). Eşikler dördüncü denemede de donmuş değerlerle bire bir aynı fit edildi (`nmargin<0.0048 H_z>1.9569 r_min<0.1924`, `unfit_for_analysis: false`). Gece ağ kesintisi (~21:00-01:50) koşumu etkilemedi (nohup); m3 20:13'te kendi başına tamamlandı.
+
 **SONUÇ — ön-kayıtlı hüküm: BAYT-ÖZDEŞLİK ÜZERİNDEN KARAR VERİLEMEZ (CANNOT ADJUDICATE).**
 - V1 motoru A/A (detA vs detB, ikisi de saf off): **1/100 çıktı farklı** (idx 62: 'Bernard Arnault' / 'Jack Dorsey'; input_len özdeş).
 - Ön-kayıtlı geri-düşüş `VLLM_USE_V1=0` (V0 motoru) A/A (detC vs detD): **7/100 çıktı farklı** (idx 0,42,62,66,80,84,90; sem 31,0 vs 27,0) — daha kötü.
@@ -213,9 +217,22 @@ nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console9.log 2>&1 &
 | **m0** | **PASS 10:49** | S1 geçti, yukarıdaki tablo |
 | **t4** | **PASS 16:05 — KULLANICI KARARI** | s2-closed-by-statistical-equivalence (commit `89d4f02`); kanıt zinciri §2e-2f |
 | **m2** | **PASS 13:05** (manuel koşum, `HNAV_EMBED_BATCH=8`) | `fallback_chunker=false` 4/4; ham-entropi 4/4 NOT_DEGENERATE |
-| **m3** | **YENİDEN KOŞUYOR** (:8003, 4/4 subset; pid `m3_manual.pid`) | §2g: ilk koşum sh_32k'da bağlam sınırına takıldı (sınıf 2); sh_6k dahil tüm subsetler tek substratta |
-| m4 | m3 sonrası (runner devralacak) | m3.status PASS yazılınca `run_stage0.sh` m4+report'u koşar |
-| report | m4 sonrası | `report.py` + `--strict`; T8 = İNSAN KAPISI |
+| **m3** | **PASS 15/08 01:52** (4. deneme, :8003 fp8-KV/106496) | §2g-2h: üç bağlam-sınırı yinelemesi; 4 subset TEK substratta; eşikler her denemede donmuş değerlerle özdeş |
+| **m4** | **PASS 15/08 01:52** | **H2 GEÇMEDİ**: delta_auc +0.1185 ama key-clustered CI [−0.046, +0.188] sıfırı içeriyor; subset-clustered CI [+0.042, +0.087] yalnız 2 cluster (güvenilmez, m4 kendi uyarısı) |
+| **report** | **PASS 15/08 01:52** | `report --strict: COMPLETE — every measurement present.` `STAGE0_REPORT.md` repo kökünde ve `stage0_results/final/` içinde |
+
+**BORU HATTI TAMAM (T8 HARD STOP).** GO/NO_GO değerlendirmesi insana aittir; `KAPI_KARARI.md` §6'yı orkestratör dolduracak.
+
+### m3 nihai headroom özeti (4/4 subset, tek substrat)
+
+| subset | split | write n | conflict | would-intervene → veto sonrası | could-change-correctness | read: native failure (CONFLICT) | repair helped/harmed |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| sh_6k | calib | 455 | 0.352 | 0.002 → 0.000 | — (hedef yok) | 0.67 | 0 / 0 |
+| sh_32k | calib | 2.310 | 0.361 | 0.104 → 0.016 | **0.20** | 0.53 | 2 / 1 |
+| sh_64k | conf | 4.580 | 0.368 | 0.063 → 0.013 | 0.00 | 0.56 | 6 / 1 |
+| sh_262k | conf | 18.333 | 0.392 | 0.023 → 0.004 | — | 0.80 | **3 / 5** |
+
+Okuma tarafı: READ_CONFLICT/STALE/RELEVANT_BELOW_K oranı her yerde 1.00 (yapısal: her soru çakışmalı anahtara gider); READ_MISSING sh_64k 0.28 / sh_262k 0.61, native failure 0.82-0.93. Kritik gözlem: **repair sh_262k'da net ZARARLI (3 helped / 5 harmed)** — okuma-tarafı müdahale büyük mağazada tersine tepiyor; yazma-tarafı veto-sonrası müdahale oranları ~%0-1.6. Bu tablolar Stage-1 tavanının kendisidir; yorum ve GO/NO_GO insanın.
 
 - Boru hattı S2 ile kendini durdurdu (tasarım gereği); GPU1 boş, embed sunucu kapalı, :8000 sağlıklı (tek dinleyici).
 - GPU0/:8000 (kullanıcının LLM'i, PID 52520) hiç dokunulmadı.
