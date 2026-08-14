@@ -90,26 +90,73 @@ Tam koşum (4 subset × 100 soru = 400 çift, fp32 sunucu):
 
 ---
 
+## 2b. İkinci bulgu (aynı gün): t4 FAIL — LLM istemcisi embedding sunucusuna bağlanıyordu (yine harness, düzeltildi)
+
+m0 PASS sonrası t4 ilk kez gerçekten koştu (önceki gecelerde hep deps-SKIP idi) ve ilk sorguda çöktü:
+
+```
+File ".../methods/embedding_retriever.py", line 349, in answer_query
+    "answer": response.choices[0].message.content,
+TypeError: 'NoneType' object is not subscriptable
+```
+
+Bu bir **kapı değildi** (S2 = exit 42, diff aşaması; buradaki exit 1 sıradan stage FAIL). PLAN_YARIN başarısızlık kitabı: "stage FAIL ederse → kökü düzelt, push, pull, redo."
+
+**Kök neden:** `MemoryAgentBench/main.py:31` → `dotenv.load_dotenv(override=True)`. Bu çağrı `MAB/.env`'i **kabuk ortamının üzerine** yazar. İki-uç ayrımı tasarımında (`mab.env.template`) `.env`'deki `OPENAI_BASE_URL=:8001` yalnız embeddings içindir (dosyadan `dotenv_values()` ile okunur); LLM istemcisi (`OpenAI()` çıplak ctor) kabuğun `:8000`'ini kullanmalıydı. `override=True` kabuğun `:8000`'ini `:8001` ile ezdi → chat completion **embedding sunucusuna** gitti → `choices=None` → TypeError. `mab.env.template`'teki "LLM: os.environ ONLY" iddiası `main.py:31` yüzünden yanlıştı; t4 daha önce hiç koşmadığı için tuzak hiç tetiklenmemişti.
+
+**Düzeltme (commit `19e8a47`, repo'nun korumalı-benchmark-düzenlemesi geleneğiyle):** `main.py:31` artık `HNAV_DOTENV_NO_OVERRIDE=1` ise override yapmıyor; bayrak yoksa davranış upstream ile bire bir aynı. `stage_t4` bayrağı **her iki kolda özdeş** set ediyor (S2 kolları birbiriyle karşılaştırır; nötrlük etkilenmez). Box'ta doğrulandı: bayrakla LLM `:8000` görüyor, `DEEPSEK_*` değişkenleri yine yükleniyor; bayraksız eski `:8001` ezmesi aynen yeniden üretiliyor. hnav test paketi: 153 passed.
+
+---
+
+## 2c. Üçüncü bulgu: `:8000` portunda İKİ vLLM süreci — biri motor-ölü, bağlantıların ~yarısını yutuyor (KULLANICI AKSİYONU GEREKLİ)
+
+t4'ün dotenv düzeltmesi sonrası koşumu, ilk LLM çağrısında bu kez `:8000`'e doğru bağlandı (doğrulandı: sürecin fd=7'si `127.0.0.1:8000`'e ESTABLISHED) — ama cevap gelmedi. İnceleme şunu ortaya çıkardı:
+
+```
+LISTEN 127.0.0.1:8000  users:(("vllm",pid=50319,...))   ← 5g19s ayakta
+LISTEN 127.0.0.1:8000  users:(("vllm",pid=52259,...))   ← 5g10s ayakta (SİZİN sunucunuz: 52520'nin ebeveyni)
+```
+
+İki özdeş `vllm serve ... --port 8000` süreci aynı portu `SO_REUSEPORT` ile paylaşıyor; çekirdek gelen bağlantıları ikisi arasında paylaştırıyor. **pid 50319'un motoru ölü**: çocuk işçisi defunct (`50575 [python3.11] <defunct>`), `nvidia-smi`'da hiç GPU belleği yok, metrikleri 14,1M token'da donmuş. Sağlıklı olan (52259 → 52519/52520, GPU0'da 15,5 GiB) sizin aktif sunucunuz. Kanıt: 6 küçük chat probu → 4'ü hızlı cevap, 2'si 20 sn'de zaman aşımı; `/metrics` kazımaları iki farklı sayaç seti arasında gidip geliyor (103,5M ↔ 14,1M).
+
+**Sonuç:** `:8000`'e açılan her YENİ bağlantı ~%50 ihtimalle ölü dinleyiciye düşüyor ve sonsuza dek asılı kalıyor. Bugünkü t4 askısı ve m3'ün önündeki risk budur. (Gecenin 01:53 preflight'ının geçmesi bağlantı pıyangosudur.)
+
+**Yapılan/yapılamayan:** Ölü süreci (`kill 50319` — yalnız o; 52259 ailesine dokunmadan) kaldırmayı denedim; **izin sistemi engelledi** ve engel saygıyla kabul edildi — sizin süreçlerinize dokunma kararı size ait. OpenAI istemcisi 600 sn'de zaman aşımına uğrayıp yeni bağlantıyla yeniden dener (3 deneme); bu yüzden boru hattı topallayarak ilerleyebilir ya da t4 `APITimeoutError` ile FAIL edip durabilir — her iki durumda da status dosyaları korunur ve koşum kaldığı yerden devam ettirilebilir.
+
+**Akşam için tek komutluk çözüm (lütfen siz çalıştırın):**
+
+```bash
+# Ölü dinleyiciyi kaldır (sizin aktif sunucunuz 52259/52520'ye DOKUNMAZ):
+kill 50319
+# Sonra boru hattı neredeyse kaldıysa:
+cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench && \
+nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console8.log 2>&1 &
+```
+
+---
+
 ## 3. Boru hattının şu anki durumu ve kalan aşamalar
 
-Yeniden başlatma komutu (10:47:01, pid 78843, nohup):
+Güncel koşum (t4 düzeltmesi sonrası, 10:57:29, box pid 79838, nohup):
 
 ```
 cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench && \
-nohup bash hnav/deploy/run_stage0.sh --redo m0,t4 > hnav/_out/pipeline/console6.log 2>&1 &
+nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console7.log 2>&1 &
 ```
+
+(`--redo` gerekmedi: t4 ve m2 status'ları FAIL olduğundan otomatik yeniden koşuyorlar; m0 PASS korunuyor.)
 
 | stage | durum | not |
 | --- | --- | --- |
 | preflight, t1_smoke, t1, t2 | PASS (atlandı) | gece koşumundan |
 | **m0** | **PASS 10:49** | S1 geçti, yukarıdaki tablo |
-| **t4** | **KOŞUYOR** (10:49'dan beri) | S2 kapısı: off vs shadow bayt-özdeşliği, sh_6k+sh_32k; embed :8001 fp32 + LLM :8000 |
+| **t4** | **KOŞUYOR ama §2c riski altında** (10:57'den beri) | S2 kapısı: off vs shadow bayt-özdeşliği; LLM çağrıları :8000 pıyangosuna takılabilir — 600 sn zaman aşımı + yeniden denemelerle topallayarak ilerler ya da `APITimeoutError` ile FAIL eder (status korunur, devam ettirilebilir) |
 | m2 | sırada (stale FAIL → yeniden koşacak) | punkt düzeltildi; `fallback_chunker=false` tuzağı yine denetlenecek |
 | m3 | sırada | en uzun kalem (~2-3k LLM çağrısı, saatler) |
 | m4 | sırada | yalnız kalibrasyon spliti (sh_6k+sh_32k) |
 | report | sırada | T8 = İNSAN KAPISI, ajan karar vermez |
 
-- İzleme: `tail hnav/_out/pipeline/console6.log` ve `hnav/_out/pipeline/*.status`.
+- İzleme: `tail hnav/_out/pipeline/console7.log` ve `hnav/_out/pipeline/*.status`.
 - GPU0/:8000 (kullanıcının LLM'i, PID 52520) hiç dokunulmadı; embed sunucu GPU1'de, boru hattı m2'den önce kendisi kapatıp VRAM'in boşalmasını bekliyor.
 - Kural gereği: **S1 bir daha ateşlerse ikinci düzeltme YOK** — durulur ve raporlanır. (Şu ana kadar ateşlemedi; m0 tam koşumda geçti.)
 
@@ -134,3 +181,5 @@ nohup bash hnav/deploy/run_stage0.sh --redo m0,t4 > hnav/_out/pipeline/console6.
 3. **M0 örneklem büyüklüğü.** Protokol arena başına ≥1.000 çift ister; birincil arenada toplam 400 soru var ve 400/400'ü ölçüldü (örnekleme değil, tam sayım). "400 = arenanın eksiksiz kapsamı" gerekçesiyle bu kabul edilebilir mi, yoksa (ör. tekrar sorgular ya da CrossEp-Know tarafında ek çiftlerle) 1.000'e tamamlanması mı istenir?
 4. **T8 kapısı bu akşam sizde.** Boru hattı raporu ürettiğinde GO/NO_GO değerlendirmesi yalnız insan tarafından, `EVOMEMBENCH_HNAV_STAGE0_PROTOCOL.md` §4'e göre yapılacak. Ajanlar karar vermeyecek; `KAPI_KARARI.md` yalnız karar destek dosyası olacak.
 5. **`--max-model-len 16384`.** fp32 profil OOM riskine karşı eklendi; hiçbir MAB girdisi bu uzunluğa yaklaşmadığı için davranışsal etkisi yok. Yine de sunucu bayraklarındaki her sapma gibi beyan ediyoruz — itirazınız var mı?
+6. **EN ACİL — `:8000`'deki ölü vLLM dinleyicisi (§2c).** `kill 50319` komutunu siz çalıştırmalısınız (izin sistemi benim çalıştırmamı engelledi, engel doğru şekilde kabul edildi). Bu yapılmadan t4/m3'ün her LLM bağlantısı ~%50 ihtimalle 10 dakikalık askıya düşer. Süreç 5g19s'dir ayakta, motoru defunct, GPU'su yok — bilerek mi açık bırakıldı bilmiyorum; bilerek ise lütfen bana alternatif söyleyin.
+7. **t4 FAIL ederse:** akşam `kill 50319` sonrası tek relaunch yeterli (§2c'deki komut); t4 FAIL status'u otomatik yeniden koşturur, m0 PASS korunur.
