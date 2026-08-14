@@ -215,3 +215,47 @@ python hnav/stage0/report.py --strict             # T8 — HARD STOP
 
 `run_t1.sh` exits 2 if the S3 gate fires. **Stop there and report to a human** —
 that is the kill switch, and everything after it assumes it passed.
+
+---
+
+## 7. T9 — Stage-1 Faz A: the two-stage read gate
+
+Built after the T8 verdict (`KAPI_KARARI.md`) and the user's 2026-08-15 decision
+(`STAGE1_PLAN.md` §0), as the precondition for the Faz B agent.
+
+1. **`hnav/core/read_gate.py`** — benchmark-agnostic. Stage 1: pair-cosine
+   screen (default 0.92 = mean of M1b best-F1 taus on the calibration split)
+   → connected components → group-level R screen (min leave-one-out span
+   residual < frozen `r_min` 0.1924). Preconditioned on ranking ambiguity via
+   the frozen `nmargin`/`H_z` thresholds, consumed only through `for_policy()`.
+   Stage 2: bidirectional NLI — a pair is a verified conflict only if the
+   contradiction score clears the threshold in BOTH directions. LATEST is
+   named via an adapter-supplied `latest_key`; ties/missing keys refuse to
+   guess. The gate decides; it mutates nothing. `read_policy.py` (rerank
+   execution) is deliberately NOT built here — Faz B.
+2. **NLI engine**: `cross-encoder/nli-deberta-v3-large`, measured on the box:
+   1.76 GB fp32 weights on GPU1, 1.98 GB steady with batch-16 inference
+   (peak allocated 1.88 GB), 3.9 s load, ~235 ms/batch-16 on GPU. Fits next
+   to the ~17 GB fp32 embedder with ~5.6 GB slack. The arena-shaped
+   supersession pair scores contradiction 0.99996 in both directions.
+   `check_env.py` gains a gate: weights cached + 3-pair smoke with known
+   labels (contradiction / entailment / neutral, on CPU) + the arena pair
+   asserted bidirectionally.
+3. **Protocol transition** in `test_no_raw_entropy_in_policy.py`:
+   `write_policy.py` forbidden FOREVER (measured NO_GO, not a deferral);
+   `read_policy.py` permitted post-T8; the `H_raw` AST scan now also covers
+   `read_gate.py`.
+
+Deliberately untested / known limits:
+
+- `CrossEncoderNLI` has no automated GPU test — validated by `check_env`'s
+  CPU smoke plus the one-off GPU measurement above. `StubNLI` (deterministic,
+  torch-free, TEST USE ONLY like `HashEmbedder`) carries all closed-form tests.
+- With the frozen defaults the gate is **precision-first by construction**:
+  for a two-member group whose other candidates are unrelated, the LOO
+  residual is `sqrt(1 − cos²)`, so `r_min` 0.1924 implies pair cosine ≳ 0.981
+  — stricter than M1's median true-conflict sim 0.964. Stated in the module
+  docstring; Faz B's coverage-balanced calibration (sh_6k+sh_32k ONLY) is
+  where the balance is chosen deliberately.
+- The gate has not yet seen real embeddings end-to-end (no adapter wiring
+  yet); that wiring plus threshold tuning is Faz B's first task.
