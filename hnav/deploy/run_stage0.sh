@@ -310,6 +310,15 @@ stage_t4() {
         sed -e "s|^model:.*|model: $sid|" -e "s|^output_dir:.*|output_dir: $off_dir|" "$MAB/$base" > "$off_cfg"
         sed -e "s|^model:.*|model: $sid|" -e "s|^output_dir:.*|output_dir: $sha_dir|" "$MAB/$base" > "$sha_cfg"
 
+        # Fresh arms EVERY run (identically for both — S2 compares the arms
+        # against each other). main.py saves results incrementally and its
+        # load_existing_results() RESUMES from a leftover results.json, so a
+        # crashed earlier attempt would splice old-era entries (computed under
+        # different server conditions, gold answers list->str mangled by the
+        # resume path) into a fresh arm — seen 2026-08-14: the off arm carried
+        # 4 zombie-era entries and diff_neutrality would have fired a FALSE S2.
+        rm -rf "$MAB/$off_dir" "$MAB/$sha_dir"
+
         # HNAV_DOTENV_NO_OVERRIDE=1 (both arms, identically — S2 compares the
         # arms against each other): stops main.py's load_dotenv(override=True)
         # from letting MAB/.env's OPENAI_BASE_URL=:8001 (the *embedding*
@@ -324,9 +333,11 @@ stage_t4() {
             OPENAI_BASE_URL=http://localhost:8000/v1 OPENAI_API_KEY=EMPTY \
             python main.py --agent_config "$sha_cfg" --dataset_config "$ds") || return 1
 
+        # main.py writes to <output_dir>/<DatasetName>/*_results.json — one
+        # level below output_dir, not into it. Search both levels.
         local off_json sha_json
-        off_json="$(ls -t "$MAB/$off_dir"/*.json 2>/dev/null | head -1)"
-        sha_json="$(ls -t "$MAB/$sha_dir"/*.json 2>/dev/null | head -1)"
+        off_json="$(ls -t "$MAB/$off_dir"/*.json "$MAB/$off_dir"/*/*.json 2>/dev/null | head -1)"
+        sha_json="$(ls -t "$MAB/$sha_dir"/*.json "$MAB/$sha_dir"/*/*.json 2>/dev/null | head -1)"
         [ -n "$off_json" ] && [ -n "$sha_json" ] || { log "t4/$subset: result JSONs not found"; return 1; }
 
         log "t4/$subset: comparing $off_json vs $sha_json"
