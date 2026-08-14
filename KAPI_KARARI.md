@@ -17,7 +17,7 @@
 | 4 | Sinyal dejenerasyonu | m2 | **NOT_DEGENERATE 4/4** (BFCL bulgusunu çürütür); margin p50 1.235→0.318 | **GO** | detection |
 | 5 | Shadow nötrlüğü | t4/S2 | off↔shadow %2.42 < off↔off %3.04; TOST ±2.0 eşdeğerlik; kullanıcı kararı | **GO (uyarlanmış kriter)** | benchmark |
 | 6 | Müdahale tavanı | m3 | Aşağıda §2 — yazı-yolu tavanı ~%0–1,6; okuma-yolu karışık, 262k'da net ZARARLI | **AYRIŞIK — §6** | policy |
-| 7 | Marginal-diff (H2) | m4 | delta_auc +0.1185 yönü pozitif; ön-kayıtlı konjonksiyon **GEÇMEDİ** (key-clustered CI [−0.046,+0.188] 0'ı içeriyor) | **NO (ön-kayıtlı test)** | detection |
+| 7 | Marginal-diff (H2) | m4 | delta_auc +0.0674 (in-sample; cross-validated +0.1185), yönü pozitif; ön-kayıtlı konjonksiyon **GEÇMEDİ** — düşen koşul **LRT p=0.341 ≥ 0.01** (key-clustered CI [−0.046,+0.188] 0'ı içermesi destekleyici kanıt; subset-clustered CI m4'ün kendi bayrağıyla güvenilmez, 2 küme) | **NO (ön-kayıtlı test)** | detection |
 | 8 | Bütünleşik rapor | report --strict | COMPLETE, 10/10 aşama PASS | **TAMAM** | — |
 
 **Dondurulmuş eşikler (yalnız sh_6k+sh_32k):** `nmargin<0.0048`, `H_z>1.9569`,
