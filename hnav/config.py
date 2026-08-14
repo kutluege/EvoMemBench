@@ -60,6 +60,13 @@ class HNavConfig:
     llm_max_tokens: int = 128
     llm_api_key: str = "EMPTY"
 
+    # NLI cross-encoder — read-gate stage 2 (T9). GPU1, next to the embedder;
+    # ~1.7 GB fp32, verified to fit by hnav/deploy/check_env.py.
+    nli_model: str = "cross-encoder/nli-deberta-v3-large"
+    nli_device: int = 1
+    nli_dtype: str = "float32"
+    nli_batch: int = 16
+
     # paths (both gitignored)
     cache_dir: Path = field(default_factory=lambda: REPO / "hnav/_cache")
     out_dir: Path = field(default_factory=lambda: REPO / "hnav/_out")
@@ -114,6 +121,10 @@ def from_env(env: dict[str, str] | None = None, repo: Path | None = None) -> HNa
         llm_temperature=float(env.get("HNAV_LLM_TEMPERATURE", "0")),
         llm_max_tokens=int(env.get("HNAV_LLM_MAX_TOKENS", "128")),
         llm_api_key=env.get("HNAV_LLM_API_KEY", "EMPTY"),
+        nli_model=env.get("HNAV_NLI_MODEL", "cross-encoder/nli-deberta-v3-large"),
+        nli_device=int(env.get("HNAV_NLI_DEVICE", "1")),
+        nli_dtype=env.get("HNAV_NLI_DTYPE", "float32"),
+        nli_batch=int(env.get("HNAV_NLI_BATCH", "16")),
         cache_dir=_as_path(repo, env.get("HNAV_CACHE_DIR", "hnav/_cache")),
         out_dir=_as_path(repo, env.get("HNAV_OUT_DIR", "hnav/_out")),
         top_m=int(env.get("HNAV_TOP_M", "50")),

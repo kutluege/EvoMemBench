@@ -172,13 +172,15 @@ python -m pip install -q \
 
 # ── 5. weights + .env files ──────────────────────────────────────────────────
 EMBED_MODEL="${HNAV_EMBED_MODEL:-Qwen/Qwen3-Embedding-4B}"
-echo "[5/5] fetching $EMBED_MODEL into $HF_HOME (~8 GB, first run only) ..."
-python - "$EMBED_MODEL" <<'PYEOF'
+NLI_MODEL="${HNAV_NLI_MODEL:-cross-encoder/nli-deberta-v3-large}"
+echo "[5/5] fetching $EMBED_MODEL (~8 GB) + $NLI_MODEL (~1.7 GB), first run only ..."
+python - "$EMBED_MODEL" "$NLI_MODEL" <<'PYEOF'
 import sys
 from huggingface_hub import snapshot_download
-path = snapshot_download(sys.argv[1], allow_patterns=[
-    "*.json", "*.safetensors", "*.model", "*.txt", "tokenizer*"])
-print(f"   cached at: {path}")
+for model in sys.argv[1:]:
+    path = snapshot_download(model, allow_patterns=[
+        "*.json", "*.safetensors", "*.model", "*.txt", "tokenizer*", "spm.model"])
+    print(f"   cached at: {path}")
 PYEOF
 
 if [ ! -f "$REPO_ROOT/.env" ]; then
@@ -212,6 +214,6 @@ cat <<EOF
 
  Next:
      python hnav/deploy/check_env.py     # must exit 0
-     pytest hnav/tests/ -q               # must be 153 passed
+     pytest hnav/tests/ -q               # must be 175 passed
 ==============================================================
 EOF

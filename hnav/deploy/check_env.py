@@ -8,6 +8,8 @@ Verifies, in order and without loading the 8GB embedder:
   2. the committed stdlib measurement scripts still reproduce their numbers
   3. torch sees CUDA, and the chosen embed device has enough free VRAM
   4. the embedding model is cached locally
+  4b. the NLI cross-encoder is cached AND labels a 3-pair smoke correctly
+      (known contradiction / entailment / neutral, on CPU) — Stage-1 read gate
   5. the LLM endpoint on :8000 answers, and its model id is recorded
   6. (optional) the embedding endpoint on :8001, if you have served it
 
@@ -153,6 +155,65 @@ def check_embed_weights(env: dict) -> None:
                f"HF_HOME must match where setup cached it")
 
 
+# ── 4b. NLI cross-encoder (read gate stage 2, T9) ────────────────────────────
+# Three pairs with KNOWN labels: an arena-shaped supersession pair
+# (contradiction), a canonical SNLI entailment and a canonical SNLI neutral.
+# The smoke runs on CPU deliberately — check_env must not claim VRAM before a
+# run — and takes a few seconds for 3 pairs.
+NLI_SMOKE = [
+    ("Thomas Kyd was born in the city of London.",
+     "Thomas Kyd was born in the city of Madrid.", "contradiction"),
+    ("A soccer game with multiple males playing.",
+     "Some men are playing a sport.", "entailment"),
+    ("An older and younger man are smiling.",
+     "Two men are laughing at cats playing on the floor.", "neutral"),
+]
+
+
+def check_nli(env: dict) -> None:
+    model = env.get("HNAV_NLI_MODEL", "cross-encoder/nli-deberta-v3-large")
+    try:
+        from huggingface_hub import snapshot_download
+        path = snapshot_download(model, local_files_only=True,
+                                 allow_patterns=["config.json", "*.safetensors"])
+        report(OK, "nli weights", f"{model} cached at {path}")
+    except ImportError:
+        report(WARN, "nli weights", "huggingface_hub missing; cannot verify")
+        return
+    except Exception:  # noqa: BLE001
+        hf_home = os.environ.get("HF_HOME", "~/.cache/huggingface (default)")
+        report(FAIL, "nli weights",
+               f"{model} not found under HF_HOME={hf_home} — fetch with: python -c "
+               f"\"from huggingface_hub import snapshot_download; snapshot_download('{model}')\"")
+        return
+
+    try:
+        import sys as _sys
+        if str(REPO) not in _sys.path:
+            _sys.path.insert(0, str(REPO))
+        from hnav.core.read_gate import CrossEncoderNLI
+        nli = CrossEncoderNLI(model_name=model, device="cpu", batch=4, max_length=128)
+        scores = nli.score_pairs([(p, h) for p, h, _ in NLI_SMOKE])
+        bad = [f"'{p[:36]}…'→'{h[:36]}…' got {s.label}, want {want}"
+               for (p, h, want), s in zip(NLI_SMOKE, scores) if s.label != want]
+        if bad:
+            report(FAIL, "nli smoke", "; ".join(bad))
+        else:
+            # The gate's criterion is BIDIRECTIONAL contradiction: assert the
+            # arena pair also contradicts in the reverse direction.
+            p, h, _ = NLI_SMOKE[0]
+            rev = nli.score(h, p)
+            if rev.label == "contradiction":
+                report(OK, "nli smoke", "3/3 labels as expected; arena pair "
+                                        "contradicts in BOTH directions (cpu)")
+            else:
+                report(FAIL, "nli smoke",
+                       f"reverse direction of the arena pair got {rev.label}, "
+                       f"want contradiction — bidirectional criterion unusable")
+    except Exception as e:  # noqa: BLE001
+        report(FAIL, "nli smoke", f"inference failed: {str(e)[:120]}")
+
+
 # ── 5/6. endpoints ───────────────────────────────────────────────────────────
 def check_endpoint(env: dict, base_key: str, label: str, required: bool) -> str | None:
     base = env.get(base_key, "").rstrip("/")
@@ -184,6 +245,8 @@ def main() -> int:
     check_gpu(env)
     print("\n── embedding model ──────────────────────────────────────────────")
     check_embed_weights(env)
+    print("\n── nli cross-encoder ────────────────────────────────────────────")
+    check_nli(env)
     print("\n── endpoints ────────────────────────────────────────────────────")
     llm_id = check_endpoint(env, "HNAV_LLM_BASE_URL", "LLM  :8000", required=False)
     check_endpoint(env, "QWEN3_EMBED_BASE_URL", "embed :8001 (optional until T4)", required=False)
