@@ -123,42 +123,60 @@ LISTEN 127.0.0.1:8000  users:(("vllm",pid=52259,...))   ← 5g10s ayakta (SİZİ
 
 **Yapılan/yapılamayan:** Ölü süreci (`kill 50319` — yalnız o; 52259 ailesine dokunmadan) kaldırmayı denedim; **izin sistemi engelledi** ve engel saygıyla kabul edildi — sizin süreçlerinize dokunma kararı size ait. OpenAI istemcisi 600 sn'de zaman aşımına uğrayıp yeni bağlantıyla yeniden dener (3 deneme); bu yüzden boru hattı topallayarak ilerleyebilir ya da t4 `APITimeoutError` ile FAIL edip durabilir — her iki durumda da status dosyaları korunur ve koşum kaldığı yerden devam ettirilebilir.
 
-**Akşam için tek komutluk çözüm (lütfen siz çalıştırın):**
+**ÇÖZÜLDÜ (öğleden sonra):** Kullanıcı onayıyla `kill 50319` orkestratör tarafından çalıştırıldı; :8000 artık 6/6 probda anında cevap veriyor; sağlıklı sunucu (52259/52520) dokunulmadı. hnav ortamından manuel chat doğrulaması: `'T4-PROBE-OK'` anında döndü.
 
-```bash
-# Ölü dinleyiciyi kaldır (sizin aktif sunucunuz 52259/52520'ye DOKUNMAZ):
-kill 50319
-# Sonra boru hattı neredeyse kaldıysa:
-cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench && \
-nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console8.log 2>&1 &
-```
+---
+
+## 2d. Dördüncü bulgu: t4'ün üçüncü başarısızlığı — sonuç dosyası glob'u + zehirli devam-etme (resume) dosyası (düzeltildi, commit `5f8e44a`)
+
+Zombi öldürüldükten sonra 12:26'daki koşumda t4 saniyeler içinde yine FAIL etti ("result JSONs not found"). Teşhis, ilk bakışta görünenin tam tersini ortaya çıkardı:
+
+- **Her iki kol da aslında BAŞARIYLA TAMAMLANMIŞTI** — 100'er gerçek cevap, özdeş metrikler (substring_exact_match 26.0). Log'daki "boş Answer:" satırları sorgu şablonunun kendi kuyruk istemidir (model çıktısı değil); "Context 0 already processed, skipping build vectorstore" sorgu başına normal bellek-içi mesajdır; "anında akan sorgular" vLLM prefix-cache isabetleridir (shadow ort. `query_time_len` 0.082 sn). Auth/base_url/guard sorunu YOKTUR (§2b düzeltmesi çalışıyor; kanıt: kol süreci fd'siyle :8000'e ESTABLISHED + yukarıdaki probe).
+- **Asıl stage hatası:** `stage_t4` sonuç JSON'unu `$off_dir/*.json`'da arıyordu; `main.py` ise `<output_dir>/<DatasetName>/*_results.json`'a — bir seviye derine — yazar. Dosyalar vardı, glob bulamıyordu.
+- **Daha sinsisi (gizli S2 tuzağı):** `main.py` sonuçları artımlı kaydeder ve `load_existing_results()` yarım kalmış `results.json`'dan DEVAM eder. Off kolunun dosyasında zombi-devrine ait 4 giriş (farklı sunucu koşullarında hesaplanmış; `initialization.py:90`'daki resume yolu gold cevabı list→str bozar) + 96 taze giriş vardı; shadow ise %100 tazeydi. Bu çiftle `diff_neutrality` **SAHTE bir S2** ateşleyecekti — enstrümantasyon suçlanacaktı, oysa fark iki devrin karışımından geliyordu.
+
+**Düzeltme (`5f8e44a`, iki kolda özdeş):** (1) glob iki seviyeyi de arıyor; (2) `stage_t4` her subset koşumundan önce iki kolun çıktı dizinini `rm -rf` ile temizliyor — her S2 karşılaştırması artık iki temiz, aynı-devir koşum arasında. Box'taki zehirli `outputs/hnav_t4_*` dizinleri elle de temizlendi (`hnav/_cache/emb` dokunulmadı; `outputs/rag_retrieved` salt-yazılır telemetri, okunmuyor).
+
+---
+
+## 2e. GATE S2 ATEŞLEDİ (12:36) — ve A/A testi farkın kaynağını H-Nav'dan değil, sunucu alt-katmanından çıkardı
+
+12:34 koşumunda t4, iki TEMİZ kolla (§2d düzeltmeleri sonrası) koştu ve **S2 ateşledi**. Kurallar gereği **hiçbir düzeltme yapılmadı** — boru hattı kendini durdurdu, kapı sonucu bir ölçümdür. Yapılan tek şey teşhis analizi:
+
+**S2 çifti (off vs shadow, sh_6k):** 100 sorgunun **2'sinde** çıktı farklı (idx 70: 'Canadair' / 'Westinghouse Electric'; idx 90: 'association football' / 'basketball'). `input_len` 100/100 özdeş — iki kol modele aynı istemleri verdi; yalnız üretilen metin değişti.
+
+**A/A kontrol deneyi (off vs off — H-Nav kodu HİÇ yok, iki kez aynı koşum):** 100 sorgunun **5'inde** çıktı farklı (idx 36, 42, 66, 80, 81), **4'ünde doğruluk değişti** (exact_match 26.0 → 30.0). Yine `input_len` 100/100 özdeş.
+
+**Sonuç:** off↔shadow farkı (2/100), alt-katmanın kendi A/A gürültü tabanının (5/100) İÇİNDE. `:8000` vLLM sunucusu (0.9.1, continuous batching + prefix caching) **temperature=0'da koşumdan koşuma bit-özdeş DEĞİL** — brief'in "t=0'da meşru varyasyon kaynağı yoktur" öncülü bu servis yığınında ampirik olarak yanlış. Shadow enstrümantasyonunun sunucu gürültüsünün ötesinde hiçbir etkisi gözlenmedi; ama bayt-özdeşlik kriteri bu alt-katmanda **karşılanamaz**.
+
+**Kanıt dosyaları** (commit'li): `stage0_results/t4_s2_evidence/sh_6k_{off,shadow,offA,offB}_results.json`. Karar insana aittir (aşağıda açık soru); kapı statüsü `t4: GATE S2` olarak duruyor, hiçbir downstream aşama koşmadı.
 
 ---
 
 ## 3. Boru hattının şu anki durumu ve kalan aşamalar
 
-Güncel koşum (t4 düzeltmesi sonrası, 10:57:29, box pid 79838, nohup):
+Güncel koşum (tüm düzeltmeler sonrası, 12:34, box'ta nohup, `console9.log`):
 
 ```
 cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench && \
-nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console7.log 2>&1 &
+nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console9.log 2>&1 &
 ```
 
-(`--redo` gerekmedi: t4 ve m2 status'ları FAIL olduğundan otomatik yeniden koşuyorlar; m0 PASS korunuyor.)
+(`--redo` gerekmedi: t4 ve m2 status'ları FAIL olduğundan otomatik yeniden koşuyorlar; m0 PASS korunuyor. Önceki denemeler: console7 = zombi devri APITimeoutError; console8 = §2d glob/resume hatası.)
 
 | stage | durum | not |
 | --- | --- | --- |
 | preflight, t1_smoke, t1, t2 | PASS (atlandı) | gece koşumundan |
 | **m0** | **PASS 10:49** | S1 geçti, yukarıdaki tablo |
-| **t4** | **KOŞUYOR ama §2c riski altında** (10:57'den beri) | S2 kapısı: off vs shadow bayt-özdeşliği; LLM çağrıları :8000 pıyangosuna takılabilir — 600 sn zaman aşımı + yeniden denemelerle topallayarak ilerler ya da `APITimeoutError` ile FAIL eder (status korunur, devam ettirilebilir) |
-| m2 | sırada (stale FAIL → yeniden koşacak) | punkt düzeltildi; `fallback_chunker=false` tuzağı yine denetlenecek |
-| m3 | sırada | en uzun kalem (~2-3k LLM çağrısı, saatler) |
-| m4 | sırada | yalnız kalibrasyon spliti (sh_6k+sh_32k) |
-| report | sırada | T8 = İNSAN KAPISI, ajan karar vermez |
+| **t4** | **GATE S2 — 12:36:02, BORU HATTI DURDU** | §2e: A/A analizi farkı sunucu nondeterminizmine atfediyor; karar insanda |
+| m2 | koşmadı (stale FAIL duruyor) | punkt düzeltildi; relaunch'ta otomatik yeniden koşar |
+| m3 | koşmadı | en uzun kalem (~2-3k LLM çağrısı, saatler) |
+| m4 | koşmadı | yalnız kalibrasyon spliti (sh_6k+sh_32k) |
+| report | koşmadı | T8 = İNSAN KAPISI, ajan karar vermez |
 
-- İzleme: `tail hnav/_out/pipeline/console7.log` ve `hnav/_out/pipeline/*.status`.
-- GPU0/:8000 (kullanıcının LLM'i, PID 52520) hiç dokunulmadı; embed sunucu GPU1'de, boru hattı m2'den önce kendisi kapatıp VRAM'in boşalmasını bekliyor.
-- Kural gereği: **S1 bir daha ateşlerse ikinci düzeltme YOK** — durulur ve raporlanır. (Şu ana kadar ateşlemedi; m0 tam koşumda geçti.)
+- Boru hattı S2 ile kendini durdurdu (tasarım gereği); GPU1 boş, embed sunucu kapalı, :8000 sağlıklı (tek dinleyici).
+- GPU0/:8000 (kullanıcının LLM'i, PID 52520) hiç dokunulmadı.
+- S2 kararı sonrası ilerleme: t4 status'u GATE olduğundan relaunch t4'ü yeniden dener ve büyük olasılıkla yine S2 ateşler (A/A gürültüsü yapısal). m2/m3/m4 t4'e bağımlı DEĞİL (kendi çevrimdışı replikasını kullanırlar) — insan isterse t4'ü `SKIP <gerekçe>` olarak işaretleyip (`hnav/_out/pipeline/t4.status` elle) kalan aşamaları koşturabilir; bu işaretleme kapı kaydını SİLMEZ, rapor t4'ü NOT RUN/GATE olarak gösterir. Bu adım İNSAN kararıdır, ben atmadım.
 
 ---
 
@@ -171,15 +189,16 @@ nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console7.log 2>&1 &
 5. **M2 ham-entropi verdikti** (`H_raw` degenerasyonu cosine×100'de) — m2 çıktısında; iki cevap da yayınlanabilir.
 6. **Değişmezler devam ediyor**: `HNAV_MODE=off`; `write_policy.py`/`read_policy.py` yok (T8 insan kararına kilitli); sh_64k/sh_262k'da eşik ayarı yasak; `hnav/_cache/emb/` silinmez/kopyalanmaz (model|dtype anahtarlı).
 7. Arşiv kanıtı: `hnav/_out/m0_replica_fidelity.GATE_20260814_bf16.json` (bf16 GATE ölçümü) — `stage0_results/`'a kopyalanmalı.
+8. **S2 / alt-katman nondeterminizmi bulgusu (§2e)**: vLLM continuous batching + prefix caching altında t=0 bit-özdeşliği yok (A/A: 5/100 çıktı, 4/100 doğruluk oynuyor). Stage-1 için iki içerim: (i) tek-koşum benchmark skorları ±~2-4 puanlık sunucu gürültüsü taşır — Stage-1 etki ölçümleri bu tabanın ÜzERİNDE olmalı ya da çok-koşum ortalaması kullanılmalı; (ii) "bayt-özdeşlik" türü nötrlük kriterleri bu yığında istatistiksel eşdeğerlikle değiştirilmeli. Kanıt: `stage0_results/t4_s2_evidence/`.
 
 ---
 
 ## 5. KULLANICIYA AÇIK SORULAR
 
-1. **fp32 servis sapması beyanı.** :8001 embed sunucusu artık `--dtype float32` ile koşuyor (kampanyanın sabit dtype'ı; T1/M2/M3 ile tutarlı). Ancak checkpoint'in native dtype'ı bf16'dır ve upstream benchmark yazarlarının servis dtype'ı bilinmiyor. Tezde "embedding'ler fp32 servis edildi" açık bir sapma/konfigürasyon notu olarak beyan edilecek — **onaylıyor musunuz?** (Alternatif — bf16'ya dönmek — T1'den beri yapılan tüm kalibrasyonu geçersiz kılar; önerilmez.)
-2. **bf16 GATE ölçümünün tezdeki yeri.** S1'in bf16 altında ateşlemesi kendi başına bir bulgu: "replika sadakati servis dtype'ına birim-norm varsayımı üzerinden duyarlıdır (bf16'da topk 0.24, fp32'de 1.00)". Bunu tezde bir gürbüzlük/negatif-sonuç kutusu olarak raporlamak ister misiniz, yoksa yalnız yöntem notu mu kalsın?
-3. **M0 örneklem büyüklüğü.** Protokol arena başına ≥1.000 çift ister; birincil arenada toplam 400 soru var ve 400/400'ü ölçüldü (örnekleme değil, tam sayım). "400 = arenanın eksiksiz kapsamı" gerekçesiyle bu kabul edilebilir mi, yoksa (ör. tekrar sorgular ya da CrossEp-Know tarafında ek çiftlerle) 1.000'e tamamlanması mı istenir?
-4. **T8 kapısı bu akşam sizde.** Boru hattı raporu ürettiğinde GO/NO_GO değerlendirmesi yalnız insan tarafından, `EVOMEMBENCH_HNAV_STAGE0_PROTOCOL.md` §4'e göre yapılacak. Ajanlar karar vermeyecek; `KAPI_KARARI.md` yalnız karar destek dosyası olacak.
-5. **`--max-model-len 16384`.** fp32 profil OOM riskine karşı eklendi; hiçbir MAB girdisi bu uzunluğa yaklaşmadığı için davranışsal etkisi yok. Yine de sunucu bayraklarındaki her sapma gibi beyan ediyoruz — itirazınız var mı?
-6. **EN ACİL — `:8000`'deki ölü vLLM dinleyicisi (§2c).** `kill 50319` komutunu siz çalıştırmalısınız (izin sistemi benim çalıştırmamı engelledi, engel doğru şekilde kabul edildi). Bu yapılmadan t4/m3'ün her LLM bağlantısı ~%50 ihtimalle 10 dakikalık askıya düşer. Süreç 5g19s'dir ayakta, motoru defunct, GPU'su yok — bilerek mi açık bırakıldı bilmiyorum; bilerek ise lütfen bana alternatif söyleyin.
-7. **t4 FAIL ederse:** akşam `kill 50319` sonrası tek relaunch yeterli (§2c'deki komut); t4 FAIL status'u otomatik yeniden koşturur, m0 PASS korunur.
+Öğleden sonra kullanıcı onayı alınanlar (orkestratör aracılığıyla): **fp32 servis beyan edilen sapma olarak ONAYLANDI**; **bf16 S1 olayı teze gürbüzlük bulgusu olarak GİRECEK**; **M0 400/400 eksiksiz sayım olarak KABUL EDİLDİ**; **`kill 50319` kullanıcı onayıyla yapıldı** (§2c çözüldü). Kalan açık sorular:
+
+1. **S2 kararı (EN ACİL — boru hattı bunun için duruyor).** Bayt-özdeşlik kriteri bu vLLM yığınında karşılanamıyor (§2e: A/A gürültüsü 5/100 ≥ off↔shadow farkı 2/100). Seçenekleriniz: (a) S2 kriterini "off↔shadow farkı ≤ A/A gürültü tabanı" biçiminde istatistiksel eşdeğerliğe revize etmek (A/A kanıtı commit'li; shadow'un ek etkisi gözlenmedi); (b) t4'ü elle SKIP işaretleyip m2→report'u koşturmak, S2'yi raporda "alt-katman nondeterminizmi nedeniyle karar verilemedi" diye beyan etmek; (c) deterministik bir backend ile t4'ü tekrarlamak (ör. :8000'i tek-istek/`--enforce-eager`/prefix-cache-kapalı bir yapılandırmada — sizin sunucunuz, sizin kararınız). Ben hiçbirini seçmedim; kapı sizde.
+2. **T8 kapısı bu akşam sizde.** Boru hattı raporu ürettiğinde GO/NO_GO değerlendirmesi yalnız insan tarafından, `EVOMEMBENCH_HNAV_STAGE0_PROTOCOL.md` §4'e göre yapılacak. Ajanlar karar vermeyecek; `KAPI_KARARI.md` yalnız karar destek dosyası olacak.
+3. **`--max-model-len 16384` (embed sunucusu).** fp32 profil OOM riskine karşı eklendi; hiçbir MAB girdisi bu uzunluğa yaklaşmadığı için davranışsal etkisi yok. Sunucu bayrağı sapması olarak beyan ediyoruz — itirazınız var mı?
+4. **t4/sh_32k bağlam sınırı riski (S2 sh_6k'da ateşlediği için henüz test edilmedi).** sh_32k'da 9 chunk × ~3,3k token + sorgu ≈ ~30k token istem, :8000 sunucunuzun `--max-model-len 32000` sınırına çok yakın (tokenizer farkıyla aşabilir). Aşarsa t4/sh_32k `BadRequestError` ile düşer; çözüm sizin sunucunuzun sınırını yükseltmek ya da bu subset için sapma beyanı olur — karar sizin.
+5. **`main.py` resume davranışı (§2d).** `load_existing_results` gold cevabı list→str bozuyor ve devirler-arası karışıma açık; t4 için `rm -rf` ile etkisizleştirdik. Upstream'e karşı bir düzeltme (ör. resume'u onarmak) istenirse ayrı iş olarak ele alınmalı — Stage-0 için gerekmiyor.
