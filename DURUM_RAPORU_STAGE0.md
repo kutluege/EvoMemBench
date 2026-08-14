@@ -153,6 +153,35 @@ Zombi öldürüldükten sonra 12:26'daki koşumda t4 saniyeler içinde yine FAIL
 
 ---
 
+## 2f. Kullanıcının S2 protokolünün uygulanması (öğleden sonra): m2 TAMAM, gürültü tabanı ölçüldü, deterministik hakem koşumu
+
+Kullanıcı kararı (orkestratör aracılığıyla): (1) tekrarlı denemelerle gürültü tabanı; (2) analiz planı veri toplamadan ÖNCE ön-kayıt; (3) kesin S2 hükmü deterministik bir sunucuda. Uygulama:
+
+**Ön-kayıt:** `stage0_results/t4_s2_protocol.md` + sürücü + analiz betiği, commit `7cb8323` — box'a çekilme saati ~13:05, sürücü başlangıcı 13:06:05. Ön-kayıt veri toplamadan önce gerçekleşti (git geçmişi kanıt).
+
+**m2 (paralel program, GPU1):** İlk deneme OOM (fp32 embedder + batch 32 × 512-token chunk aktivasyonları 23,5 GiB'ı aştı — m2, chunk embed'leyen İLK aşama; T1 yalnız kısa fact'ler embed'lemişti). Kampanyanın kendi konfigürasyon yüzeyi kullanıldı: `HNAV_EMBED_BATCH=8` (box `.env`; kod değişikliği yok; padding-maskeli pooling batch'ten bağımsız). İkinci koşum: **exit 0, `fallback_chunker=false` 4/4 subset**. M2 verdikti: **ham-skor entropisi cosine×100'de DEJENERE DEĞİL** (4/4 subset `NOT_DEGENERATE`) — önceki BFCL bulgusunun bu arenada reddi; brief'e göre yayınlanabilir. Margin p50: 1.235 (sh_6k) → 0.318 (sh_262k); etkin komşuluk 1.44 → 36.41.
+
+**Gürültü tabanı denemeleri (:8000, sh_6k, m3'ten ÖNCE, sunucu boşta):** 1 atılan ısınma + 10 off + 5 shadow, serpiştirilmiş ön-kayıtlı sıra, hepsi exit 0. Ön-kayıtlı analiz (`t4_s2_trials_summary.json`, commit `8204cb5`):
+- Off-içi ikili çıktı-uyumsuzluğu: **ort. %3,04, maks. %9,0** (45 çift); shadow-içi %2,2 (10 çift); **off↔shadow arası %2,42 (50 çift) — off-içi ortalamanın ALTINDA.**
+- Koşum-düzeyi substring_exact_match: off 27,1 ± 1,52 (26–31!), shadow 26,6 ± 0,89.
+- TOST (±2,0 puan marj): **eşdeğerlik kuruldu** (p_alt 0,0008; p_üst 0,017). Permütasyon (10k, seed 20260814): Δ = −0,0047, p = 0,475.
+- Ön-kayıtlı karar kuralı: **alt-katman gürültüsü atfını DESTEKLİYOR; nötrlük aleyhine kanıt yok.** Kural gereği bu YALNIZ destekleyici kanıttır, PASS değildir.
+
+**Program sapmaları (gerekçeli):** m2 ile denemeler eşzamanlı koşamadı (denemelerin retrieval'ı GPU1'deki :8001 embed sunucusunu, m2 aynı GPU'daki in-process embedder'ı ister); m3, Faz-3'ten SONRA başlatılıyor (m3 `build_embedder` ile GPU1'de ~16 GiB fp32 embedder'ı koşum boyunca tutar — `m3_headroom.py:482` + `gpu_guard 17` — :8002/:8001 deterministik çifti GPU1'e sığmazdı).
+
+**Deterministik hakem (:8002, GPU1):** vLLM 0.9.1, yerel Qwen3-4B-Instruct-2507 ağırlıkları, `--enforce-eager --max-num-seqs 1 --no-enable-prefix-caching --max-model-len 12288 --gpu-memory-utilization 0.60`; embeddings :8001 **bf16** (yalnız bu test için belgelenmiş sapma — fp32 embed + chat GPU1'e birlikte sığmıyor; iki kol özdeş retrieval görür, determinizm kanıtı tüm yolu kapsar).
+
+**SONUÇ — ön-kayıtlı hüküm: BAYT-ÖZDEŞLİK ÜZERİNDEN KARAR VERİLEMEZ (CANNOT ADJUDICATE).**
+- V1 motoru A/A (detA vs detB, ikisi de saf off): **1/100 çıktı farklı** (idx 62: 'Bernard Arnault' / 'Jack Dorsey'; input_len özdeş).
+- Ön-kayıtlı geri-düşüş `VLLM_USE_V1=0` (V0 motoru) A/A (detC vs detD): **7/100 çıktı farklı** (idx 0,42,62,66,80,84,90; sem 31,0 vs 27,0) — daha kötü.
+- **Mikro-prob:** her iki sunucu da TEK TEK özdeş isteklere bit-özdeş cevap veriyor (chat 3×: özdeş; embed 3×: maks fark 0.0). Yani akış-içi durum (KV blok yerleşimine bağlı fp indirgeme sırası; idx-0 gibi erken bir near-tie flip'in downstream tahsis geçmişini değiştirip kaskatlaması) uçtan uca koşumları t=0'da bile bit-özdeş olmaktan çıkarıyor.
+- Ön-kayıtlı protokol Part 2 gereği: kanıtlanmış deterministik alt-katman OLMADAN off/shadow hakem çifti koşmak hiçbir şeyi karara bağlamaz — koşulmadı. "Bayt-özdeş değil → gerçek S2 ihlali" çıkarımı bu koşullarda YAPILAMAZ (protokolün önlemeye yazıldığı yanlış atıf tam olarak budur).
+- Kanıt: `stage0_results/t4_s2_evidence/sh_6k_det{A,B,C,D}_results.json`.
+
+**Toplam kanıt durumu (insan kararı için):** (i) off↔shadow farkı A/A gürültü tabanının içinde/altında (2/100 < 3,04/100; denemelerde çapraz %2,42 < off-içi %3,04); (ii) TOST eşdeğerliği ±2,0 marjda kuruldu; (iii) permütasyon p=0,475; (iv) bayt-özdeşlik kriteri bu yığında off-vs-off için bile karşılanamaz (V1 1/100, V0 7/100). Shadow enstrümantasyonuna atfedilebilir HİÇBİR fark gözlenmedi; ama brief'in bayt-özdeşlik kriteri sağlanamadığı için S2 PASS İLAN EDİLMEDİ — `t4.status` GATE olarak bırakıldı, karar T8'de insanın.
+
+---
+
 ## 3. Boru hattının şu anki durumu ve kalan aşamalar
 
 Güncel koşum (tüm düzeltmeler sonrası, 12:34, box'ta nohup, `console9.log`):
@@ -168,11 +197,11 @@ nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console9.log 2>&1 &
 | --- | --- | --- |
 | preflight, t1_smoke, t1, t2 | PASS (atlandı) | gece koşumundan |
 | **m0** | **PASS 10:49** | S1 geçti, yukarıdaki tablo |
-| **t4** | **GATE S2 — 12:36:02, BORU HATTI DURDU** | §2e: A/A analizi farkı sunucu nondeterminizmine atfediyor; karar insanda |
-| m2 | koşmadı (stale FAIL duruyor) | punkt düzeltildi; relaunch'ta otomatik yeniden koşar |
-| m3 | koşmadı | en uzun kalem (~2-3k LLM çağrısı, saatler) |
-| m4 | koşmadı | yalnız kalibrasyon spliti (sh_6k+sh_32k) |
-| report | koşmadı | T8 = İNSAN KAPISI, ajan karar vermez |
+| **t4** | **GATE S2 (12:36) — statü korunuyor** | §2e-2f: fark alt-katman gürültüsü içinde; bayt-özdeşlik hiçbir yığında sağlanamadı → hüküm CANNOT ADJUDICATE, karar T8'de |
+| **m2** | **PASS 13:05** (manuel koşum, `HNAV_EMBED_BATCH=8`) | `fallback_chunker=false` 4/4; ham-entropi 4/4 NOT_DEGENERATE |
+| **m3** | **KOŞUYOR** (15:1x'ten beri, pid `hnav/_out/pipeline/m3_manual.pid`, log `m3_manual.log`) | doğrudan nohup (runner t4 GATE'i yeniden koşardı); GPU1'de fp32 embedder, LLM :8000 |
+| m4 | m3 sonrası ELLE koşulmalı | `python hnav/stage0/m4_marginal_diff_test.py` (runner kullanılacaksa önce t4 kararı gerekli) |
+| report | m4 sonrası ELLE | `python hnav/stage0/report.py` + `--strict`; T8 = İNSAN KAPISI |
 
 - Boru hattı S2 ile kendini durdurdu (tasarım gereği); GPU1 boş, embed sunucu kapalı, :8000 sağlıklı (tek dinleyici).
 - GPU0/:8000 (kullanıcının LLM'i, PID 52520) hiç dokunulmadı.
@@ -197,7 +226,7 @@ nohup bash hnav/deploy/run_stage0.sh > hnav/_out/pipeline/console9.log 2>&1 &
 
 Öğleden sonra kullanıcı onayı alınanlar (orkestratör aracılığıyla): **fp32 servis beyan edilen sapma olarak ONAYLANDI**; **bf16 S1 olayı teze gürbüzlük bulgusu olarak GİRECEK**; **M0 400/400 eksiksiz sayım olarak KABUL EDİLDİ**; **`kill 50319` kullanıcı onayıyla yapıldı** (§2c çözüldü). Kalan açık sorular:
 
-1. **S2 kararı (EN ACİL — boru hattı bunun için duruyor).** Bayt-özdeşlik kriteri bu vLLM yığınında karşılanamıyor (§2e: A/A gürültüsü 5/100 ≥ off↔shadow farkı 2/100). Seçenekleriniz: (a) S2 kriterini "off↔shadow farkı ≤ A/A gürültü tabanı" biçiminde istatistiksel eşdeğerliğe revize etmek (A/A kanıtı commit'li; shadow'un ek etkisi gözlenmedi); (b) t4'ü elle SKIP işaretleyip m2→report'u koşturmak, S2'yi raporda "alt-katman nondeterminizmi nedeniyle karar verilemedi" diye beyan etmek; (c) deterministik bir backend ile t4'ü tekrarlamak (ör. :8000'i tek-istek/`--enforce-eager`/prefix-cache-kapalı bir yapılandırmada — sizin sunucunuz, sizin kararınız). Ben hiçbirini seçmedim; kapı sizde.
+1. **S2 kararı (T8'de).** Protokolünüz uygulandı; sonuç: bayt-özdeşlik kriteri bu donanım/yazılım yığınında off-vs-off için bile sağlanamıyor (V1 1/100, V0 7/100 — §2f), off↔shadow farkı ise her ölçümde gürültü tabanının içinde ve TOST eşdeğerliği ±2,0 marjda kurulu. Önünüzdeki karar: S2 kriterini ön-kayıtlı istatistiksel eşdeğerlik çerçevesiyle değerlendirip t4'ü kapatmak (kanıt dosyaları commit'li) MI, yoksa S2'yi "karar verilemedi" olarak beyan edip Stage-1'e etkisini ayrıca tartışmak MI. Ben `t4.status`'u GATE bıraktım ve PASS ilan etmedim.
 2. **T8 kapısı bu akşam sizde.** Boru hattı raporu ürettiğinde GO/NO_GO değerlendirmesi yalnız insan tarafından, `EVOMEMBENCH_HNAV_STAGE0_PROTOCOL.md` §4'e göre yapılacak. Ajanlar karar vermeyecek; `KAPI_KARARI.md` yalnız karar destek dosyası olacak.
 3. **`--max-model-len 16384` (embed sunucusu).** fp32 profil OOM riskine karşı eklendi; hiçbir MAB girdisi bu uzunluğa yaklaşmadığı için davranışsal etkisi yok. Sunucu bayrağı sapması olarak beyan ediyoruz — itirazınız var mı?
 4. **t4/sh_32k bağlam sınırı riski (S2 sh_6k'da ateşlediği için henüz test edilmedi).** sh_32k'da 9 chunk × ~3,3k token + sorgu ≈ ~30k token istem, :8000 sunucunuzun `--max-model-len 32000` sınırına çok yakın (tokenizer farkıyla aşabilir). Aşarsa t4/sh_32k `BadRequestError` ile düşer; çözüm sizin sunucunuzun sınırını yükseltmek ya da bu subset için sapma beyanı olur — karar sizin.
