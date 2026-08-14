@@ -49,9 +49,11 @@ looks valid and isn't.
   z-scored `H_z`. Asserted by `test_no_raw_entropy_in_policy.py`.
 - **Never reuse the prior BFCL port's numeric thresholds.** Different scales, different base rates.
 - **Stop at every `[GATE]`** in the brief and report to a human. Do not proceed on your own judgment.
-- **`hnav/core/write_policy.py` and `read_policy.py` must not exist.** They are live-intervention
-  code gated behind the T8 human decision;
-  `test_no_raw_entropy_in_policy.py::test_stage0_ships_no_policy_modules` fails if either appears.
+- **`hnav/core/write_policy.py` must not exist — ever.** The T8 verdict (`KAPI_KARARI.md`: write
+  headroom measured at ~0, NO_GO) made this permanent. `read_policy.py` is PERMITTED post-T8
+  (user decision 2026-08-15, `STAGE1_PLAN.md` §0 — read-path rerank only); it and
+  `read_gate.py` are still barred from `H_raw` by the AST scan in
+  `test_no_raw_entropy_in_policy.py`, which also fails on any other `*policy*` module.
 - **Do not add H-Nav to `In-Episode-Execution/` or `Cross-Episode-Execution/`.** Both are BFCL — the
   substrate where the prior attempt returned null.
 - **Do not rewrite `hnav/labeling/conflict_analysis.py::parse`.** Validated at 99.5%+ coverage;
@@ -62,7 +64,7 @@ looks valid and isn't.
 Everything below runs from the repo root (`EvoMemBench/`).
 
 ```bash
-# Full test suite — no torch, no GPU, no network required. ~153 tests.
+# Full test suite — no torch, no GPU, no network required. ~175 tests.
 pytest hnav/tests/ -q
 
 # One file / one test
