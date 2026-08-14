@@ -1,4 +1,4 @@
-"""CL-bench adapter — CrossEp-Know, the SECONDARY arena.  [T4]
+"""CL-bench adapter — CrossEp-Know, the SECONDARY arena.  [T4, signal wiring T10]
 
 ``HNavMemoryWrapper`` wraps any ``cl_bench_memory`` backend behind the same
 two-method ``Memory`` ABC (``retrieve`` / ``extract``). In shadow mode it
@@ -9,15 +9,40 @@ wrapper's presence.
 Three things this arena needs that the primary one does not:
 
 * there are no templates and no serial numbers, so ``Candidate.version`` is a
-  monotone write counter and there is no key-based conflict index;
+  monotone write counter and there is no key-based conflict index. The
+  candidate's *predecessor* is therefore resolved geometrically: the nearest
+  admitted record by cosine stands in for ``prior_id``/``prior_text``. That is
+  decision-time information only — no benchmark questions, no future writes;
 * the store is model-generated, so write-side effects can only ever be reported
   as *associational* — true counterfactual replay is unaffordable (plan §7.4);
 * samples are clustered by ``context_id`` (ICC 0.346, design effect 3.20,
   effective N ≈ 276), which is recorded in every audit record so the analysis
-  can cluster correctly.
+  can cluster correctly. The runner does not pass ``context_id`` to
+  ``extract``, so the wrapper recovers it from the backend's per-context
+  ``memory_dir`` (the runner names that directory after the context).
+
+Signal-space note. Native banks hold vectors from the benchmark's own
+embedding API (DashScope text-embedding-v4, 1024-d); H-Nav's candidate vectors
+come from its own embedder. Cosines across two spaces are meaningless, so the
+adapter re-embeds the bank texts with its own embedder (memoized per text)
+and computes every signal in that single space — the same methodology the
+primary arena uses. Which space was used is recorded per write as
+``bank_space`` so no reader has to guess.
+
+Shadow legality: signals are computed and logged, nothing is acted on, no LLM
+is ever called (the embedder is H-Nav's own, not a chat model), and off mode
+remains an exact no-op — ``wrap_memory`` returns the backend itself.
+
+Free-text probe strategy (Stage-0 CrossEp measurement, decided T10): with no
+relation templates to derive a probe from, the candidate's own text is its
+probe — ``simulate_insert``'s documented default — and the provisional-insert
+effect is summarized by ``rank_self_after`` plus the neighbourhood displacement
+stats (``churn@k``, ``rank_shift``, ``dH_self``). Nothing derived from
+benchmark evaluation data may ever enter this path.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -53,6 +78,9 @@ class CLBenchAdapter:
         self.write_counter = 0
         self.n_write_decisions = 0
         self.n_read_decisions = 0
+        # text -> H-Nav-space vector, so re-embedding a growing bank costs one
+        # encode per unique text over the adapter's lifetime, not per write.
+        self._vec_memo: dict[str, np.ndarray] = {}
 
     # ── store views built from the backend's own persisted state ─────────────
     def store_view(self, memory: Any) -> StoreView:
@@ -84,23 +112,91 @@ class CLBenchAdapter:
         self.write_counter += 1
         vec = None
         if self.embedder is not None:
-            vec = self.embedder.encode([content])[0]
+            memo = self._vec_memo.get(content)
+            if memo is None:
+                memo = np.asarray(self.embedder.encode([content])[0],
+                                  dtype=np.float32)
+                self._vec_memo[content] = memo
+            vec = memo
         return Candidate(
             id=f"{kwargs.get('task_id', 'task')}_w{self.write_counter}",
             text=content, vector=vec, op="ADD", version=self.write_counter,
             metadata={k: v for k, v in kwargs.items() if k != "content"},
         )
 
+    # ── signal-space plumbing ────────────────────────────────────────────────
+    def _signal_store(self, store: StoreView) -> StoreView | None:
+        """The store re-embedded into the adapter's own space, or ``None``.
+
+        ``None`` means signals cannot be computed (no embedder, or empty
+        store) — a different statement from "the signals were zero", and the
+        two are never collapsed: ``on_extract`` records which case occurred.
+        """
+        if self.embedder is None or len(store) == 0:
+            return None
+        missing = [r.text for r in store.records if r.text not in self._vec_memo]
+        if missing:
+            fresh = self.embedder.encode(missing)
+            for t, v in zip(missing, fresh):
+                self._vec_memo[t] = np.asarray(v, dtype=np.float32)
+        return StoreView.from_records([
+            MemoryRecord(id=r.id, text=r.text, vector=self._vec_memo[r.text],
+                         version=r.version, metadata=r.metadata)
+            for r in store.records
+        ])
+
     # ── decisions (shadow: always PASS) ──────────────────────────────────────
     def on_extract(self, cand: Candidate, store: StoreView) -> Decision:
+        """Compute and log write-side signals; decide nothing.
+
+        Geometry (sim_max / QR novelty / MD5 exact-dup), marginal-diff against
+        the nearest-neighbour predecessor, and the provisional-insert effect
+        (candidate-as-its-own-probe) — all in shadow, all logged, none acted
+        on. The decision is PASS unconditionally; the native path admits.
+        """
         self.n_write_decisions += 1
         decision = Decision(action="PASS", shadow=True,
                             reasons={"native_action": "ADD"})
+
+        sig_store = self._signal_store(store)
+        bank_space = "hnav" if sig_store is not None else (
+            "empty_store" if len(store) == 0 else "unavailable_no_embedder")
+        target = sig_store if sig_store is not None else store
+
+        geo = None
+        if self.geometry is not None:
+            geo = self.geometry.compute(cand, target)
+            # Nearest-neighbour predecessor: no keys/serials in this arena, so
+            # the closest already-admitted record stands in as the prior. Only
+            # records admitted before this write are visible — no look-ahead.
+            if cand.prior_id is None and geo.argmax_id is not None:
+                cand = cand.with_prior(target.get(geo.argmax_id))
+            self.geometry.observe(cand.text)   # the native path always admits
+
+        diff = None
+        if self.diff is not None:
+            diff = self.diff.compute_if_update(cand.prior_text, cand.text,
+                                               ctx=dict(cand.metadata))
+
+        effect = None
+        if (self.replica is not None and self.signals is not None
+                and cand.vector is not None and sig_store is not None):
+            views = self.replica.simulate_insert(sig_store, cand, [cand.text])
+            effect = self.signals.compute_delta(views["before"], views["after"],
+                                                self_id=cand.id)
+
+        decision.reasons.update({
+            "bank_space": bank_space,
+            "has_prior": cand.prior_id is not None,
+            "is_exact_dup": bool(geo.is_exact_dup) if geo is not None else None,
+        })
         if self.audit is not None:
-            self.audit.log_write(cand, geometry=None, diff=None,
-                                 retrieval_effect=None, decision=decision,
+            self.audit.log_write(cand, geometry=geo, diff=diff,
+                                 retrieval_effect=effect, decision=decision,
                                  native_action="ADD", store_size=len(store),
-                                 context_id=cand.metadata.get("context_category"))
+                                 context_id=cand.metadata.get("context_id")
+                                 or cand.metadata.get("context_category"),
+                                 bank_space=bank_space)
         return decision
 
     def on_retrieve(self, query: str, store: StoreView,
@@ -109,7 +205,13 @@ class CLBenchAdapter:
         decision = Decision(action="PASS", shadow=True)
         if self.replica is None or len(store) == 0:
             return decision
-        view = self.replica.rank(store, query)
+        # Rank in the adapter's own embedding space: the native bank vectors
+        # come from the benchmark's embedding API and are not comparable with
+        # the H-Nav query vector the replica produces.
+        sig_store = self._signal_store(store)
+        if sig_store is None:
+            return decision
+        view = self.replica.rank(sig_store, query)
         sig = self.signals.compute(view) if self.signals is not None else None
         decision.reasons["n_ranked"] = len(view.ids)
         if self.audit is not None:
@@ -157,7 +259,17 @@ class HNavMemoryWrapper:
         if self._mode == _config.MODE_SHADOW and self._adapter is not None:
             try:
                 store = self._adapter.store_view(self._inner)
-                cand = self._adapter.to_candidate(content, **kwargs)
+                # The runner does not pass context_id to extract; the backend's
+                # per-context memory_dir is named after it. Recovered into the
+                # CANDIDATE's kwargs only — the inner call below receives the
+                # caller's kwargs untouched.
+                cand_kwargs = dict(kwargs)
+                if "context_id" not in cand_kwargs:
+                    mdir = getattr(self._inner, "memory_dir", None)
+                    if mdir:
+                        cand_kwargs["context_id"] = os.path.basename(
+                            os.path.normpath(str(mdir)))
+                cand = self._adapter.to_candidate(content, **cand_kwargs)
                 decision = self._adapter.on_extract(cand, store)
                 assert decision.shadow, "shadow mode produced an actionable decision"
             except AssertionError:
