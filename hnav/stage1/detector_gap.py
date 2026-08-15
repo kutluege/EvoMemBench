@@ -125,12 +125,14 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from hnav import config as _config  # noqa: E402
-from hnav.adapters.mab_adapter import MABAdapter, page_edit  # noqa: E402
+from hnav.adapters.mab_adapter import (MABAdapter, _fact_separator,  # noqa: E402
+                                       explode_facts, fact_spans, page_edit)
 from hnav.core import read_gate as _rg  # noqa: E402
 from hnav.core.read_gate import GateThresholds, ReadGate  # noqa: E402
 from hnav.core.read_policy import demote_ids, suppress_ids  # noqa: E402
 from hnav.core.types import MemoryRecord  # noqa: E402
 from hnav.labeling.counterfactual import substring_exact_match  # noqa: E402
+from hnav.stage0.m2_retrieval_calibration import build_chunks  # noqa: E402
 from hnav.labeling.question_strata import (STRATA, classify_questions,  # noqa: E402
                                            key_members)
 # Imported, never re-transcribed: the gate replay, the grid axes, and the whole
@@ -138,9 +140,10 @@ from hnav.labeling.question_strata import (STRATA, classify_questions,  # noqa: 
 from hnav.stage1.calibrate_read_policy import (AMB_GRID, CALIBRATION,  # noqa: E402
                                                COS_GRID, FILTER_GRID,
                                                GENERATION_MAX_TOKENS, NLI_GRID,
+                                               QUERY_TEMPLATE,
                                                R_MIN_GRID_LABELS, ReplayNLI,
                                                SYSTEM_MESSAGE, _CachedQR,
-                                               r_min_of)
+                                               build_user_prompt, r_min_of)
 from hnav.stage1.stale_suppression_probe import (_acc, _sha,  # noqa: E402
                                                  build_prompt, move_to_end,
                                                  move_to_front, paired_cells,
@@ -159,6 +162,8 @@ ORACLE_COUNTERPART = {"detector_suppress": "oracle_suppress",
                       "detector_demote_late": "oracle_recency",
                       "detector_anti": "anti"}
 COS_TOLERANCE = 1e-6
+HARNESSES = ("whole_context", "retrieval")
+CHUNK_SIZE = 4096                       # the benchmark's own chunk_text_into_sentences
 # r_min_label ordering, tightest first — used only as a deterministic tie-break.
 R_RANK = {"frozen": 0, "loose": 1, "off": 2}
 AMB_RANK = {"all": 0, "any": 1, "none": 2}
@@ -560,12 +565,156 @@ def shipped_page(arm: str, context: str, plan) -> str | None:
     return None
 
 
+# ── the retrieval-path harness (prereg v2 section 10) ────────────────────────
+# The deployed system never reads a whole-context block: it reads the top_k
+# retrieved CHUNKS, numbered "Memory i:", in similarity-rank order. All T13
+# calibration evidence is whole-context, which is a documented deviation that
+# was justified by retrieval being COMPLETE on the calibration split (2 and 9
+# chunks against top_k=10). It stops being justified at sh_64k, which is 17
+# chunks. This harness closes that gap: on the calibration split it changes ONLY
+# the block structure and order, so it isolates that variable from retrieval
+# incompleteness, which appears only on the confirmatory subset.
+#
+# Here the arms ARE the shipped page contract - `page_edit` applied to the real
+# retrieved page - rather than a probe-style rebuild that is then checked
+# against it.
+
+
+def chunk_texts_for(item, prepass) -> list[str]:
+    """The benchmark's own chunks, rebuilt and CHECKED against the prepass.
+
+    The prepass stores chunk ids and a fact->chunk map but not chunk text, so
+    the text is regenerated with the benchmark's chunker and then verified:
+    identical fact->chunk assignment, fact for fact. A silent chunker drift
+    would otherwise put different bytes on the page than the geometry that
+    drives the gate was measured on.
+    """
+    chunks, fallback = build_chunks(item["context"], CHUNK_SIZE)
+    if fallback:
+        raise SystemExit(
+            " REFUSED: nltk/punkt is missing, so build_chunks fell back and "
+            "these are not the benchmark's chunks.")
+    got = {}
+    for i, c in enumerate(chunks):
+        for serial, _ in explode_facts(c):
+            got[f"fact:{serial}"] = f"chunk:{i}"
+    want = prepass["fact_chunk"]
+    if got != want:
+        diff = sorted(k for k in set(got) | set(want) if got.get(k) != want.get(k))
+        raise SystemExit(
+            f" REFUSED: the rebuilt chunks disagree with the prepass on "
+            f"{len(diff)} fact(s), first={diff[:3]}. The page would not be the "
+            "one the gate's geometry was measured on.")
+    return chunks
+
+
+def page_move_front(page_texts, ids):
+    """MEASUREMENT ONLY — the direction control's mirror of ``DEMOTE_LATE``.
+
+    Deliberately NOT in ``hnav/adapters/``: no ``Decision`` action can produce a
+    front-move, and putting one on the shipped surface would create a third
+    mechanism nobody authorised. It reuses ``fact_spans`` and the adapter's own
+    separator rule (imported, not re-transcribed) so that the bytes it moves are
+    the same bytes ``page_edit`` would move, and it is exercised by
+    ``detector_anti`` and nothing else.
+
+    Facts are inserted in DESCENDING serial order before the first fact of the
+    first chunk, so the newest ends up first — the exact mirror of
+    ``page_edit``'s ascending append.
+    """
+    texts = list(page_texts)
+    spans = [fact_spans(t) for t in texts]
+    where: dict = {}
+    for ci, sp in enumerate(spans):
+        for fs in sp:
+            where.setdefault(f"fact:{fs.serial}", (ci, fs))
+    missing = [i for i in ids if i not in where]
+    if missing:
+        raise LookupError(f"{len(missing)} id(s) not on this page, "
+                          f"first={missing[0]!r}")
+    if not ids:
+        return texts
+
+    sep = _fact_separator(spans, texts)
+    moved = sorted(((where[i][1].serial, i) for i in ids), reverse=True)
+    moved_bytes = [texts[where[i][0]][where[i][1].start: where[i][1].own_end]
+                   for _, i in moved]
+
+    cuts: dict = {}
+    for i in ids:
+        ci, fs = where[i]
+        cuts.setdefault(ci, []).append(fs)
+    out = list(texts)
+    for ci, ss in cuts.items():
+        t = out[ci]
+        for fs in sorted(ss, key=lambda x: x.del_start, reverse=True):
+            t = t[: fs.del_start] + t[fs.del_end:]
+        out[ci] = t
+
+    head = fact_spans(out[0])
+    pos = head[0].start if head else len(out[0].rstrip())
+    out[0] = out[0][:pos] + "".join(m + sep for m in moved_bytes) + out[0][pos:]
+    return out
+
+
+def retrieval_arm_page(arm: str, page, plan):
+    """The page one arm shows the model, through the SHIPPED edit path."""
+    if arm in ("native", "native_repeat"):
+        return list(page)
+    drop = [f"fact:{s}" for s in plan["suppress_serials"]]
+    move = [f"fact:{s}" for s in plan["demote_serials"]]
+    if arm == "detector_suppress":
+        return page_edit(page, drop_ids=drop)[0]
+    if arm == "detector_demote_late":
+        return page_edit(page, move_last_ids=move)[0]
+    if arm == "detector_anti":
+        return page_move_front(page, move)
+    raise ValueError(f"unknown arm {arm!r}")
+
+
+def page_facts(page) -> list:
+    return sorted(f for t in page for f in explode_facts(t))
+
+
+def retrieval_integrity(arm: str, page, edited, plan) -> bool:
+    """Did the edit do exactly what the arm claims, and nothing else?
+
+    Same chunk count always; the fact multiset is preserved by both placement
+    arms and reduced by exactly the named facts by ``SUPPRESS``. Returns True on
+    a violation, so the caller can count violations the way the whole-context
+    harness counts ``page_edit`` mismatches — and refuse the run before sending
+    anything.
+    """
+    if len(edited) != len(page):
+        return True
+    before, after = page_facts(page), page_facts(edited)
+    if arm in ("native", "native_repeat"):
+        return after != before
+    if arm == "detector_suppress":
+        drop = set(plan["suppress_serials"])
+        return after != sorted(f for f in before if f[0] not in drop)
+    return after != before
+
+
 def plan_subset(item, name, prepass, decisions, cell_i, table,
-                max_questions=None) -> dict:
+                max_questions=None, harness: str = "whole_context") -> dict:
+    """Build every arm for one subset, under either harness.
+
+    ``whole_context`` reproduces the oracle probe exactly (one ``Memory 1:``
+    block in context order) and CHECKS each edit against the shipped
+    ``page_edit``. ``retrieval`` puts the benchmark's own top-k chunks on the
+    page in rank order and performs the edit THROUGH ``page_edit``, checking
+    instead that the result did exactly what the arm claims. Either way the
+    counter is ``n_page_edit_mismatch`` and either way a non-zero value refuses
+    the run before a call is sent.
+    """
+    if harness not in HARNESSES:
+        raise ValueError(f"harness={harness!r} not in {HARNESSES}")
     preamble, facts = split_context(item["context"])
     strata = {r["index"]: r for r in classify_questions(item)}
+    chunks = chunk_texts_for(item, prepass) if harness == "retrieval" else None
 
-    questions, mismatches = [], 0
+    questions, mismatches, pages = [], 0, []
     for q in prepass["questions"]:
         if max_questions and len(questions) >= max_questions:
             break
@@ -580,14 +729,25 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
         }
         rec = strata[q["index"]]
         arms = {}
-        for arm in ARMS:
-            fl = arm_facts(arm, facts, plan)
-            text = render_context(preamble, fl)
-            if arm in ("detector_suppress", "detector_demote_late"):
-                if shipped_page(arm, item["context"], plan) != text:
+        if harness == "whole_context":
+            for arm in ARMS:
+                fl = arm_facts(arm, facts, plan)
+                text = render_context(preamble, fl)
+                if arm in ("detector_suppress", "detector_demote_late"):
+                    if shipped_page(arm, item["context"], plan) != text:
+                        mismatches += 1
+                arms[arm] = {"prompt": build_prompt(text, rec["question"]),
+                             "n_facts": len(fl)}
+        else:
+            page = [chunks[int(c.split(":")[1])] for c in q["top_ids"]]
+            pages.append(len(page))
+            message = QUERY_TEMPLATE.format(question=rec["question"])
+            for arm in ARMS:
+                edited = retrieval_arm_page(arm, page, plan)
+                if retrieval_integrity(arm, page, edited, plan):
                     mismatches += 1
-            arms[arm] = {"prompt": build_prompt(text, rec["question"]),
-                         "n_facts": len(fl)}
+                arms[arm] = {"prompt": build_user_prompt(edited, message),
+                             "n_facts": len(page_facts(edited))}
         native_prompt = arms["native"]["prompt"]
         questions.append({
             "index": q["index"], "question": rec["question"],
@@ -598,7 +758,11 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
                                     for a in ARMS},
         })
     return {"subset": name, "n_facts": len(facts), "questions": questions,
-            "n_page_edit_mismatch": mismatches,
+            "n_page_edit_mismatch": mismatches, "harness": harness,
+            "n_chunks_total": len(chunks) if chunks is not None else None,
+            "n_chunks_on_page": max(pages) if pages else None,
+            "retrieval_complete": (len(chunks) <= max(pages)
+                                   if chunks is not None and pages else None),
             "strata_counts": {s: sum(1 for q in questions if q["stratum"] == s)
                               for s in STRATA}}
 
@@ -698,6 +862,10 @@ def run_subset(plan, answer_fn) -> dict:
     return {"subset": plan["subset"], "n_facts": plan["n_facts"],
             "strata_counts": plan["strata_counts"],
             "n_page_edit_mismatch": plan["n_page_edit_mismatch"],
+            "harness": plan["harness"],
+            "n_chunks_total": plan["n_chunks_total"],
+            "n_chunks_on_page": plan["n_chunks_on_page"],
+            "retrieval_complete": plan["retrieval_complete"],
             "n_llm_calls": n_calls,
             "arms": {a: _acc(flags[a]) for a in ARMS},
             "paired_vs_native": {a: paired_cells(flags["native"], flags[a])
@@ -762,8 +930,17 @@ def compare_to_oracle(res: dict, oracle: dict | None) -> dict | None:
             "conflicted_gain_ratio": _ratio(d_gain, o_gain),
             "detector_accuracy": res["arms"][arm]["accuracy"],
             "oracle_accuracy": o["arms"][oarm]["accuracy"]}
+    o_harness = "whole_context"          # every oracle probe arm is whole-context
     return {
         "source": oracle["file"],
+        "oracle_harness": o_harness,
+        "harness_match": res.get("harness", "whole_context") == o_harness,
+        "harness_caveat": None if res.get("harness", "whole_context") == o_harness else (
+            "This run uses the RETRIEVAL-PATH harness; the oracle probe is "
+            "whole-context. The ratios below therefore compare across harnesses "
+            "and are NOT the detector/oracle ratio of the confirmatory design - "
+            "read them as 'how much of the whole-context oracle ceiling survives "
+            "being applied to a rank-ordered multi-block page'."),
         "same_harness": {
             "llm_model": oracle["harness"].get("llm_model"),
             "llm_base_url": oracle["harness"].get("llm_base_url"),
@@ -828,9 +1005,13 @@ def format_run(results, comparisons) -> str:
     lines = []
     for res in results:
         cmp_ = comparisons.get(res["subset"])
+        cov = ""
+        if res.get("n_chunks_total") is not None:
+            cov = (f", {res['n_chunks_on_page']}/{res['n_chunks_total']} chunks "
+                   f"on page{'' if res['retrieval_complete'] else ' - INCOMPLETE'}")
         lines += ["", "=" * 100,
-                  f" {res['subset']}  ({res['n_facts']} facts, "
-                  f"{res['strata_counts']})", "=" * 100,
+                  f" {res['subset']}  [{res.get('harness', 'whole_context')}]  "
+                  f"({res['n_facts']} facts, {res['strata_counts']}{cov})", "=" * 100,
                   f"{'arm':<24}{'overall':>18}{'unique':>18}{'conflicted':>18}"
                   f"{'b/c':>10}{'tok d%':>9}"]
         for arm in ARMS:
@@ -1074,6 +1255,12 @@ def main() -> int:
                     help="SMOKE ONLY: the probe's deterministic primacy stub "
                          "instead of the answer model. Writes *_SMOKE.json; the "
                          "numbers are MEANINGLESS as evidence about any model.")
+    ap.add_argument("--harness", choices=list(HARNESSES),
+                    default="whole_context",
+                    help="whole_context reproduces the oracle probe exactly; "
+                         "retrieval puts the benchmark's own top-k chunks on the "
+                         "page in rank order and edits them through the shipped "
+                         "page contract (pre-registration v2 section 10)")
     ap.add_argument("--max-questions", type=int, default=None)
     ap.add_argument("--allow-unstamped-prepass", action="store_true")
     ap.add_argument("--out", default=None)
@@ -1118,6 +1305,7 @@ def main() -> int:
         return 0
 
     cell = frozen_cell()
+    print(f" harness: {args.harness}")
     print(f" operating point: cos_pair={cell['cos_pair']} "
           f"r_min={cell['r_min_label']} ambiguity={cell['ambiguity_mode']} "
           f"nli={cell['nli_contradiction']} pair_filter={cell['pair_filter']}")
@@ -1127,7 +1315,7 @@ def main() -> int:
         pp, table, recs = ctx["prepasses"][s], ctx["tables"][s], ctx["records"][s]
         decisions = decide_all(pp, recs, [cell], ReplayNLI(pp["nli_table"]))
         plans.append(plan_subset(ctx["items"][s], s, pp, decisions, 0, table,
-                                 args.max_questions))
+                                 args.max_questions, harness=args.harness))
 
     bud = budget(plans)
     print("=" * 100)
@@ -1175,6 +1363,8 @@ def main() -> int:
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git_head": _git_head(), "mode": cfg.mode,
         "smoke_llm": bool(args.smoke_llm),
+        "harness": args.harness,
+        "preregistration": "stage0_results/stage1_preregistration_v2.md",
         "operating_point": cell["artifact"],
         "harness": {
             "llm_model": None if args.smoke_llm else cfg.llm_model,
@@ -1224,9 +1414,10 @@ def main() -> int:
         "results": results,
         "detector_vs_oracle": comparisons,
     }
+    tag = "" if args.harness == "whole_context" else f"_{args.harness}"
     out = Path(args.out) if args.out else (
-        cfg.out_dir / ("detector_gap_SMOKE.json" if args.smoke_llm
-                       else "detector_gap.json"))
+        cfg.out_dir / (f"detector_gap{tag}_SMOKE.json" if args.smoke_llm
+                       else f"detector_gap{tag}.json"))
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2, ensure_ascii=False),
                    encoding="utf-8")

@@ -26,6 +26,7 @@ import json
 import numpy as np
 import pytest
 
+from hnav.adapters.mab_adapter import explode_facts, page_edit
 from hnav.core.read_gate import ConflictGroup, GateDecision, PairCheck
 from hnav.stage1 import detector_gap as D
 from hnav.stage1.stale_suppression_probe import render_context, split_context
@@ -408,3 +409,117 @@ def test_load_fact_vectors_refuses_when_nothing_reproduces_the_geometry(
     pp = {"questions": [{"pairs": [{"a": "fact:0", "b": "fact:1", "cos": 0.99}]}]}
     with pytest.raises(SystemExit, match="REFUSED"):
         D.load_fact_vectors(cfg, ["fact:0", "fact:1"], ["a", "b"], [pp])
+
+
+# ── the retrieval-path harness (pre-registration v2 section 10) ──────────────
+# On the calibration split retrieval is COMPLETE, so this harness changes only
+# the block structure and order. What has to be right is that the arms go
+# through the shipped page contract and that the integrity check can actually
+# fail — a check that cannot fail is decoration, and this one is what refuses
+# the run before any call is sent.
+PAGE_A = "0. Alpha is one. 1. Beta is two."
+PAGE_B = "2. Gamma is three. 3. Delta is four."
+R_PLAN = {"suppress_serials": [1], "demote_serials": [3]}
+
+
+def test_retrieval_suppress_goes_through_the_shipped_page_edit():
+    out = D.retrieval_arm_page("detector_suppress", [PAGE_A, PAGE_B], R_PLAN)
+    assert out == ["0. Alpha is one.", PAGE_B]
+    assert out == page_edit([PAGE_A, PAGE_B], drop_ids=["fact:1"])[0]
+
+
+def test_retrieval_demote_goes_through_the_shipped_page_edit():
+    out = D.retrieval_arm_page("detector_demote_late", [PAGE_A, PAGE_B], R_PLAN)
+    assert out == page_edit([PAGE_A, PAGE_B], move_last_ids=["fact:3"])[0]
+    assert out == [PAGE_A, "2. Gamma is three. 3. Delta is four."]
+
+
+def test_retrieval_anti_puts_the_newest_fact_first_across_chunks():
+    plan = {"suppress_serials": [], "demote_serials": [3]}
+    out = D.retrieval_arm_page("detector_anti", [PAGE_A, PAGE_B], plan)
+    assert out == ["3. Delta is four. 0. Alpha is one. 1. Beta is two.",
+                   "2. Gamma is three."]
+    assert D.page_facts(out) == D.page_facts([PAGE_A, PAGE_B]), "a permutation"
+
+
+def test_retrieval_anti_orders_several_moves_newest_first():
+    plan = {"suppress_serials": [], "demote_serials": [1, 3]}
+    out = D.retrieval_arm_page("detector_anti", [PAGE_A, PAGE_B], plan)
+    assert out[0].startswith("3. Delta is four. 1. Beta is two. 0. Alpha is one.")
+    assert D.page_facts(out) == D.page_facts([PAGE_A, PAGE_B])
+
+
+def test_retrieval_anti_is_the_exact_mirror_of_demote():
+    """Same facts, same primitive, opposite end — the direction control has to
+    differ from DEMOTE_LATE only in where the fact lands."""
+    plan = {"suppress_serials": [], "demote_serials": [0]}
+    late = D.retrieval_arm_page("detector_demote_late", [PAGE_A, PAGE_B], plan)
+    front = D.retrieval_arm_page("detector_anti", [PAGE_A, PAGE_B], plan)
+    assert late[-1].endswith("0. Alpha is one.")
+    assert front[0].startswith("0. Alpha is one.")
+    assert D.page_facts(late) == D.page_facts(front) == D.page_facts([PAGE_A, PAGE_B])
+
+
+def test_front_move_preserves_a_preamble():
+    page = ["Here is a list of facts:\n0. A is X.\n1. B is Y.\n"]
+    out = D.page_move_front(page, ["fact:1"])
+    assert out == ["Here is a list of facts:\n1. B is Y.\n0. A is X.\n"]
+
+
+def test_front_move_refuses_an_id_that_is_not_on_the_page():
+    with pytest.raises(LookupError, match="not on this page"):
+        D.page_move_front([PAGE_A], ["fact:99"])
+
+
+def test_front_move_with_no_ids_is_the_identity():
+    assert D.page_move_front([PAGE_A, PAGE_B], []) == [PAGE_A, PAGE_B]
+
+
+def test_integrity_check_passes_on_every_honest_arm():
+    page = [PAGE_A, PAGE_B]
+    for arm in D.ARMS:
+        edited = D.retrieval_arm_page(arm, page, R_PLAN)
+        assert not D.retrieval_integrity(arm, page, edited, R_PLAN), arm
+
+
+@pytest.mark.parametrize("arm,bad", [
+    ("detector_suppress", ["0. Alpha is one.", "2. Gamma is three."]),  # dropped too much
+    ("detector_suppress", [PAGE_A, PAGE_B]),                            # dropped nothing
+    ("detector_demote_late", ["0. Alpha is one.", PAGE_B]),             # lost a fact
+    ("detector_anti", [PAGE_A]),                                        # lost a chunk
+    ("native", ["0. Alpha is one.", PAGE_B]),                           # native must not move
+])
+def test_integrity_check_can_actually_fail(arm, bad):
+    assert D.retrieval_integrity(arm, [PAGE_A, PAGE_B], bad, R_PLAN)
+
+
+def test_chunk_rebuild_refuses_a_prepass_it_disagrees_with(sh_6k):
+    """The rebuilt chunks must carry the prepass's own fact->chunk assignment;
+    otherwise the page is not the one the gate's geometry was measured on."""
+    good = {}
+    from hnav.stage0.m2_retrieval_calibration import build_chunks
+    chunks, fallback = build_chunks(sh_6k["context"], D.CHUNK_SIZE)
+    assert not fallback
+    for i, c in enumerate(chunks):
+        for serial, _ in explode_facts(c):
+            good[f"fact:{serial}"] = f"chunk:{i}"
+    assert D.chunk_texts_for(sh_6k, {"fact_chunk": good}) == chunks
+    drifted = dict(good)
+    drifted["fact:0"] = "chunk:99"
+    with pytest.raises(SystemExit, match="disagree with the prepass"):
+        D.chunk_texts_for(sh_6k, {"fact_chunk": drifted})
+
+
+def test_plan_subset_rejects_an_unknown_harness():
+    with pytest.raises(ValueError, match="harness"):
+        D.plan_subset({}, "sh_6k", {}, {}, 0, {}, harness="telepathy")
+
+
+def test_cross_harness_comparison_is_labelled_not_silently_ratioed():
+    res = _fake_result()
+    res["harness"] = "retrieval"
+    cmp_ = D.compare_to_oracle(res, _fake_oracle())
+    assert cmp_["harness_match"] is False
+    assert "NOT the detector/oracle ratio" in cmp_["harness_caveat"]
+    plain = D.compare_to_oracle(_fake_result(), _fake_oracle())
+    assert plain["harness_match"] is True and plain["harness_caveat"] is None

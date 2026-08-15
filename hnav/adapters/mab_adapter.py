@@ -197,6 +197,28 @@ def fact_spans(message: str) -> list[FactSpan]:
     return out
 
 
+def _content_tail(text: str) -> tuple[str, str]:
+    """Split a chunk into ``(content, trailing_bytes)``.
+
+    Trailing bytes are the trailing whitespace **and** a trailing dangling
+    next-fact serial (``DANGLING_SERIAL_TAIL``). Nothing may ever be appended
+    after either: the whitespace is the chunk's own framing, and the dangling
+    serial belongs to a fact whose TEXT lives in the next chunk.
+
+    This is not cosmetic. Appending "5. Pedro Pierluisi worked in ..." after a
+    chunk that ends "...Leeds. 307." makes the inline parser read the whole
+    appended sentence as the TEXT OF FACT 307 — the moved fact silently loses
+    its own serial, which in this arena is the supersession key the entire
+    mechanism turns on. Found by the retrieval-harness integrity check on the
+    real sh_6k page, where chunk 0 ends exactly that way.
+    """
+    core = text.rstrip()
+    dang = DANGLING_SERIAL_TAIL.search(core)
+    if dang:
+        core = core[: dang.start()]
+    return core, text[len(core):]
+
+
 def _fact_separator(spans_per_chunk: Sequence[Sequence[FactSpan]],
                     texts: Sequence[str]) -> str:
     """The bytes this page puts BETWEEN two consecutive facts.
@@ -224,7 +246,9 @@ def page_edit(page_texts: Sequence[str], drop_ids: Sequence[str] = (),
     ``move_last_ids``  facts to relocate to the very END of the assembled page
                        (``DEMOTE_LATE``): removed from their own chunk and
                        re-appended, in ascending serial order, to the end of the
-                       LAST chunk's content — so the highest serial ends up
+                       LAST chunk's CONTENT — before its trailing whitespace and
+                       before any dangling next-fact serial (see
+                       :func:`_content_tail`) — so the highest serial ends up
                        last, which is the position the probe measured as
                        helpful.
 
@@ -277,9 +301,7 @@ def page_edit(page_texts: Sequence[str], drop_ids: Sequence[str] = (),
         out[ci] = t
 
     if moved_bytes:
-        body = out[-1]
-        core = body.rstrip()
-        trail = body[len(core):]
+        core, trail = _content_tail(out[-1])
         out[-1] = core + "".join(sep + m for m in moved_bytes) + trail
 
     before = sum(len(t) for t in texts)

@@ -545,3 +545,30 @@ def test_demote_token_neutrality_holds_except_for_separator_bookkeeping():
         before = sorted(f for t in page for f in explode_facts(t))
         after = sorted(f for t in edited for f in explode_facts(t))
         assert after == before, "a move must preserve the fact multiset exactly"
+
+
+def test_a_moved_fact_is_never_appended_past_a_dangling_serial():
+    """Regression, found by the retrieval-harness integrity check on the real
+    sh_6k page (T13). The benchmark's chunker ends chunk 0 with
+    "...Leeds. 307." — fact 307's serial, whose text opens chunk 1. Appending a
+    moved fact after those bytes made the inline parser read the whole appended
+    sentence as the TEXT OF FACT 307, so the moved fact silently lost its own
+    serial: the supersession key the entire mechanism turns on. The moved fact
+    must land before the dangling serial, which stays last."""
+    page = ["0. Alpha is one. 1. Beta is two. 2."]
+    out, rep = page_edit(page, move_last_ids=["fact:0"])
+    assert out == ["1. Beta is two. 0. Alpha is one. 2."]
+    assert explode_facts(out[0]) == [(1, "Beta is two."), (0, "Alpha is one.")]
+    assert rep["delta_chars"] == 0
+    # and the same for trailing whitespace, which is equally not content
+    out, _ = page_edit(["0. A is X.\n1. B is Y.\n"], move_last_ids=["fact:0"])
+    assert out == ["1. B is Y.\n0. A is X.\n"]
+
+
+def test_content_tail_splits_whitespace_and_dangling_serial():
+    from hnav.adapters.mab_adapter import _content_tail
+    assert _content_tail("0. A is X. 1.") == ("0. A is X.", " 1.")
+    assert _content_tail("0. A is X.\n") == ("0. A is X.", "\n")
+    assert _content_tail("0. A is X. 1. B is Y.") == ("0. A is X. 1. B is Y.", "")
+    # a genuine numeric ending is NOT a dangling serial: no period before it
+    assert _content_tail("0. The population is 42.") == ("0. The population is 42.", "")
