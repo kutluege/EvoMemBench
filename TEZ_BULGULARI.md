@@ -173,6 +173,63 @@ sağlanmış durumda. Eksik olan tek şey held-out doğrulamadır.
 
 ---
 
+## A4. ★ DOĞRULAMA SONUCU — held-out sh_64k, tek atış, ön-kayıtlı: **BİRİNCİL ÖLÇÜT SAĞLANDI**
+
+**Tasarım:** `stage0_results/stage1_preregistration_v2.md` (+ Değişiklik 1–4),
+commit `b0ed608` **19:52:24**, atış **22:00:02** — ön-kayıt veriden önce, sıra
+commit zaman damgalarıyla kanıtlı. Tek atış, opsiyonel durdurma yok, analiz kodu
+önceden donduruldu. Sevk edilen ayar (retrieval yolu, benchmark'ın kendi
+sayfası), dondurulmuş `:8003`, 500 çağrı.
+
+| kol | genel | çakışmayan | **çakışan** | b/c | net | p | token |
+|---|---|---|---|---|---|---|---|
+| native | 0.450 | 28/34 | 17/66 (%25.8) | — | — | — | 0 |
+| A/A tabanı | 0.450 | 28/34 | 17/66 | **0/0** | 0 | 1.0 | 0 |
+| **detector_suppress** | **0.640** | 27/34 | **37/66 (%56.1)** | **0/20** | **+20** | **1.9e-06** | **−%0.31** |
+| detector_demote_late | 0.480 | 28/34 | 20/66 | 2/5 | +3 | 0.45 | 0.00% |
+| detector_anti | 0.430 | 28/34 | 15/66 | 3/1 | −2 | 0.63 | 0.00% |
+
+### Ön-kayıtlı birincil ölçüt: **SAĞLANDI**
+`net ≥ +10` (**+20**) **VE** `p < 0.01` (**1.9e-06**) **VE** token ≤ 0 (**−%0.31**).
+Çakışan katmanda **b = 0** — tek bir çakışan soru bile zarar görmedi.
+
+### Koruyucu iddia: **GEÇERSİZ (tek soruyla)**
+Çakışmayan katmanda 1 kayıp: q77, **`refusal_after_edit`** — native `"John Milton"`
+→ müdahaleli `"...does not contain any information about"`, üstelik **gold olgu
+sayfada duruyorken**. Net −1, §5a'yı sağlar; §5b sınıfı `malformed_generation`
+olmadığı için koruyucu iddiayı geçersiz kılar. Değişiklik 4 uyarınca bu
+**yalnız koruyucu iddiayı** geçersiz kılar; koşum geçerlidir ve atış harcanmıştır.
+
+**Ön-kayıtta yazılı sonuç, harfiyen:**
+> **Etkili ama henüz güvenli değil.** Dedektörle doğrulanmış bayat belleğin
+> olgu düzeyinde bastırılması, çakışan katman doğruluğunu 17/66 → 37/66'ya
+> çıkarır (+20 net, p=1.9e-06); bedeli, düzenleme sonrası ret yoluyla kaybedilen
+> bir çakışmayan sorudur. Bu mekanizma anlaşılıp ortadan kaldırılana kadar,
+> çakışmasız sorgu içeren trafikte **dağıtım için önerilmez**.
+
+### Diğer ön-kayıtlı kalemler
+- **Zarar sınıfları ayrı ayrı:** suppress 1 (`refusal_after_edit`), demote_late 2,
+  anti 3. **`gold_cut` = her kolda 0.**
+- **Kayıtlı tahmin 2 gold-cut idi; gözlenen: tespit düzeyinde 1, doğruluk
+  çevirmesi 0. Tahmin bir eksik tutturdu — yeniden yorumlanmadan "ıskalandı"
+  olarak raporlanır.** (Mekanizma: 2 gold-not-latest sorusundan yalnız 1'inin
+  anahtarı 50-olgu havuzuna girdi ve o zaten natively yanlıştı.)
+- **Void koşulları 1,2,3,4,6,7,8: HEPSİ GEÇTİ** (uyuşmazlık 0; native 0.450 ∈
+  [0.30,0.50]; A/A **0/0**; 735 bastırmanın **0**'ı zararlı; sayfa kaynağı
+  benchmark; containment 0, page_edit hatası 0, 100/100 ateşleme). **Koşum
+  geçersiz DEĞİL.**
+- **Etki ölçekle küçüldü — tam da öngörülen nedenle:** +62/+66 (sh_6k),
+  +44/+38 (sh_32k), **+20** (sh_64k). 50-olgu havuz sınırı + 17 chunk'ın
+  10'unun alınması, dedektörün görebildiğini sınırlıyor (735 bastırma vs
+  1416/1257). §8.2 bu yönü atıştan önce yazmıştı.
+- **Yön kontrolü üç kez de doğru:** sevk edilen düzende `anti` −1, −6, −2 —
+  bir kez bile ters işaret vermedi.
+- **Kanıt:** `stage0_results/stage1/detector_gap_sh64k.json`,
+  `stage0_results/stage1_preregistration_v2.md`, 455 test.
+- **Durum: KESİN.** Held-out, tek atış, ön-kayıtlı, denetimden geçmiş.
+
+---
+
 ## B. Metodolojik katkı — NLI tek başına bellek çakışmasını doğrulayamaz
 
 **İddia.** Çift yönlü NLI çelişki skoru, bellek çakışması doğrulaması için
@@ -294,13 +351,17 @@ yeniden chunk'lıyor.
 
 ## G. Bugün iddia EDİLEMEYENLER
 
-- ❌ **"H-Nav doğruluğu artırır."** — *nitelikli:* müdahale **tavanı** artık
-  ölçülmüştür (A2: bastırma ile çakışan doğruluk %5.4→%89.2 / %10.8→%81.5,
-  yerleşimle token-nötr olarak %27 / %50.8). Ancak bunlar **oracle** kollardır;
-  dedektör-tahrikli politikanın bu tavanın ne kadarını yakaladığı ölçülene ve
-  ön-kayıtlı doğrulama koşulana kadar "H-Nav doğruluğu artırır" denemez.
-  Bugün denilebilecek olan: **"arenanın hata kipi düzeltilebilirdir ve tavanı
-  büyüktür."**
+- ✅ **"H-Nav doğruluğu artırır" — ARTIK İDDİA EDİLEBİLİR, ama tam cümlesiyle:**
+  *held-out sh_64k'da, ön-kayıtlı tek atışta, dedektör-tahrikli olgu düzeyi
+  bastırma çakışan katman doğruluğunu %25.8 → %56.1 çıkardı (net +20,
+  p=1.9e-06), token harcamasını düşürdü (−%0.31) ve çakışan katmanda sıfır
+  zarar verdi; koruyucu iddia tek bir çakışmayan soruda (düzenleme sonrası ret)
+  geçersiz kaldı, dolayısıyla sonuç "etkili ama henüz güvenli değil"dir.*
+- ❌ Kısaltılmış hâliyle **"H-Nav doğruluğu artırır"** (koşulsuz) — hayır.
+  Koruyucu iddia geçersizdir ve bu, cümlenin ayrılmaz parçasıdır.
+- ❌ Tek bir modelin (Qwen3-4B-Instruct) ve tek arenanın ötesine genelleme.
+- ❌ sh_262k'ya çıkarım — ön-kayıt dışında bırakıldı (gold-not-latest maruziyeti
+  %3, m3'te o ölçekte net zarar ölçülmüştü).
 - ❌ "H-Nav'ın okuma-yolu müdahalesi işe yaramaz." Test edilen tek mekanizma
   (tek yönlü chunk rerank) kaldıracın olmadığı bir split'te, güçsüz bir hedefle
   denendi. Bunu H-Nav hakkında olumsuz sonuç diye yazmak yanlış-olumsuz olur.
