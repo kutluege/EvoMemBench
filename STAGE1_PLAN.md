@@ -1,6 +1,44 @@
-# STAGE-1 PLANI — Okuma-Yolu Seçici Onarım (Rerank) Kampanyası
+# STAGE-1 PLANI — Okuma-Yolu Seçici Onarım Kampanyası
 
-> Dayanak: `KAPI_KARARI.md` (T8 ayrışık verdikt) + kullanıcı kararları (2026-08-15,
+> **REVİZYON R2 — 2026-08-15 (bağlayıcı; aşağıdaki R1 metni provenance için korunur).**
+>
+> **Bulgu (iki kez bağımsız doğrulandı, `stage0_results/question_strata.json`):**
+> sh_6k'nın 100 sorusu çakışan/çakışmayan anahtara göre ayrıştırıldığında —
+> çakışmayan anahtar (n=26): **8 koşunun 8'inde de 26/26 doğru**; çakışan anahtar
+> (n=74): **0–5 doğru**. 575 çakışan-soru hatasının **572'si anahtarın BAYAT
+> değerini** üretiyor (3 off-list, 0 boş). Yani: (a) arenanın manşet doğruluğu
+> neredeyse tamamen çakışma İÇERMEYEN sorulardan geliyor (çakışan-only doğruluk
+> %4–19), (b) model, istem açıkça "büyük seri numarası daha yeni" dese de
+> supersession kuralını ~%95 uygulamıyor, (c) **tavan gerçek ve büyük** (sh_6k'da
+> 100 sorunun 71'i yanlış, tek bir hata kipi).
+>
+> **Sonuç:** R1'in tek mekanizması (chunk düzeyinde YUKARI rerank) bu kaldıraca
+> ulaşamıyor — 162 hücrelik kalibrasyon net>0 vermedi ve kalibrasyon split'inde
+> retrieval zaten eksiksiz (n_chunks 2/9 ≤ top_k 10).
+>
+> **Kullanıcı kararları (2026-08-15, R2):**
+> 1. **Mekanizma kümesi GENİŞLETİLDİ** — rerank'e ek olarak **bayat kaydı bastırma
+>    (suppress)** ve **yerleşim (LATEST'i sona / recency)** yetkilendirildi.
+>    Önce oracle probe tavanı ölçer; **yalnız probe'un kanıtladığı mekanizma**
+>    uygulanır ve ön-kayda girer.
+> 2. **512-token kesme kusuru DÜZELTİLECEK** — `HFEmbedder` 512'de kesiyor, oysa
+>    chunk'lar 4096 token; M2/M3 sinyalleri ve dondurulmuş eşikler chunk'ların ilk
+>    ~%12'sinden hesaplanmış, canlı yol ise benchmark'ın tam-uzunluk sıralamasını
+>    kullanıyor (m0'ın 1.0000 sadakati bunu KAPSAMIYOR — benchmark'ın kendi
+>    vektörlerini yeniden kullanıyordu). Düzeltilip **eşikler yalnız kalibrasyon
+>    split'inde yeniden türetilecek** ve düzeltme beyan edilecek.
+> 3. **sh_64k ön-kaydı GERİ ÇEKİLDİ** — gerekçesiyle kayda geçirilerek. Yeni
+>    ön-kayıt probe sonrası yazılır; zarar tavanları ve güç hesabı ölçülen
+>    **%3,3/soru gürültü tabanının üstünde** olacak.
+>
+> **R2 sırası:** oracle probe (kalibrasyon split'i) → mekanizma seçimi →
+> uygulama → YENİ ön-kayıt → kampanya. Değişmeyenler: `write_policy.py` kalıcı
+> yasak, sh_64k kampanyaya kadar dokunulmaz, eşikler yalnız sh_6k+sh_32k'da,
+> H_raw karar beslemez, BFCL yasak.
+
+---
+
+> Dayanak (R1): `KAPI_KARARI.md` (T8 ayrışık verdikt) + kullanıcı kararları (2026-08-15,
 > 8 soruluk plan oturumu). Kapsam: **yalnız okuma yolu, yalnız rerank, yalnız sh_64k
 > doğrulama**. write_policy KALICI YASAK (NO_GO). Takvim: bu hafta sonu.
 
