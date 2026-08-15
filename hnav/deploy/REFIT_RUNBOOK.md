@@ -109,19 +109,70 @@ Sanity checks before reading any number:
 - m3's `thresholds.fit_subsets == ["sh_6k", "sh_32k"]` and
   `unfit_for_analysis == false`.
 
+## 2b. What the re-fit is adjudicating — the authoritative split
+
+From the T12 supervisor audit. Structure the report around exactly these three
+buckets so it can state which numbers **changed**, which were **confirmed
+stable**, and which were **never at risk**. Every chunk-level quantity is
+suspect because 94 of 95 chunks across all four subsets exceeded 512 tokens;
+fact-level quantities are not, because a fact is far below the budget.
+
+**Bucket A — INVALID pending re-fit (chunk-level; assume nothing):**
+- the **entire** `m2_retrieval_calibration.json`, including the
+  **`NOT_DEGENERATE` 4/4 verdict — a headline thesis claim**;
+- m3's **read side**: labels, `accuracy_native` / `accuracy_repaired`,
+  `repair_helped` / `repair_harmed`, `READ_MISSING`;
+- the `nmargin` p25 and `H_z` p75 thresholds (fit from read_rows), and
+  therefore `read_gate.py`'s `NMARGIN_CAL` / `H_Z_CAL` and every
+  `GateThresholds()` default;
+- the Faz A coverage figure "ambiguity fires 94/200".
+
+**Bucket B — EXPECTED unaffected, but CONFIRM rather than assume:**
+- m1, m1b (hence `COS_PAIR_CAL`), m4, and m3's **write side**;
+- **`R_MIN_CAL`** — fit from write_rows (facts), so it is the one frozen
+  threshold not contaminated. Confirming it matters: if it moves, the
+  fact-level assumption itself is wrong and the blast radius is larger than
+  this runbook assumes.
+
+**Bucket C — structurally unreachable regardless of the re-fit:** the `H_z`
+screen on sh_6k (defect (a) below). Re-fitting cannot repair a threshold above
+the arithmetic ceiling; only per-subset reporting can.
+
+Report each bucket separately, and for Bucket B state explicitly *"confirmed
+stable to N decimal places"* rather than silently omitting it.
+
 ## 3. Produce the old-vs-new diff report
 
 Write `stage0_results/refit_threshold_diff.md` containing, **per subset — never
-pooled**:
+pooled**, grouped by the buckets in §2b:
 
-| quantity | old (L512) | new (L8192) | Δ |
-|---|---|---|---|
-| `nmargin` p25 | | | |
-| `H_z` p75 | | | |
-| `r_min` p10 | | | |
-| median chunk-pair cosine | | | |
-| M1b best-F1 tau + precision/recall | | | |
-| M2 `nmargin`/`H_z` p50 | | | |
+**Bucket A (invalid → what did it become?)**
+
+| quantity | old (L512) | new (L8192) | Δ | verdict |
+|---|---|---|---|---|
+| `nmargin` p25 → `NMARGIN_CAL` | | | | |
+| `H_z` p75 → `H_Z_CAL` | | | | |
+| M2 `nmargin` p50 | | | | |
+| M2 `H_z` p50 | | | | |
+| M2 `H_raw` p50 (logged only) | | | | |
+| M2 **`raw_entropy_verdict`** (NOT_DEGENERATE?) | | | | |
+| M2 `margin` p50, `tie_rate_top_m` | | | | |
+| m3 read: `accuracy_native` / `accuracy_repaired` | | | | |
+| m3 read: `repair_helped` / `repair_harmed` | | | | |
+| m3 read: `READ_MISSING` rate | | | | |
+| ambiguity coverage (was 94/200) | | | | |
+
+**Bucket B (expected stable → confirm, do not omit)**
+
+| quantity | old | new | Δ | confirmed stable? |
+|---|---|---|---|---|
+| **`r_min` p10 → `R_MIN_CAL`** | | | | |
+| M1 median conflict-pair sim / AUC | | | | |
+| M1b best-F1 tau → `COS_PAIR_CAL` | | | | |
+| M1b precision / recall / F1 | | | | |
+| m3 write: conflict / critical-delta / stale rates | | | | |
+| m3 write: would-intervene (after vetoes) | | | | |
+| m4 `delta_auc`, LRT p | | | | |
 
 Old values: `stage0_results/final/{m1b_grouping_ablation,m2_retrieval_calibration,m3_headroom}.json`.
 New values: the corresponding `hnav/_out/*.json` after step 2.
@@ -180,3 +231,16 @@ all, which is the general form of defect (a).
    `_L8192` suffix (keep the L512 originals — evidence is never deleted).
 3. A one-line verdict: do the corrected thresholds move enough to change any
    conclusion drawn from the old ones? Answer per subset, with the numbers.
+4. An explicit statement on the **`NOT_DEGENERATE` 4/4 verdict** (Bucket A):
+   does it survive the correction? It is a headline thesis claim and it was
+   computed from truncated chunk vectors, so it is re-earned or withdrawn —
+   not carried forward by default.
+5. An explicit statement on **`R_MIN_CAL`** (Bucket B): confirmed unchanged,
+   or — if it moved — a flag that the "facts are short, so fact-level signals
+   are safe" premise underlying this whole triage is wrong, which widens the
+   blast radius beyond the chunk-level quantities and must be escalated
+   before anything else is re-derived.
+6. Update `hnav/core/read_gate.py`'s frozen constants and
+   `hnav/tests/test_threshold_provenance.py` **in the same commit** as the new
+   JSONs, so code and artifact cannot drift (that test asserts exact equality
+   and will fail loudly otherwise).
