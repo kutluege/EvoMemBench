@@ -29,8 +29,8 @@ import numpy as np
 import pytest
 
 from hnav import config as _config
-from hnav.core.embedding import (DEFAULT_MAX_LENGTH, DiskCachedEmbedder,
-                                 HFEmbedder, cache_key)
+from hnav.core.embedding import (DEFAULT_MAX_BATCH_TOKENS, DEFAULT_MAX_LENGTH,
+                                 DiskCachedEmbedder, HFEmbedder, cache_key)
 
 REPO = Path(__file__).resolve().parents[2]
 DATA = REPO / "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/data/Conflict_Resolution.json"
@@ -127,6 +127,9 @@ def test_max_length_is_passed_through_to_the_tokenizer(monkeypatch):
     emb.dim = 4
     emb.device = "cpu"
     emb.max_length = 4242
+    # every field _batches() reads must be set here: bypassing __init__ means a
+    # new grouping knob shows up as an AttributeError on the box and a skip here.
+    emb.max_batch_tokens = DEFAULT_MAX_BATCH_TOKENS
 
     class _Model:
         def __call__(self, **enc):
