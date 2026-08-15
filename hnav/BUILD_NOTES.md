@@ -1076,3 +1076,40 @@ CrossEp texts: p50 1,045 / p90 1,130 / p99 1,411 / max 5,076 tokens.
 **92.55% exceed 512**, so the pre-T12 truncation was cutting nearly every
 CrossEp text. The T12 truncation fix therefore mattered *more* on CrossEp than
 on MAB, and that belongs in the write-up.
+
+### 11b. T13b — token-budget batching (found by the re-fit, fixed, verified)
+
+The re-fit's m2 stage OOM'd even with §11 in place, and in a different place:
+the **MLP**, not attention. `emb.encode(chunks)` handed 9 real benchmark chunks
+of ~5,000 tokens to one padded forward (~45k tokens), whose fp32
+`[tokens, 9728]` activations (~1.75 GiB each) exhaust what remains after the
+15.1 GiB of weights. §11 made attention cheap; it did not make a 45k-token
+batch cheap.
+
+Fixed batch *count* is simply the wrong unit when texts differ in length by two
+orders of magnitude (a fact is ~15 tokens, a chunk ~5,000), because padding
+makes a batch cost `count × longest`. `HFEmbedder._batches` now bounds that
+product by `DEFAULT_MAX_BATCH_TOKENS = 8192`
+(`HNAV_EMBED_MAX_BATCH_TOKENS` / `cfg.embed_max_batch_tokens`) as well as by
+the count cap: short facts still batch freely, long chunks go one at a time
+(5,008 ≤ 8192 < 2 × 5,008).
+
+**Vector-neutral, verified rather than argued.** Attention and mean-pooling are
+both masked, so grouping cannot change a text's own vector; the cache namespace
+is therefore unchanged. Measured against L8192 vectors that `m1` had already
+cached under a *different* grouping (its standalone embedder, fixed count 8):
+
+| sample | n | grouping then → now | max\|1−cos\| | max\|Δcomponent\| |
+|---|---|---|---|---|
+| facts | 64 | 8×8 → 8×8 | 5.960e-07 | 4.470e-07 |
+
+and the 11 calibration chunks (58–5,008 tokens) now encode in 11 single-text
+batches, all finite, all unit-norm. fp32 epsilon, two orders under the 1e-5
+stop line.
+
+**Note for anyone reading the cache:** two implementations write the same
+namespace — `hnav/core/embedding.py` and the standalone
+`m1_geometry_calibration.py` — and they group differently. Vectors agree to
+~5e-07, so which one computed a given entry first is not recoverable from the
+file and does not matter at this tolerance. It is recorded here rather than
+discovered later.
