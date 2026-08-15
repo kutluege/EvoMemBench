@@ -220,7 +220,16 @@ olmadığı için koruyucu iddiayı geçersiz kılar. Değişiklik 4 uyarınca b
   doğru cevapladı**. Yani 2 tahmin edilen gold-cut, 1 silme ve **0 doğruluk
   kaybı** üretti. Bu, tahminin arkasındaki örtük "gold_cut ⇒ zarar" varsayımını
   zayıflatır ve gizlenmek yerine açıkça yazılmalıdır. (Havuz sınırı atfı
-  artefaktan doğrulanamıyor — soru başına havuzlar kaydedilmiyor.)
+  **geri çekildi** — artefaktan doğrulanamıyordu; `detector_gap` artık soru
+  başına `n_pool`/`pool` kaydediyor ki bu tür iddialar denetlenebilsin.)
+- **★ Ama q20'nin ayrıntısı bir UYARIDIR, güvence değil.** O soruda sayfadan
+  "Europe" silindi ve geriye yalnız **"Asia"** kaldı — model yine de **"Europe"**
+  cevabını verdi. Yani bağlamı değil, **dünya bilgisini** kullandı: T12'nin
+  ayırmak için kurulduğu H-parametrik davranış. Dolayısıyla **"gold cut'lardan
+  0 doğruluk kaybı" bulgusu, gold cut'ların güvenli olduğunun değil,
+  DEĞERLENDİRİCİNİN bunu yakalayamadığının kanıtıdır**: sayfa daha yanlış hâle
+  getirildi ve metrik yine de memnun kaldı. Tezde bu, olumlu bir sonuç olarak
+  değil, ölçüm sınırlılığı olarak yazılmalıdır.
 - **Void koşulları 1,2,3,4,6,7,8: HEPSİ GEÇTİ** (uyuşmazlık 0; A/A **0/0**;
   735 bastırmanın **0**'ı zararlı — denetçi ayrıştırıcı gerçeğine karşı
   bağımsız doğruladı, precision **1.000000**; sayfa kaynağı benchmark;
