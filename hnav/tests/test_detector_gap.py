@@ -70,7 +70,9 @@ def test_superseded_is_exactly_the_two_older_atlantis_facts(table):
 
 
 def test_latest_and_latest_object_per_key(table):
-    key = ("| is the capital of ", "Atlantis") if False else None
+    """The relation half of the key is whatever ``conflict_analysis.parse``
+    produces, so the fixture selects on the SUBJECT rather than hardcoding a
+    template string this test has no business owning."""
     atlantis = [k for k in table["latest"] if k[1] == "Atlantis"]
     assert len(atlantis) == 1
     k = atlantis[0]
