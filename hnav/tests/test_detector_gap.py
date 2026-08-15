@@ -1,0 +1,408 @@
+"""The detector-gap measurement, checked against hand-computed answers.  [T13]
+
+The script's job is to make ONE number defensible — detector-achieved over
+oracle-achieved — so the parts that could quietly corrupt it are the parts
+tested here, each against an answer worked out by hand rather than against
+"it ran":
+
+* the parse-derived ground truth (which facts are genuinely superseded, which
+  pairs are true supersession pairs), on a fixture where the answer is obvious;
+* the arm construction, including the assertion that the probe-style arm and
+  the SHIPPED ``page_edit`` path produce the same bytes — if they ever diverge
+  the ratio compares two different interventions;
+* the detection metrics, from a hand-built ``GateDecision`` whose true/false
+  verifications and suppression classes are counted by inspection;
+* the pre-registered operating-point rule, including the two cases it exists to
+  refuse (a higher-recall cell with the identity screen off, and a cell that
+  would delete a fact carrying its key's current value);
+* the ratios, and the split refusal.
+
+No socket, no torch, no embedding cache, no model.
+"""
+from __future__ import annotations
+
+import json
+
+import numpy as np
+import pytest
+
+from hnav.core.read_gate import ConflictGroup, GateDecision, PairCheck
+from hnav.stage1 import detector_gap as D
+from hnav.stage1.stale_suppression_probe import render_context, split_context
+
+# ── a fixture whose ground truth is obvious by inspection ────────────────────
+# key A = (capital, Atlantis): 1 Poseidonis -> 3 Byzantium -> 4 Kallipolis
+#         so facts 1 and 3 are superseded; 4 is the latest.
+# key B = (capital, Numenor): a single value  -> nothing superseded.
+# key C = (chairperson, Fatah): a single value.
+ITEM = {
+    "context": (
+        "Here is a list of facts:\n"
+        "0. The capital of Numenor is Armenelos.\n"
+        "1. The capital of Atlantis is Poseidonis.\n"
+        "2. The chairperson of Fatah is Ada Lovelace.\n"
+        "3. The capital of Atlantis is Byzantium.\n"
+        "4. The capital of Atlantis is Kallipolis.\n"
+        "5. Thomas Kyd was born in the city of London.\n"
+    ),
+    "questions": ["What is the capital of Atlantis?",
+                  "What is the capital of Numenor?"],
+    "answers": [["Kallipolis"], ["Armenelos"]],
+    "metadata": {"qa_pair_ids": ["factconsolidation_sh_6k_no0",
+                                 "factconsolidation_sh_6k_no1"]},
+}
+FACTS = [(0, "The capital of Numenor is Armenelos."),
+         (1, "The capital of Atlantis is Poseidonis."),
+         (2, "The chairperson of Fatah is Ada Lovelace."),
+         (3, "The capital of Atlantis is Byzantium."),
+         (4, "The capital of Atlantis is Kallipolis."),
+         (5, "Thomas Kyd was born in the city of London.")]
+
+
+@pytest.fixture(scope="module")
+def table():
+    return D.fact_table(ITEM)
+
+
+# ── ground truth, decided without reading an answer ──────────────────────────
+def test_superseded_is_exactly_the_two_older_atlantis_facts(table):
+    assert table["superseded"] == {"fact:1", "fact:3"}
+
+
+def test_latest_and_latest_object_per_key(table):
+    key = ("| is the capital of ", "Atlantis") if False else None
+    atlantis = [k for k in table["latest"] if k[1] == "Atlantis"]
+    assert len(atlantis) == 1
+    k = atlantis[0]
+    assert table["latest"][k] == 4 and table["latest_obj"][k] == "Kallipolis"
+
+
+def test_gt_pairs_are_the_three_atlantis_pairs(table):
+    ids = [f"fact:{i}" for i in range(6)]
+    pairs = D.gt_pairs(ids, table["by_id"])
+    assert pairs == {("fact:1", "fact:3"), ("fact:1", "fact:4"),
+                     ("fact:3", "fact:4")}
+    assert D.count_gt_pairs(ids, table["by_id"]) == 3
+
+
+def test_count_gt_pairs_matches_the_quadratic_form_and_ignores_duplicates(table):
+    """Two facts of one key with the SAME object are not a supersession pair —
+    the linear counter must subtract them exactly like the set builder does."""
+    item = dict(ITEM)
+    item["context"] = ("Here is a list of facts:\n"
+                       "0. The capital of Atlantis is Poseidonis.\n"
+                       "1. The capital of Atlantis is Poseidonis.\n"
+                       "2. The capital of Atlantis is Byzantium.\n")
+    t = D.fact_table(item)
+    ids = ["fact:0", "fact:1", "fact:2"]
+    assert D.count_gt_pairs(ids, t["by_id"]) == len(D.gt_pairs(ids, t["by_id"])) == 2
+    assert t["superseded"] == {"fact:0", "fact:1"}
+
+
+# ── arms ─────────────────────────────────────────────────────────────────────
+PLAN = {"suppress_serials": [1, 3], "demote_serials": [4]}
+
+
+def test_detector_suppress_removes_exactly_the_named_serials():
+    out = D.arm_facts("detector_suppress", FACTS, PLAN)
+    assert out == [FACTS[0], FACTS[2], FACTS[4], FACTS[5]]
+    assert [s for s, _ in out] == [0, 2, 4, 5], "serials are never renumbered"
+
+
+def test_detector_demote_moves_the_named_serials_to_the_end():
+    out = D.arm_facts("detector_demote_late", FACTS, PLAN)
+    assert out[-1] == FACTS[4]
+    assert sorted(out) == sorted(FACTS), "a permutation: nothing added or dropped"
+
+
+def test_detector_anti_is_the_exact_mirror():
+    out = D.arm_facts("detector_anti", FACTS, PLAN)
+    assert out[0] == FACTS[4]
+    assert sorted(out) == sorted(FACTS)
+
+
+def test_multiple_demotions_put_the_highest_serial_last_and_first():
+    plan = {"suppress_serials": [], "demote_serials": [1, 4]}
+    late = D.arm_facts("detector_demote_late", FACTS, plan)
+    assert late[-2:] == [FACTS[1], FACTS[4]]
+    anti = D.arm_facts("detector_anti", FACTS, plan)
+    assert anti[:2] == [FACTS[4], FACTS[1]]
+
+
+def test_native_arms_are_the_untouched_fact_list():
+    for arm in ("native", "native_repeat"):
+        assert D.arm_facts(arm, FACTS, PLAN) == FACTS
+
+
+def test_the_shipped_page_contract_agrees_with_the_probe_style_arm():
+    """The guard the run refuses on. If ``page_edit`` and the probe helpers
+    ever disagree, the measured effect is not the mechanism that ships."""
+    preamble, facts = split_context(ITEM["context"])
+    for arm in ("detector_suppress", "detector_demote_late"):
+        want = render_context(preamble, D.arm_facts(arm, facts, PLAN))
+        assert D.shipped_page(arm, ITEM["context"], PLAN) == want
+    assert D.shipped_page("detector_anti", ITEM["context"], PLAN) is None
+
+
+# ── detection metrics ────────────────────────────────────────────────────────
+def _decision(groups, checks, ambiguous=True):
+    return GateDecision(ambiguous=ambiguous, groups=groups, pair_checks=checks)
+
+
+def _grp(latest, stale):
+    return ConflictGroup(member_ids=[latest] + list(stale), latest_id=latest,
+                         stale_ids=list(stale), residuals={})
+
+
+def _chk(a, b, verified=True):
+    return PairCheck(id_a=a, id_b=b, cos=0.99, verified=verified)
+
+
+def test_score_decision_counts_a_perfect_detection(table):
+    strat = {"stratum": "conflicted", "key": [k for k in table["latest"]
+                                              if k[1] == "Atlantis"][0],
+             "member_serials": [1, 3, 4], "target_serial": 4}
+    dec = _decision([_grp("fact:4", ["fact:1", "fact:3"])],
+                    [_chk("fact:1", "fact:3"), _chk("fact:1", "fact:4"),
+                     _chk("fact:3", "fact:4")])
+    m = D.blank_metrics()
+    D.score_decision(m, dec, table, strat, [f"fact:{i}" for i in range(6)], 3)
+    out = D.finish_metrics(m)
+    assert (out["tp"], out["fp"]) == (3, 0)
+    assert out["pair_precision"] == 1.0
+    assert out["pair_recall_pool"] == 1.0 and out["pair_recall_page"] == 1.0
+    assert out["n_suppressed"] == 2 and out["n_suppressed_superseded"] == 2
+    assert out["n_suppressed_harmful"] == 0
+    assert out["n_demoted"] == 1 and out["n_demoted_is_latest"] == 1
+    assert out["n_conflicted_hit"] == 1 and out["n_conflicted_gold_cut"] == 0
+    assert out["question_recall_conflicted"] == 1.0 and out["coverage"] == 1.0
+
+
+def test_a_cross_key_verification_is_a_false_positive_and_a_harmful_cut(table):
+    """Two facts of DIFFERENT keys verified as a conflict: the pair is a false
+    positive, and suppressing the older one deletes a fact that carries its own
+    key's current value. Both counters must fire."""
+    strat = {"stratum": "unique", "key": None, "member_serials": [],
+             "target_serial": None}
+    dec = _decision([_grp("fact:5", ["fact:2"])], [_chk("fact:2", "fact:5")])
+    m = D.blank_metrics()
+    D.score_decision(m, dec, table, strat, [f"fact:{i}" for i in range(6)], 3)
+    out = D.finish_metrics(m)
+    assert (out["tp"], out["fp"]) == (0, 1) and out["pair_precision"] == 0.0
+    assert out["n_suppressed_harmful"] == 1 and out["fact_precision"] == 0.0
+    assert out["n_unique_touched"] == 1
+
+
+def test_suppressing_a_same_valued_duplicate_is_neither_true_nor_harmful():
+    item = dict(ITEM)
+    item["context"] = ("Here is a list of facts:\n"
+                       "0. The capital of Atlantis is Kallipolis.\n"
+                       "1. The capital of Atlantis is Kallipolis.\n")
+    t = D.fact_table(item)
+    strat = {"stratum": "unique", "key": None, "member_serials": [],
+             "target_serial": None}
+    dec = _decision([_grp("fact:1", ["fact:0"])], [_chk("fact:0", "fact:1")])
+    m = D.blank_metrics()
+    D.score_decision(m, dec, t, strat, ["fact:0", "fact:1"], 0)
+    out = D.finish_metrics(m)
+    assert out["n_suppressed_same_value"] == 1
+    assert out["n_suppressed_superseded"] == 0 and out["n_suppressed_harmful"] == 0
+
+
+def test_cutting_the_gold_fact_is_counted_and_kills_the_hit(table):
+    key = [k for k in table["latest"] if k[1] == "Atlantis"][0]
+    strat = {"stratum": "conflicted", "key": key, "member_serials": [1, 3, 4],
+             "target_serial": 4}
+    dec = _decision([_grp("fact:3", ["fact:1", "fact:4"])], [])
+    m = D.blank_metrics()
+    D.score_decision(m, dec, table, strat, [f"fact:{i}" for i in range(6)], 3)
+    out = D.finish_metrics(m)
+    assert out["n_conflicted_gold_cut"] == 1
+    assert out["n_conflicted_hit"] == 0, \
+        "the key's newest fact was deleted; that is not a detection"
+
+
+# ── the pre-registered selection rule ────────────────────────────────────────
+def _cell(cos=0.90, rlab="off", amb="none", nli=0.5, filt=True, recall=0.5,
+          harmful=0):
+    m = D.blank_metrics()
+    m.update({"n_suppressed_harmful": harmful})
+    m = D.finish_metrics(m)
+    m["pair_recall_pool"] = recall
+    return {"cos_pair": cos, "r_min_label": rlab, "r_min": D.r_min_of(rlab),
+            "ambiguity_mode": amb, "nli_contradiction": nli,
+            "pair_filter": filt, "metrics": m}
+
+
+def test_selection_maximises_recall_among_admissible_cells():
+    cells = [_cell(recall=0.4), _cell(cos=0.94, recall=0.9), _cell(recall=0.7)]
+    assert D.select(cells)["cos_pair"] == 0.94
+
+
+def test_selection_refuses_a_higher_recall_cell_with_the_identity_screen_off():
+    """The T11 lesson made a rule: with ``pair_filter`` off, ~86% of
+    verifications were spurious and the apparent gains were noise."""
+    cells = [_cell(recall=0.5), _cell(filt=False, recall=0.99)]
+    assert D.select(cells)["pair_filter"] is True
+
+
+def test_selection_refuses_any_cell_that_would_delete_a_current_value():
+    cells = [_cell(recall=0.5), _cell(recall=0.99, harmful=1)]
+    assert D.select(cells)["metrics"]["pair_recall_pool"] == 0.5
+
+
+def test_selection_returns_none_when_nothing_qualifies():
+    assert D.select([_cell(filt=False, recall=0.9),
+                     _cell(recall=0.9, harmful=3)]) is None
+
+
+def test_ties_break_towards_the_more_conservative_gate():
+    cells = [_cell(cos=0.90, nli=0.5, rlab="off", amb="none", recall=0.8),
+             _cell(cos=0.94, nli=0.5, rlab="off", amb="none", recall=0.8),
+             _cell(cos=0.94, nli=0.99, rlab="off", amb="none", recall=0.8),
+             _cell(cos=0.94, nli=0.99, rlab="frozen", amb="none", recall=0.8),
+             _cell(cos=0.94, nli=0.99, rlab="frozen", amb="all", recall=0.8)]
+    best = D.select(cells)
+    assert (best["cos_pair"], best["nli_contradiction"], best["r_min_label"],
+            best["ambiguity_mode"]) == (0.94, 0.99, "frozen", "all")
+
+
+def test_the_selection_rule_is_declared_not_inferred():
+    assert "pair_filter is True" in D.SELECTION_RULE["require"]
+    assert "n_suppressed_harmful == 0" in D.SELECTION_RULE["require"]
+    assert D.SELECTION_RULE["maximise"] == "pair_recall_pool"
+
+
+# ── the headline ratio ───────────────────────────────────────────────────────
+def _acc_block(correct, n):
+    return {"n": n, "correct": correct, "accuracy": correct / n if n else None}
+
+
+def _fake_result():
+    return {
+        "subset": "sh_6k",
+        "arms": {"native": _acc_block(29, 100),
+                 "detector_suppress": _acc_block(80, 100),
+                 "detector_demote_late": _acc_block(40, 100),
+                 "detector_anti": _acc_block(27, 100)},
+        "paired_vs_native": {"detector_suppress": {"net": 51},
+                             "detector_demote_late": {"net": 11},
+                             "detector_anti": {"net": -2}},
+        "by_stratum": {"conflicted": {"arms": {
+            "native": _acc_block(4, 74),
+            "detector_suppress": _acc_block(55, 74),
+            "detector_demote_late": _acc_block(15, 74),
+            "detector_anti": _acc_block(2, 74)}}},
+    }
+
+
+def _fake_oracle():
+    return {"file": "stage0_results/stage1/x.json", "harness": {},
+            "result": {
+                "subset": "sh_6k",
+                "arms": {"native": _acc_block(29, 100),
+                         "oracle_suppress": _acc_block(91, 100),
+                         "oracle_recency": _acc_block(46, 100),
+                         "anti": _acc_block(26, 100)},
+                "paired_vs_native": {"oracle_suppress": {"net": 62},
+                                     "oracle_recency": {"net": 17},
+                                     "anti": {"net": -3}},
+                "by_stratum": {"conflicted": {"arms": {
+                    "native": _acc_block(4, 74),
+                    "oracle_suppress": _acc_block(66, 74),
+                    "oracle_recency": _acc_block(20, 74),
+                    "anti": _acc_block(1, 74)}}}}}
+
+
+def test_ratios_are_computed_exactly():
+    cmp_ = D.compare_to_oracle(_fake_result(), _fake_oracle())
+    sup = cmp_["by_mechanism"]["detector_suppress"]
+    assert sup["oracle_arm"] == "oracle_suppress"
+    assert sup["net_ratio"] == pytest.approx(51 / 62)
+    assert sup["detector_conflicted_gain"] == 51 and sup["oracle_conflicted_gain"] == 62
+    assert sup["conflicted_gain_ratio"] == pytest.approx(51 / 62)
+    dem = cmp_["by_mechanism"]["detector_demote_late"]
+    assert dem["oracle_arm"] == "oracle_recency"
+    assert dem["net_ratio"] == pytest.approx(11 / 17)
+    assert cmp_["native_cross_run"]["identical"] is True
+
+
+def test_a_zero_oracle_effect_yields_no_ratio_rather_than_a_division():
+    oracle = _fake_oracle()
+    oracle["result"]["paired_vs_native"]["oracle_suppress"]["net"] = 0
+    cmp_ = D.compare_to_oracle(_fake_result(), oracle)
+    assert cmp_["by_mechanism"]["detector_suppress"]["net_ratio"] is None
+
+
+def test_a_drifted_native_arm_is_flagged_not_silently_ratioed():
+    oracle = _fake_oracle()
+    oracle["result"]["arms"]["native"] = _acc_block(31, 100)
+    cmp_ = D.compare_to_oracle(_fake_result(), oracle)
+    assert cmp_["native_cross_run"]["identical"] is False
+
+
+def test_no_oracle_file_means_no_comparison_block():
+    assert D.compare_to_oracle(_fake_result(), None) is None
+
+
+# ── guards ───────────────────────────────────────────────────────────────────
+def test_confirmatory_subsets_are_refused(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["detector_gap.py", "--subsets", "sh_64k"])
+    assert D.main() == 2
+    assert "REFUSED" in capsys.readouterr().out
+    monkeypatch.setattr("sys.argv", ["detector_gap.py", "--subsets", "sh_262k"])
+    assert D.main() == 2
+
+
+def test_a_run_without_a_frozen_operating_point_refuses(monkeypatch, tmp_path):
+    monkeypatch.setattr(D, "OPERATING_POINT", tmp_path / "nope.json")
+    with pytest.raises(SystemExit, match="--select"):
+        D.frozen_cell()
+
+
+def test_frozen_cell_reads_the_committed_artifact(monkeypatch, tmp_path):
+    art = tmp_path / "op.json"
+    art.write_text(json.dumps({
+        "thresholds": {"cos_pair": 0.9, "r_min": None, "nmargin": 1.0,
+                       "H_z": 2.0, "ambiguity_mode": "none",
+                       "nli_contradiction": 0.99},
+        "r_min_label": "off", "pair_filter": True}), encoding="utf-8")
+    monkeypatch.setattr(D, "OPERATING_POINT", art)
+    cell = D.frozen_cell()
+    assert cell["cos_pair"] == 0.9 and cell["ambiguity_mode"] == "none"
+    assert cell["nli_contradiction"] == 0.99 and cell["pair_filter"] is True
+
+
+def test_cosine_error_is_zero_on_the_vectors_that_produced_the_pairs():
+    v = np.eye(4, dtype=np.float32)
+    order = ["fact:0", "fact:1", "fact:2", "fact:3"]
+    pp = {"questions": [{"pairs": [
+        {"a": "fact:0", "b": "fact:1", "cos": 0.0},
+        {"a": "fact:2", "b": "fact:2", "cos": 1.0}]}]}
+    assert D.cosine_error(v, order, [pp]) == pytest.approx(0.0, abs=1e-12)
+
+
+def test_cosine_error_catches_a_wrong_namespace():
+    v = np.eye(4, dtype=np.float32)
+    order = ["fact:0", "fact:1"]
+    pp = {"questions": [{"pairs": [{"a": "fact:0", "b": "fact:1", "cos": 0.97}]}]}
+    assert D.cosine_error(v, order, [pp]) == pytest.approx(0.97)
+
+
+def test_no_verifiable_pair_is_infinite_error_not_zero():
+    """An unverifiable namespace must never pass the check by default."""
+    assert D.cosine_error(np.eye(2, dtype=np.float32), ["a", "b"],
+                          [{"questions": []}]) == float("inf")
+
+
+def test_load_fact_vectors_refuses_when_nothing_reproduces_the_geometry(
+        monkeypatch, tmp_path):
+    from hnav import config as _config
+
+    cfg = _config.HNavConfig(cache_dir=tmp_path)
+    monkeypatch.setattr(
+        "hnav.core.embedding.DiskCachedEmbedder.encode",
+        lambda self, texts: np.eye(len(texts), dtype=np.float32))
+    pp = {"questions": [{"pairs": [{"a": "fact:0", "b": "fact:1", "cos": 0.99}]}]}
+    with pytest.raises(SystemExit, match="REFUSED"):
+        D.load_fact_vectors(cfg, ["fact:0", "fact:1"], ["a", "b"], [pp])
