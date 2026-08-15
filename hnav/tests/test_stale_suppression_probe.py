@@ -340,8 +340,12 @@ def test_campaign_reference_reads_the_committed_strata_record(sh_6k):
     assert ref["n_runs"] == 8
     assert ref["unique_accuracy_range"] == [1.0, 1.0]
     assert ref["conflicted_accuracy_range"][1] <= 5 / 74
-    assert ref["strata_counts"] == {"unique": 26, "conflicted": 74, "unmatched": 0}
-    # the probe's own stratification must match it, not merely resemble it
+    assert ref["strata_counts"] == {"unique": 26, "conflicted": 74,
+                                    "ambiguous": 0, "unmatched": 0}
+    # the probe's own stratification must match it, not merely resemble it.
+    # STRATA is imported from question_strata rather than redeclared, so a new
+    # stratum there cannot silently go unreported here.
+    assert P.STRATA == ("unique", "conflicted", "ambiguous", "unmatched")
     assert P.plan_subset(sh_6k, "sh_6k")["strata_counts"] == ref["strata_counts"]
 
 

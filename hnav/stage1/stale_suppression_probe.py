@@ -129,8 +129,8 @@ if str(REPO) not in sys.path:
 from hnav import config as _config  # noqa: E402
 from hnav.adapters.mab_adapter import fact_key  # noqa: E402
 from hnav.labeling.counterfactual import substring_exact_match  # noqa: E402
-from hnav.labeling.question_strata import (FACT_RE_LINE, classify_questions,  # noqa: E402
-                                           key_members)
+from hnav.labeling.question_strata import (FACT_RE_LINE, STRATA,  # noqa: E402
+                                           classify_questions, key_members)
 # Imported, never re-transcribed: one copy of the benchmark's prompt shape.
 from hnav.stage1.calibrate_read_policy import (CALIBRATION,  # noqa: E402
                                                GENERATION_MAX_TOKENS,
@@ -141,7 +141,9 @@ DATA = REPO / "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/data/Conflict_Res
 STRATA_JSON = REPO / "stage0_results/question_strata.json"
 CONFIRMATORY = ("sh_64k", "sh_262k")
 ARMS = ("native", "native_repeat", "oracle_suppress", "oracle_recency", "anti")
-STRATA = ("unique", "conflicted", "unmatched")
+# STRATA is imported from question_strata, not redeclared: the probe must
+# stratify by exactly the labels the T12 record uses, including ``ambiguous``
+# (zero on the calibration split, but the tuple has to stay in step).
 
 
 # ── context surgery (pure; the only part that touches the fact list) ─────────

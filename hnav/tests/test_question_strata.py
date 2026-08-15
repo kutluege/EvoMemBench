@@ -10,9 +10,10 @@ Three levels of check, matching the standard the rest of the suite is held to:
    *duplicate*, not a conflict.
 2. **Independent oracle on the real artifacts.** ``_oracle_counts`` below goes
    from the raw dataset JSON and the raw run JSON to per-run, per-stratum
-   accuracy and error counts using ``gold_rule.py``'s conflicted-first matching
-   form — a different code path from ``map_questions_to_keys`` — and the two
-   must agree exactly on all 400 single-hop questions and all 8 committed runs.
+   accuracy and error counts through a separate implementation — subsumption
+   decided by contiguous token sublists rather than by regex containment — and
+   the two must agree exactly on all 400 single-hop questions and all 8
+   committed runs.
 3. **Negative controls.** A deliberately mislabeled fixture must be *rejected*
    by the same assertion helper the positive tests use, and an output carrying a
    different key's value must not be scored as a stale value of this one. A
@@ -32,11 +33,14 @@ from collections import Counter, defaultdict
 import pytest
 
 from hnav.labeling.conflict_analysis import parse as parse_fact
-from hnav.labeling.counterfactual import normalize_answer, substring_exact_match
+from hnav.labeling.counterfactual import (map_questions_to_keys, normalize_answer,
+                                          substring_exact_match)
 from hnav.labeling.question_strata import (DATA, ERROR_CLASSES, EVIDENCE, STRATA,
-                                           build, classify_questions, error_class,
-                                           implied_conflicted_accuracy, key_members,
-                                           load_runs, score_run, stratum_of,
+                                           accuracy_bounds, build, candidate_keys,
+                                           classify_questions,
+                                           conflicted_only_accuracy, error_class,
+                                           key_members, load_runs, score_run,
+                                           stratum_of, subject_matches,
                                            subset_of_run)
 
 # ── synthetic fixtures: the classification is fixed by construction ──────────
@@ -68,6 +72,31 @@ DUPLICATE = {
                 "1. The capital of Utopia is Amaurot.\n"),
     "questions": ["What is the capital of Utopia?"],
     "answers": [["Amaurot"]],
+}
+
+# The audit case, reduced to its skeleton: a SHORT subject that is a prefix of
+# the right one, on a conflicted key, carrying the same expected value. Under a
+# bare substring match "Arthur" qualifies and (being earlier) wins, and a unique
+# question is scored conflicted. sh_262k q26 in the real data.
+ARTHUR_MILLER = {
+    "context": ("Here is a list of facts:\n"
+                "0. Arthur was created in the country of French Third Republic.\n"
+                "1. Arthur was created in the country of United States of America.\n"
+                "2. Arthur Miller is a citizen of United States of America.\n"),
+    "questions": ["What is the country of citizenship of Arthur Miller?"],
+    "answers": [["United States of America"]],
+}
+
+# Two DIFFERENT subjects, neither containing the other, both qualifying, and
+# they disagree about conflictedness. Nothing can break this tie, so it must be
+# named `ambiguous` rather than first-won.
+AMBIGUOUS = {
+    "context": ("Here is a list of facts:\n"
+                "0. The capital of Alpha is Zenith.\n"
+                "1. The capital of Alpha is Quux.\n"
+                "2. The capital of Beta is Quux.\n"),
+    "questions": ["Which is the capital of Alpha and of Beta?"],
+    "answers": [["Quux"]],
 }
 
 
@@ -109,6 +138,61 @@ def test_duplicate_values_are_not_a_conflict():
     rec = classify_questions(DUPLICATE)[0]
     assert rec["n_members"] == 2, "the fixture really does contain two facts"
     assert rec["stratum"] == "unique"
+
+
+# ── the audit fix: word boundaries and no first-win ──────────────────────────
+def test_subject_matching_is_on_token_boundaries():
+    """Word boundaries stop a subject matching INSIDE a longer word."""
+    assert subject_matches("Arthur", "where did Arthur go?")
+    assert not subject_matches("Arthur", "the Arthurian legend")
+    assert not subject_matches("Miller", "a trip to Millerton")
+    assert subject_matches("H. P. Lovecraft", "Who is H. P. Lovecraft?"), \
+        "subjects with non-word characters must still anchor"
+    assert not subject_matches("", "anything")
+
+
+def test_word_boundaries_alone_do_not_resolve_the_audit_case():
+    """Stated explicitly so the fix is not miscredited: "Arthur" is followed by
+    a space in "Arthur Miller", so it is a perfectly good boundary match. What
+    disqualifies it is SUBSUMPTION by the longer candidate, below."""
+    assert subject_matches("Arthur", "citizenship of Arthur Miller?")
+    assert subject_matches("Arthur Miller", "citizenship of Arthur Miller?")
+
+
+def test_arthur_miller_is_unique_not_conflicted():
+    """The one real mis-assignment the supervisor audit found. Regression pin."""
+    rec = classify_questions(ARTHUR_MILLER)[0]
+    assert rec["stratum"] == "unique"
+    assert rec["key"][1] == "Arthur Miller"
+    assert rec["candidate_subjects"] == ["Arthur Miller"], \
+        "the shorter, subsumed subject must not even be a candidate"
+    # and the rule it replaces gets it wrong, which is why the fixture exists
+    assert map_questions_to_keys(ARTHUR_MILLER)[0]["conflicted"] is True
+
+
+def test_a_less_specific_subject_loses_to_a_longer_one():
+    groups = key_members(ARTHUR_MILLER)
+    cands = candidate_keys(ARTHUR_MILLER["questions"][0],
+                           {"united states of america"}, groups)
+    assert [k[1] for k in cands] == ["Arthur Miller"]
+
+
+def test_irreducible_disagreement_is_named_ambiguous_not_first_won():
+    """An outcome that can never fire is decoration — this makes it fire."""
+    rec = classify_questions(AMBIGUOUS)[0]
+    assert rec["stratum"] == "ambiguous"
+    assert rec["n_candidates"] == 2
+    assert sorted(rec["candidate_subjects"]) == ["Alpha", "Beta"]
+    assert rec["key"] is None, "an ambiguous question is not assigned a key"
+
+
+def test_ambiguous_questions_cannot_contribute_a_stale_value():
+    """No settled key means no defensible 'superseded value of the same key';
+    the error must fall to off_list, the direction that works AGAINST the
+    headline finding."""
+    rec = classify_questions(AMBIGUOUS)[0]
+    assert rec["other_values"] == []
+    assert error_class("Zenith", rec) == "off_list"
 
 
 def test_key_members_indexes_every_parsable_fact_in_context_order():
@@ -210,14 +294,61 @@ def test_score_run_reports_disagreement_with_a_wrong_recorded_grade():
     assert scored["grade_check"]["n_disagreements"] == 1
 
 
-# ── closed form ──────────────────────────────────────────────────────────────
-def test_implied_conflicted_accuracy_is_the_stated_algebra():
-    # (acc * n - n_unique) / n_conflicted, i.e. all unique questions correct
-    assert implied_conflicted_accuracy(0.33, 26, 74, 100) == pytest.approx(7 / 74)
-    assert implied_conflicted_accuracy(0.47, 35, 65, 100) == pytest.approx(12 / 65)
-    assert implied_conflicted_accuracy(0.20, 21, 77, 100) == pytest.approx(-1 / 77)
-    assert implied_conflicted_accuracy(None, 26, 74, 100) is None
-    assert implied_conflicted_accuracy(0.33, 26, 0, 26) is None
+# ── closed form: bounds, and where a point estimate is allowed at all ────────
+def test_accuracy_bounds_are_the_stated_counting_argument():
+    # sh_262k after the audit fix: 20 correct of 100, 22 unique, 76 conflicted,
+    # 2 unmatched. lo = max(0, 20-22-2)/76 = 0; hi = min(20,76)/76.
+    b = accuracy_bounds(20, 22, 76, 2)
+    assert b["lo"] == 0.0
+    assert b["hi"] == pytest.approx(20 / 76)
+    assert b["unique_accuracy_upper_bound"] == pytest.approx(20 / 22)
+    assert b["assumption_refuted"] is True, \
+        "20 correct cannot fill 22 unique questions - the premise is refuted"
+
+    # sh_6k: 33 correct, 26 unique, 74 conflicted. The premise is NOT refuted.
+    b6 = accuracy_bounds(33, 26, 74, 0)
+    assert b6["lo"] == pytest.approx(7 / 74)
+    assert b6["hi"] == pytest.approx(33 / 74)
+    assert b6["unique_accuracy_upper_bound"] == 1.0
+    assert b6["assumption_refuted"] is False
+    assert accuracy_bounds(33, 26, 0, 0) == {}
+
+
+def test_a_point_estimate_appears_only_where_the_premise_was_measured():
+    counts = {"unique": 26, "conflicted": 74, "ambiguous": 0, "unmatched": 0}
+    measured = {"accuracy": 1.0, "n_runs": 8, "source": "t4_s2"}
+
+    got = conflicted_only_accuracy(0.33, counts, 100, measured)
+    assert got["kind"] == "estimate"
+    assert got["estimate"] == pytest.approx(7 / 74)
+    # the estimate is exactly the bound's lower end: assuming the unique stratum
+    # is perfect is what leaves the conflicted stratum the fewest correct answers
+    assert got["estimate"] == pytest.approx(got["bound"]["lo"])
+
+    unmeasured = conflicted_only_accuracy(0.33, counts, 100, None)
+    assert unmeasured["kind"] == "bound"
+    assert unmeasured["estimate"] is None
+    assert unmeasured["bound"]["lo"] == pytest.approx(7 / 74)
+
+
+def test_a_subset_whose_premise_is_refuted_never_emits_an_estimate():
+    """The reviewer-bait case: the old code printed a NEGATIVE probability."""
+    counts = {"unique": 22, "conflicted": 76, "ambiguous": 0, "unmatched": 2}
+    got = conflicted_only_accuracy(0.20, counts, 100, None)
+    assert got["kind"] == "bound" and got["estimate"] is None
+    assert got["bound"]["lo"] == 0.0 and got["bound"]["hi"] == pytest.approx(20 / 76)
+    assert got["bound"]["assumption_refuted"] is True
+    assert all(v is None or v >= 0 for v in
+               (got["estimate"], got["bound"]["lo"], got["bound"]["hi"])), \
+        "no probability may be negative"
+    assert "m3" in got["harness_caveat"], "the harness caveat must travel with it"
+
+
+def test_conflicted_only_accuracy_without_a_pooled_number():
+    counts = {"unique": 26, "conflicted": 74, "ambiguous": 0, "unmatched": 0}
+    got = conflicted_only_accuracy(None, counts, 100, None)
+    assert got["kind"] == "unavailable" and got["estimate"] is None
+    assert got["bound"] is None
 
 
 # ── the real thing ───────────────────────────────────────────────────────────
@@ -229,14 +360,67 @@ def payload():
 
 
 def test_real_subset_strata_counts_are_pinned(payload):
-    """Regression pin. These four rows are the finding."""
+    """Regression pin. These four rows are the finding.
+
+    sh_262k is 22/76, not the 21/77 the first version produced: see
+    ``test_arthur_miller_is_unique_not_conflicted``.
+    """
     got = {r["subset"]: r["counts"] for r in payload["subsets"]}
     assert got == {
-        "sh_6k":   {"unique": 26, "conflicted": 74, "unmatched": 0},
-        "sh_32k":  {"unique": 35, "conflicted": 65, "unmatched": 0},
-        "sh_64k":  {"unique": 34, "conflicted": 66, "unmatched": 0},
-        "sh_262k": {"unique": 21, "conflicted": 77, "unmatched": 2},
+        "sh_6k":   {"unique": 26, "conflicted": 74, "ambiguous": 0, "unmatched": 0},
+        "sh_32k":  {"unique": 35, "conflicted": 65, "ambiguous": 0, "unmatched": 0},
+        "sh_64k":  {"unique": 34, "conflicted": 66, "ambiguous": 0, "unmatched": 0},
+        "sh_262k": {"unique": 22, "conflicted": 76, "ambiguous": 0, "unmatched": 2},
     }
+
+
+def test_no_question_anywhere_is_left_ambiguous(payload):
+    """The escape hatch exists, and on this corpus it is never needed — which is
+    what makes the strata assignment a fact about the data rather than a choice.
+    Asserted for the calibration split explicitly, since that is where the probe
+    will run."""
+    for row in payload["subsets"]:
+        assert row["counts"]["ambiguous"] == 0, row["subset"]
+    cal = [r for r in payload["subsets"] if r["subset"] in ("sh_6k", "sh_32k")]
+    assert len(cal) == 2
+    assert all(r["counts"]["ambiguous"] == 0 and r["n_multi_candidate"] == 0
+               for r in cal), "calibration split must have no ambiguity at all"
+
+
+def test_the_only_divergence_from_the_committed_mapper_is_arthur_miller():
+    """The refined rule must not quietly re-label the corpus: exactly one
+    question of 400 moves, and it is the one the audit identified."""
+    data = json.loads(DATA.read_text(encoding="utf-8"))
+    moved = []
+    n = 0
+    for item in data:
+        name = item["metadata"]["qa_pair_ids"][0].rsplit("_no", 1)[0]
+        if not name.startswith("factconsolidation_sh_"):
+            continue
+        for mine, theirs in zip(classify_questions(item),
+                                map_questions_to_keys(item)):
+            n += 1
+            old = "unmatched" if theirs["key"] is None else \
+                ("conflicted" if theirs["conflicted"] else "unique")
+            if mine["stratum"] != old:
+                moved.append((name, mine["index"], old, mine["stratum"]))
+    assert n == 400
+    assert moved == [("factconsolidation_sh_262k", 26, "conflicted", "unique")]
+
+
+def test_the_conflicted_only_column_is_a_bound_except_where_measured(payload):
+    by = {r["subset"]: r["conflicted_only_accuracy"] for r in payload["subsets"]}
+    assert by["sh_6k"]["kind"] == "estimate"      # unique stratum measured 26/26
+    assert by["sh_6k"]["estimate"] == pytest.approx(7 / 74)
+    for name in ("sh_32k", "sh_64k", "sh_262k"):
+        assert by[name]["kind"] == "bound", name
+        assert by[name]["estimate"] is None, name
+    b = by["sh_262k"]["bound"]
+    assert (b["lo"], round(b["hi"], 2)) == (0.0, 0.26)
+    assert b["assumption_refuted"] is True
+    assert by["sh_64k"]["bound"]["assumption_refuted"] is False
+    # the harness caveat must travel with every one of them
+    assert all(v["harness_caveat"].startswith("m3_headroom.py") for v in by.values())
 
 
 def test_every_run_answers_the_unique_stratum_perfectly(payload):
@@ -272,34 +456,54 @@ def test_overall_accuracy_matches_the_runs_own_averaged_metric(payload):
 
 
 # ── independent oracle: raw files -> counts, via gold_rule's matching form ───
+def _tokens(text: str) -> list[str]:
+    return re.findall(r"\w+", text.lower())
+
+
+def _is_sub(short: list[str], long: list[str]) -> bool:
+    """Is ``short`` a contiguous sublist of ``long``? (Proper containment.)"""
+    if not short or len(short) >= len(long):
+        return False
+    return any(long[i:i + len(short)] == short
+               for i in range(len(long) - len(short) + 1))
+
+
 def _oracle_records(item: dict) -> list[dict]:
-    """``gold_rule.py``'s rule, re-implemented here: search CONFLICTED keys
-    first, fall back to all keys. Different traversal from
-    ``map_questions_to_keys``; must produce the same labels."""
+    """The same rule, implemented differently.
+
+    Subject matching and subsumption are decided on TOKEN LISTS here — a
+    subject qualifies if its token sequence occurs contiguously in the
+    question's, and loses to another candidate whose token sequence properly
+    contains it — where the module uses regex lookarounds. Two implementations
+    of one rule; they must agree on all 400 questions.
+    """
     groups: dict = defaultdict(list)
     for num, txt in re.findall(r"^\s*(\d+)\.\s+(.*)$", item["context"], re.M):
         p = parse_fact(txt)
         if p:
             groups[(p[0], p[1])].append((int(num), p[2]))
-    conflicts = {k: v for k, v in groups.items() if len({o for _, o in v}) > 1}
 
     out = []
     for q, ans in zip(item["questions"], item["answers"]):
         gold = {str(a).lower() for a in
                 (ans if isinstance(ans, (list, tuple)) else [ans])}
-        hit = None
-        for source, label in ((conflicts, "conflicted"), (groups, "unique")):
-            for (rel, subj), vals in source.items():
-                if subj.lower() in q.lower() and any(o.lower() in gold for _, o in vals):
-                    hit = (label, (rel, subj), vals)
-                    break
-            if hit:
-                break
-        if hit is None:
+        qt = _tokens(q)
+        cands = [k for k, vals in groups.items()
+                 if _tokens(k[1]) and _is_sub(_tokens(k[1]), qt + ["\x00"])
+                 and any(o.lower() in gold for _, o in vals)]
+        kept = [k for k in cands
+                if not any(_is_sub(_tokens(k[1]), _tokens(o[1])) for o in cands)]
+        if not kept:
             out.append({"stratum": "unmatched", "gold": gold, "others": []})
             continue
-        label, _, vals = hit
-        out.append({"stratum": label, "gold": gold,
+        flags = {len({o for _, o in groups[k]}) > 1 for k in kept}
+        if len(flags) > 1:
+            out.append({"stratum": "ambiguous", "gold": gold, "others": []})
+            continue
+        best = sorted(kept, key=lambda k: (-len(k[1]), k[0]))[0]
+        vals = groups[best]
+        out.append({"stratum": "conflicted" if flags.pop() else "unique",
+                    "gold": gold,
                     "others": [o for _, o in vals if o.lower() not in gold]})
     return out
 
