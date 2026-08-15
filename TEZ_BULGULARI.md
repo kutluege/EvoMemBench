@@ -212,12 +212,23 @@ olmadığı için koruyucu iddiayı geçersiz kılar. Değişiklik 4 uyarınca b
   anti 3. **`gold_cut` = her kolda 0.**
 - **Kayıtlı tahmin 2 gold-cut idi; gözlenen: tespit düzeyinde 1, doğruluk
   çevirmesi 0. Tahmin bir eksik tutturdu — yeniden yorumlanmadan "ıskalandı"
-  olarak raporlanır.** (Mekanizma: 2 gold-not-latest sorusundan yalnız 1'inin
-  anahtarı 50-olgu havuzuna girdi ve o zaten natively yanlıştı.)
-- **Void koşulları 1,2,3,4,6,7,8: HEPSİ GEÇTİ** (uyuşmazlık 0; native 0.450 ∈
-  [0.30,0.50]; A/A **0/0**; 735 bastırmanın **0**'ı zararlı; sayfa kaynağı
-  benchmark; containment 0, page_edit hatası 0, 100/100 ateşleme). **Koşum
-  geçersiz DEĞİL.**
+  olarak raporlanır.** Doğru mekanizma (denetçi tarafından artefaktan
+  doğrulanmıştır; ilk aktarımda iki soru yer değiştirmişti): maruz kalan iki
+  sorudan **q18**'in anahtarına hiç dokunulmadı (gold seri 7 silinmedi) ve o
+  soru zaten natively **yanlıştı**; **q20**'de gold olgu (seri 2374) **gerçekten
+  silindi**, üstelik native **doğruydu** — ve model **silinmesine rağmen yine
+  doğru cevapladı**. Yani 2 tahmin edilen gold-cut, 1 silme ve **0 doğruluk
+  kaybı** üretti. Bu, tahminin arkasındaki örtük "gold_cut ⇒ zarar" varsayımını
+  zayıflatır ve gizlenmek yerine açıkça yazılmalıdır. (Havuz sınırı atfı
+  artefaktan doğrulanamıyor — soru başına havuzlar kaydedilmiyor.)
+- **Void koşulları 1,2,3,4,6,7,8: HEPSİ GEÇTİ** (uyuşmazlık 0; A/A **0/0**;
+  735 bastırmanın **0**'ı zararlı — denetçi ayrıştırıcı gerçeğine karşı
+  bağımsız doğruladı, precision **1.000000**; sayfa kaynağı benchmark;
+  containment 0, page_edit hatası 0, 100/100 ateşleme). **Koşum geçersiz
+  DEĞİL.** *Marjlar açıkça yazılmalıdır:* VC2 dar geçti — native 0.450,
+  önceden sabitlenmiş [0.30, 0.50] bandının **üst kenarında**; çakışmayan
+  native 28/34 = 0.824, 0.80 tabanını **tek soruyla** aşıyor. İkisi de gerçek
+  geçiştir ama hakem bunu kontrol edecektir; kendimiz yazalım.
 - **Etki ölçekle küçüldü — tam da öngörülen nedenle:** +62/+66 (sh_6k),
   +44/+38 (sh_32k), **+20** (sh_64k). 50-olgu havuz sınırı + 17 chunk'ın
   10'unun alınması, dedektörün görebildiğini sınırlıyor (735 bastırma vs
@@ -351,17 +362,38 @@ yeniden chunk'lıyor.
 
 ## G. Bugün iddia EDİLEMEYENLER
 
-- ✅ **"H-Nav doğruluğu artırır" — ARTIK İDDİA EDİLEBİLİR, ama tam cümlesiyle:**
-  *held-out sh_64k'da, ön-kayıtlı tek atışta, dedektör-tahrikli olgu düzeyi
-  bastırma çakışan katman doğruluğunu %25.8 → %56.1 çıkardı (net +20,
-  p=1.9e-06), token harcamasını düşürdü (−%0.31) ve çakışan katmanda sıfır
-  zarar verdi; koruyucu iddia tek bir çakışmayan soruda (düzenleme sonrası ret)
-  geçersiz kaldı, dolayısıyla sonuç "etkili ama henüz güvenli değil"dir.*
-- ❌ Kısaltılmış hâliyle **"H-Nav doğruluğu artırır"** (koşulsuz) — hayır.
-  Koruyucu iddia geçersizdir ve bu, cümlenin ayrılmaz parçasıdır.
-- ❌ Tek bir modelin (Qwen3-4B-Instruct) ve tek arenanın ötesine genelleme.
-- ❌ sh_262k'ya çıkarım — ön-kayıt dışında bırakıldı (gold-not-latest maruziyeti
-  %3, m3'te o ölçekte net zarar ölçülmüştü).
+- ✅ **İDDİA EDİLEBİLİR — denetçinin onayladığı tam cümle (tezde bu hâliyle):**
+  > Held-out `factconsolidation_sh_64k` alt kümesinde, tek bir ön-kayıtlı
+  > doğrulama koşumunda (100 soru × 5 kol, 500 çağrı, dondurulmuş substrat,
+  > benchmark'ın aldığı top-10 sayfa), dedektörle doğrulanmış superseded
+  > olguların **olgu düzeyinde bastırılması**, çakışan katman doğruluğunu
+  > **17/66 → 37/66** çıkardı — **+20 net uyuşmaz çift, McNemar exact
+  > p = 1.9×10⁻⁶, çakışan katmanda sıfır zarar** — tam **0/0** ölçülmüş bir A/A
+  > gürültü tabanına karşı ve **token maliyeti olmadan (−%0.31)**. Bastırma
+  > precision'ı **1.000** (735/735 silinen olgu bağımsız olarak superseded
+  > doğrulandı; hiçbir anahtarın güncel değeri silinmedi). Kapı **gold'suzdu**:
+  > işletim noktası, hiçbir kol notlanmadan önce yalnız tespit kalitesiyle
+  > donduruldu. **Ön-kayıtlı koruyucu ölçüt sağlanMAdı**: bir çakışmayan soru
+  > geriledi — ihtiyaç duyduğu olgu sayfada dururken model cevap vermeyi
+  > reddetti (`refusal_after_edit`). Mekanizma bu nedenle **etkili ama henüz
+  > güvenli değildir** ve bu zarar kipi ortadan kaldırılana kadar çakışmasız
+  > sorgu içeren trafikte dağıtım için önerilmez.
+- ⚠️ **"Etkili" mutlaka kapsamlandırılmalıdır:** *bu arenanın çakışan
+  katmanında* etkili. Niteliksiz bırakılırsa genel etkililik gibi okunur.
+- ❌ **sh_64k için oracle oranı yok.** %98.4 / %95.7 tavan-yakalama rakamları
+  yalnız kalibrasyona aittir ve burada farklı harness'tandır; sh_64k'da oracle
+  kolu yoktur (bütün-bağlam fiziksel olarak sığmıyor).
+- ❌ **"Zararsız" / "regresyon yok"** denemez. Koruyucu iddia geçersizdir ve bu,
+  iyileşmeyle **aynı nefeste** söylenmelidir, sonraki paragrafta değil.
+- ❌ Kalibrasyondan tahmin: +62/+66 ve +44/+38 aktarılıyormuş gibi sunulamaz
+  (§8.2 ve R3 ile yasaklı).
+- ❌ **"H-Nav'ın Stage-0 kapısı doğruluğu artırır"** denemez — `nmargin`/`H_z`
+  atıldır, ateşleme koşulsuzdur, Stage-0 ön-koşul katmanı doğrulanmamıştır.
+- ❌ Genelleme: tek arena, tek alt küme, tek ölçek, tek substrat, tek atış.
+  Gold-cut tahmini **ıskalandı** ve öyle raporlanmalıdır.
+- ❌ **"Ölçekte güvenli"** denemez: 50-olgu havuz sınırı ve eksik retrieval
+  (17 chunk'ın 10'u) hem faydayı hem maruziyeti yalnız burada ölçülen biçimde
+  daraltıyor.
 - ❌ "H-Nav'ın okuma-yolu müdahalesi işe yaramaz." Test edilen tek mekanizma
   (tek yönlü chunk rerank) kaldıracın olmadığı bir split'te, güçsüz bir hedefle
   denendi. Bunu H-Nav hakkında olumsuz sonuç diye yazmak yanlış-olumsuz olur.
