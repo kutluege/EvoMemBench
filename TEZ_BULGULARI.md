@@ -117,9 +117,15 @@ harcayarak.
 
 - **A/A tabanı yine 0/0 uyuşmazlık** (iki subset), native kolu bağımsız probe
   koşusuyla ve 8 tarihsel koşuyla tutarlı.
-- **Koruyucu koşul:** sh_32k'da çakışmayan katman **35/35 korunuyor, 0/0
-  uyuşmazlık**; sh_6k'daki tek `unique` çevirmesi bir yazım kayması
-  ("Shinzō Abe" → "Sinzō Abe"), yanlış olgu değil.
+- **Koruyucu koşul (tam ve dürüst hâli):** sh_32k'da çakışmayan katman
+  **35/35 korunuyor, 0/0 uyuşmazlık**. sh_6k'da **25/26 → 24/26**: tek kayıp,
+  gold olgusu silindiği için değil (sh_6k gold-cut = 0), modelin doğru varlığı
+  bozuk üretmesi yüzündendir ("Shinzō Abe" → "Sinzō Abe"). Değerlendirici bunu
+  yine de kayıp sayar; bu yüzden "zarar sıfır" değil, **"zarar 1/26 ve nedeni
+  müdahale değil substrat üretimi"** denmelidir.
+- **Yanlışlama kontrolü tutarsız:** `anti` kolu sh_6k'da beklendiği gibi zarar
+  verdi (−4) ama sh_32k'da **yardım etti** (+6, p=0.21). Konum hikâyesini
+  zayıflatan bu tutarsızlık raporda açıkça yazılmalıdır.
 - **Gold'u dedektörle değiştirmenin toplam bedeli 1.000 çağrıda iki çevirmedir.**
 - **Dedektör kalitesi (işletim noktası: cos_pair 0.90 · r_min 0.44 ·
   ambiguity none · nli 0.90 · pair_filter True; LLM/gold/doğruluk görmeden
@@ -145,9 +151,25 @@ harcayarak.
 
 **Bu ne demek:** kalibrasyon split'inde H-Nav, gold'suz bir dedektörle,
 doğruluğu **+61 ve +44 puan** artırıyor, **token harcamasını düşürüyor** ve
-korunması gereken katmanda **zarar vermiyor** — tezin üç başarı ölçütü
-(doğruluk ↑, token verimliliği ↑, harm ≈ 0) aynı anda sağlanmış durumda.
-Eksik olan tek şey held-out doğrulamadır.
+korunması gereken katmanda zararı ≤1/26 (nedeni müdahale değil) tutuyor —
+tezin üç başarı ölçütü (doğruluk ↑, token verimliliği ↑, harm ≈ 0) aynı anda
+sağlanmış durumda. Eksik olan tek şey held-out doğrulamadır.
+
+> **KAPSAM UYARISI (denetçi notu 2 — raporda öne çıkarılacak).** Bu deney
+> **bütün-bağlam** koşumudur: istem `Memory 1: <tüm bağlam>` biçimindedir,
+> retrieval boru hattının top-10 sayfası değil. Bu, oracle/dedektör oranını
+> anlamlı kılan doğru tasarımdır; ama **sevk yolu (`apply_read_decision` ile
+> alınan sayfanın düzenlenmesi) doğruluk açısından henüz ölçülmemiştir** —
+> yalnız doğruluğu (correctness) test edilmiştir. Dış denetçinin soracağı ilk
+> soru budur; keşifsel bir retrieval-yolu kolu ayrıca koşulup **ayrı** olarak
+> raporlanacaktır.
+>
+> **Ayrıca:** işletim noktasında `nmargin`/`H_z` ekranı kapalı olduğu için
+> politika **her soruda** değerlendirme yapar; dolayısıyla sevk edilen mekanizma
+> "H-Nav'ın dondurulmuş Stage-0 kapısı" DEĞİL, "olgu-düzeyi çakışma dedektörü
+> (çift kosinüsü + span artığı + ayrıştırılmış özne elemesi + çift yönlü NLI),
+> koşulsuz uygulanmış" hâlidir. Yükü taşıyan şey precision 1.00'dır, kapı
+> değildir; ön-koşul katmanı bu konfigürasyonda **doğrulanmamıştır**.
 
 ---
 
