@@ -52,6 +52,12 @@ class HNavConfig:
     embed_device: int = 1
     embed_dtype: str = "float32"
     embed_batch: int = 32
+    # Tokenizer truncation length. 8192 covers the benchmark's 4096-tiktoken
+    # chunks (measured max 4,333 tokens / 17,675 chars) with headroom, under
+    # the model's 32768 context and the embed endpoint's 16384 window. It is
+    # part of the embedding cache namespace: changing it invalidates cached
+    # vectors by design rather than silently reusing them (T12).
+    embed_max_length: int = 8192
     # Served /v1/embeddings endpoint (vLLM :8001). Used by the LIVE/shadow
     # read stack, which runs inside the benchmark process with no GPU of its
     # own — fact vectors come from the shared disk cache first and fall back
@@ -134,6 +140,7 @@ def from_env(env: dict[str, str] | None = None, repo: Path | None = None) -> HNa
         embed_device=int(env.get("HNAV_EMBED_DEVICE", "1")),
         embed_dtype=env.get("HNAV_EMBED_DTYPE", "float32"),
         embed_batch=int(env.get("HNAV_EMBED_BATCH", "32")),
+        embed_max_length=int(env.get("HNAV_EMBED_MAX_LENGTH", "8192")),
         embed_base_url=env.get("QWEN3_EMBED_BASE_URL", "http://localhost:8001/v1"),
         llm_base_url=env.get("HNAV_LLM_BASE_URL", "http://localhost:8000/v1"),
         llm_model=env.get("HNAV_LLM_MODEL", "Qwen/Qwen3-4B-Instruct-2507"),

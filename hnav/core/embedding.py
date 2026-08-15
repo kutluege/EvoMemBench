@@ -31,7 +31,22 @@ from typing import Protocol, Sequence, runtime_checkable
 import numpy as np
 
 __all__ = ["EmbedderProtocol", "HashEmbedder", "HFEmbedder", "OpenAIEmbedder",
-           "DiskCachedEmbedder", "cache_key", "l2_normalize"]
+           "DiskCachedEmbedder", "cache_key", "l2_normalize",
+           "DEFAULT_MAX_LENGTH"]
+
+# Tokenizer truncation length for the real embedders.  [T12]
+#
+# The benchmark chunks context with `chunk_text_into_sentences(chunk_size=4096)`
+# — 4096 *tiktoken* (gpt-4o-mini / o200k) tokens. Measured on the calibration
+# split, the real chunks reach 4,333 tiktoken tokens / 17,675 characters, which
+# is roughly 4.4–4.9k Qwen tokens. 8192 covers the worst chunk with ~1.7x
+# headroom while staying under BOTH ceilings that bound the live path:
+# Qwen3-Embedding-4B's 32768 native context and the served embed endpoint's
+# `--max-model-len 16384` (hnav/deploy/serve_embeddings.sh).
+#
+# The previous value was 512, which captured ~12% of the largest chunk. See
+# hnav/BUILD_NOTES.md §10 for the full correction record.
+DEFAULT_MAX_LENGTH = 8192
 
 
 @runtime_checkable
@@ -59,9 +74,22 @@ def l2_normalize(v: np.ndarray) -> np.ndarray:
     return out.astype(np.float32)
 
 
-def cache_key(model: str, dtype: str) -> str:
-    """The cache namespace. Identical to ``Embedder.key`` in T1."""
-    return f"{model}|{dtype}".replace("/", "_")
+def cache_key(model: str, dtype: str, max_length: int) -> str:
+    """The cache namespace: model, dtype AND the tokenizer truncation length.
+
+    ``max_length`` is part of the namespace because it changes the vector
+    (T12). Until 2026-08-15 the namespace was ``f"{model}|{dtype}"`` while
+    every embedder truncated at 512 tokens; a caller who fixed the truncation
+    would then have silently READ BACK the 512-token vectors for any text
+    already cached, and the fix would have looked like a no-op. Encoding the
+    length makes an incompatible vector a cache MISS instead of a wrong hit,
+    and leaves the old ``|L512``-free entries on disk as provenance rather
+    than overwriting them.
+
+    ``max_length`` is REQUIRED, deliberately: this defect was born from a
+    silently-defaulted truncation parameter, so no call site gets to omit it.
+    """
+    return f"{model}|{dtype}|L{int(max_length)}".replace("/", "_")
 
 
 def _cache_path(cache_dir: Path, key: str, text: str) -> Path:
@@ -160,7 +188,7 @@ class HFEmbedder:
     """
 
     def __init__(self, model_name: str, device: int = 1, dtype: str = "float32",
-                 batch: int = 32, max_length: int = 512) -> None:
+                 batch: int = 32, max_length: int = DEFAULT_MAX_LENGTH) -> None:
         import torch  # noqa: PLC0415 — deliberate: keeps module import torch-free
         from transformers import AutoModel, AutoTokenizer  # noqa: PLC0415
 
@@ -228,9 +256,18 @@ def build_embedder(cfg, cached: bool = True) -> EmbedderProtocol:
     """Construct the configured real embedder, wrapped in the shared disk cache.
 
     Importing this module never triggers a model load; only calling this does.
+
+    Every argument is passed BY KEYWORD (T12). The 512-token truncation defect
+    survived unnoticed because this function passed four positional arguments
+    and simply stopped before ``max_length``, so the parameter kept a default
+    nobody had chosen for this benchmark. Keywords make an omission visible at
+    the call site instead of silently correct-looking.
     """
-    inner = HFEmbedder(cfg.embed_model, cfg.embed_device, cfg.embed_dtype, cfg.embed_batch)
+    inner = HFEmbedder(model_name=cfg.embed_model, device=cfg.embed_device,
+                       dtype=cfg.embed_dtype, batch=cfg.embed_batch,
+                       max_length=cfg.embed_max_length)
     if not cached:
         return inner
-    return DiskCachedEmbedder(inner, cfg.emb_cache_dir,
-                              cache_key(cfg.embed_model, cfg.embed_dtype))
+    return DiskCachedEmbedder(
+        inner, cfg.emb_cache_dir,
+        cache_key(cfg.embed_model, cfg.embed_dtype, cfg.embed_max_length))

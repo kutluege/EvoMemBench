@@ -147,7 +147,7 @@ def make_embedder(args, cfg):
     if args.smoke_embedder:
         from hnav.core.embedding import HashEmbedder
         return HashEmbedder(dim=64)
-    key = cache_key(cfg.embed_model, cfg.embed_dtype)
+    key = cache_key(cfg.embed_model, cfg.embed_dtype, cfg.embed_max_length)
     if args.cache_only:
         return DiskCachedEmbedder(_FailOnMiss(), cfg.emb_cache_dir, key)
     from hnav.core.embedding import build_embedder

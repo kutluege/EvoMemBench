@@ -431,3 +431,57 @@ flagged for whoever owns `report.py`): on Windows, `report.py` crashes with
 takes no `encoding` and the report contains `≥`. Reproduced with all T11
 changes stashed, so it predates this work; harmless on the Linux box (UTF-8
 default). One-word fix: `write_text(text, encoding="utf-8")`.
+
+## 10. T12 — the 512-token truncation defect, corrected
+
+**What was wrong.** `HFEmbedder.__init__` carried `max_length=512` and
+`build_embedder` never overrode it, because it passed four POSITIONAL
+arguments and stopped one short of that parameter. The standalone T1 embedder
+(`m1_geometry_calibration.py`) hardcoded `max_length=512` in its own
+`tok(...)` call. Meanwhile the benchmark chunks context at 4096 *tiktoken*
+tokens. Measured on the calibration split with the real chunker: chunks reach
+**4,333 tiktoken tokens / 17,675 characters**, so 512 tokens captured roughly
+the first **12%** of the largest chunk.
+
+**What that invalidates.** Every offline chunk-level signal, and every
+threshold fit from one, was computed from a truncated prefix while the LIVE
+path consumed the benchmark's own full-length ranking (the served endpoint
+truncates at its `--max-model-len 16384`, which no real chunk reaches). The
+two paths were not measuring the same vectors. M0's 1.0000 replica fidelity
+does NOT cover this: it reused the benchmark's own vectors rather than
+recomputing them through `HFEmbedder`. Fact-level signals are largely
+unaffected — a single fact is far below 512 tokens — so the damage is
+concentrated in chunk-level geometry and anything derived from it.
+
+**The correction.**
+- `DEFAULT_MAX_LENGTH = 8192` in `hnav/core/embedding.py`, configurable via
+  `HNAV_EMBED_MAX_LENGTH` / `HNavConfig.embed_max_length`. 8192 covers the
+  worst measured chunk with ~1.7x headroom for tiktoken↔Qwen tokenizer
+  disagreement, and stays under both ceilings that bound the live path:
+  Qwen3-Embedding-4B's 32768 native context and the embed endpoint's 16384
+  window. (The model's real limit is asserted from the model card; the
+  re-fit runbook re-checks it on the box from `config.json`.)
+- `build_embedder` now passes every argument BY KEYWORD, so a future
+  omission is visible at the call site instead of silently defaulting.
+- `m1_geometry_calibration.py`'s standalone embedder takes `max_length`,
+  reads the same env var, and prints it in the run banner.
+- **`cache_key` now includes the length** (`model|dtype|L8192`) and the
+  argument is REQUIRED. This is the load-bearing half: the cache key is
+  `sha256(namespace||text)`, so without it the corrected embedder would have
+  read back the ~24k vectors the truncated one had already written on the box,
+  and the fix would have looked like a no-op while changing nothing. Old
+  entries stay on disk under the old namespace as provenance.
+
+**Regression cover** (`hnav/tests/test_embedding_truncation.py`, 7 tests):
+the configured length covers the largest chunk MEASURED from the dataset (not
+asserted from memory); the length actually reaches the tokenizer (behavioural,
+via a fake tokenizer, so it holds without a GPU); the cache namespace makes a
+length change a MISS rather than a wrong hit; and `build_embedder` wires the
+length into both the model and the namespace. Verified to FAIL on both silent
+reverts (truncation back to 512, namespace dropped): 3 tests fail in each case.
+
+**Consequence — thresholds must be re-fit.** `nmargin`/`H_z`/`r_min` in
+`stage0_results/final/m3_headroom.json` were fit on truncated vectors and are
+not valid for the corrected embedder. The re-fit is CALIBRATION-SPLIT ONLY and
+is specified in `hnav/deploy/REFIT_RUNBOOK.md`; until it lands, no frozen
+threshold from the truncated era may be used to justify a live decision.

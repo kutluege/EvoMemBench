@@ -84,7 +84,8 @@ class Embedder:
     the geometry the benchmark's own retriever would operate in.
     """
 
-    def __init__(self, model_name: str, device: int, dtype: str, batch: int, cache: Path):
+    def __init__(self, model_name: str, device: int, dtype: str, batch: int, cache: Path,
+                 max_length: int = 8192):
         import torch
         from transformers import AutoModel, AutoTokenizer
 
@@ -92,7 +93,11 @@ class Embedder:
         self.batch = batch
         self.cache = cache
         self.cache.mkdir(parents=True, exist_ok=True)
-        self.key = f"{model_name}|{dtype}".replace("/", "_")
+        self.max_length = int(max_length)
+        # Namespace includes the truncation length — the twin of
+        # hnav.core.embedding.cache_key, kept byte-identical to it so this
+        # standalone script and the package share cached vectors (T12).
+        self.key = f"{model_name}|{dtype}|L{self.max_length}".replace("/", "_")
 
         self.device = f"cuda:{device}" if torch.cuda.is_available() else "cpu"
         self.dtype = {"float32": torch.float32, "float16": torch.float16,
@@ -122,7 +127,7 @@ class Embedder:
             idx = todo[s: s + self.batch]
             batch_texts = [texts[i] for i in idx]
             enc = self.tok(batch_texts, padding=True, truncation=True,
-                           max_length=512, return_tensors="pt").to(self.device)
+                           max_length=self.max_length, return_tensors="pt").to(self.device)
             with self.torch.no_grad():
                 res = self.model(**enc)
             last = res.last_hidden_state if hasattr(res, "last_hidden_state") else res[0]
@@ -243,18 +248,20 @@ def main() -> int:
     device = int(env.get("HNAV_EMBED_DEVICE", "1"))
     dtype = env.get("HNAV_EMBED_DTYPE", "float32")
     batch = int(env.get("HNAV_EMBED_BATCH", "32"))
+    max_length = int(env.get("HNAV_EMBED_MAX_LENGTH", "8192"))
     cache = REPO / env.get("HNAV_CACHE_DIR", "hnav/_cache") / "emb"
     outdir = REPO / env.get("HNAV_OUT_DIR", "hnav/_out")
     outdir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 74)
     print(" M1 — geometry calibration  [STAGE-0 GATE]")
-    print(f"   model={model}  device=cuda:{device}  dtype={dtype}")
+    print(f"   model={model}  device=cuda:{device}  dtype={dtype}  max_length={max_length}")
     print("=" * 74)
 
     data = json.load(open(DATA, encoding="utf-8"))
     rng = random.Random(args.seed)
-    emb = Embedder(model, device, dtype, batch, cache)
+    emb = Embedder(model_name=model, device=device, dtype=dtype, batch=batch,
+                   cache=cache, max_length=max_length)
 
     results = []
     for item in data:

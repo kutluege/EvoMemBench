@@ -609,7 +609,8 @@ def _build_components(cfg) -> dict:
                                          cache_key)
         out["embedder"] = DiskCachedEmbedder(
             OpenAIEmbedder(base_url=cfg.embed_base_url, model=cfg.embed_model),
-            cfg.emb_cache_dir, cache_key(cfg.embed_model, cfg.embed_dtype),
+            cfg.emb_cache_dir,
+            cache_key(cfg.embed_model, cfg.embed_dtype, cfg.embed_max_length),
             persist=False)
     except Exception:  # noqa: BLE001
         pass
