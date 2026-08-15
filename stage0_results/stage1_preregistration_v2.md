@@ -248,7 +248,10 @@ mismatch is reported as a mismatch — it is not re-explained afterwards.
 
 If any of these holds, the run is **void**: it is reported as void, no
 confirmatory claim is made from it, and it does not count as the single shot
-having been spent on a negative result.
+having been spent on a negative result. **Which of them void the whole run and
+which void only the protective claim is settled in advance in Amendment 4 (R2)
+— condition 5 voids the protective claim only; every other condition voids the
+run.**
 
 1. `n_page_edit_mismatch > 0` — the probe-style arm and the shipped `page_edit`
    path disagree on any question. The measurement would not be measuring the
@@ -264,8 +267,15 @@ having been spent on a negative result.
    Measured 0/0 on 100 questions on each calibration subset; a non-zero floor
    means the substrate changed under us and every paired statistic is unreadable.
 4. `n_suppressed_harmful > 0` in the frozen-detection audit on `sh_64k`.
-5. Any unique-stratum `information_loss` under the §5b classifier (voids the
-   protective claim specifically).
+5. Any unique-stratum harm classified other than `malformed_generation`.
+   **RESTATED BY AMENDMENT 4 (R1)** — the original wording named a class that
+   Amendment 2 superseded, which read literally was WEAKER than intended. Voids
+   the **protective claim** specifically; see Amendment 4 (R2) for the
+   whole-run vs protective-claim table.
+6. See Amendment 1 — chunk vectors must be valid.
+7. See Amendment 3 — the page must be the benchmark's own (`page_source`).
+8. See Amendment 4 (R4) — zero fallbacks, zero containment violations, and the
+   positive control. Voids the **whole run**.
 
 ---
 
@@ -573,3 +583,134 @@ in the record because it is how condition 7 was found.
   is precisely where the one shot would have been spent.
 - The 512-truncation defect remains un-refit for `nmargin`/`H_z`, which stay
   inert (§1); nothing here changes that.
+
+---
+
+## Amendment 4 — supervisor pre-flight required changes  ·  2026-08-15, post-registration
+
+Four text corrections and one new void condition, required by the supervisor
+pre-flight before firing. **No threshold, prediction or success criterion is
+changed.** R1 and R4 make the document STRICTER; R2 and R3 remove ambiguity that
+would otherwise have been resolved after seeing data, which is the thing a
+pre-registration exists to prevent.
+
+### R1 — void condition 5 restated (it had gone stale, and stale meant WEAKER)
+
+§7 condition 5 reads "Any unique-stratum `information_loss` under the §5b
+classifier". Amendment 2 replaced that binary split with four classes, so read
+literally the old wording **no longer catches `refusal_after_edit`** — the exact
+case that motivated the amendment. The frozen analysis code already implements
+the strong rule (`class != "malformed_generation"`), so this is the prose
+catching up to the code, not a change of rule.
+
+> **Void condition 5 (restated).** Any **unique-stratum harm classified other
+> than `malformed_generation`** — i.e. any of `gold_cut`, `refusal_after_edit`
+> or `information_loss` on the protected stratum. This voids the **protective
+> claim** (see R2).
+
+The voiding set is unchanged from the original registration: everything except
+`malformed_generation`. It is if anything stricter, because `gold_cut` is now
+tested *first* and so catches a unique-stratum gold deletion that the old binary
+rule could have waved through as `malformed_generation` on a string-similarity
+coincidence.
+
+### R2 — whole-run void vs protective-claim void, decided in advance
+
+§7's preamble ("the run is void … does not count as the single shot") and §5b
+("voids the protective claim") describe **two different outcomes**, and the
+document did not say which applies to which condition. Settled here, before the
+run, because it is likely to be load-bearing: in the harness now chosen for the
+shot, the protective claim **already voids on calibration** (`sh_32k` retrieval
+q14) and one refusal on `sh_64k` does it again.
+
+| condition | what it voids |
+| --- | --- |
+| 1, 6, 7, 8 (wiring, page source, fallbacks) | **the whole run.** The intervention did not happen as specified; nothing is measured; the shot is NOT spent. |
+| 2, 3 (native band, A/A floor) | **the whole run.** The substrate is not the one calibrated on; every paired statistic is unreadable. |
+| 4 (`n_suppressed_harmful > 0`) | **the whole run.** The detector deleted a current value; the frozen operating point is not the one audited. |
+| **5 (protected-stratum harm)** | **the protective claim ONLY.** The run stands, the accuracy result stands, and the shot IS spent. |
+
+**The publishable conclusion when the accuracy criterion passes and the
+protective claim voids** — stated now so it cannot be composed after seeing the
+number:
+
+> Fact-level suppression of detector-verified stale memory raises accuracy on
+> the conflicted stratum by *N* net discordant pairs (exact *p*), **at a
+> measured cost on the non-conflicted stratum of *k* question(s), mechanism
+> *class*.** The protective condition registered for this campaign is therefore
+> **not met**, and the mechanism is reported as *effective but not yet safe*:
+> it may not be recommended for deployment on traffic containing
+> non-conflicted queries until the harm mechanism is understood and eliminated.
+
+That is a real, reportable, honest result — not a null and not a success. It is
+written down now precisely because it is the outcome the calibration evidence
+makes most likely.
+
+**Closing the unclassified 1–3 band** left open by Amendment 2's declined point
+prediction for `refusal_after_edit`:
+
+- **0** — the modal expectation (0 occurred on `sh_6k` retrieval, 100 questions).
+- **1–3** — voids the protective claim per condition 5, and is reported as an
+  **unresolved harm mechanism warranting a replicate**. The accuracy claim
+  stands; the safety claim does not.
+- **≥ 4** — additionally a **scaling effect**: more than double the total harm
+  rate seen anywhere on calibration, and must be reported as a property of the
+  mechanism at larger stores rather than as noise.
+
+The ≥4 threshold and the "0 is modal" commitment from Amendment 2 are unchanged.
+
+### R3 — the page ORDER provenance changes, and what that does and does not predict
+
+Amendment 3 protects page **membership** on the calibration split — with 2 and 9
+chunks against `top_k` 10, the benchmark's page is a permutation of all chunks,
+so membership cannot differ under any encoder (measured: `set_agreement` 1.0,
+`mean_jaccard` 1.0 for both encoders on both subsets). **Order is not
+protected**, and differs substantially:
+
+| subset | `order_agreement` vs the benchmark's page |
+| --- | --- |
+| `sh_6k` | 0.99 (bf16) / 0.84 (legacy) |
+| `sh_32k` | **0.19** (bf16) / **0.00** (legacy) |
+
+The committed calibration retrieval runs (`84e7d2c`, 2026-08-15T21:00:42+03:00)
+**predate** the `--page-source` flag (`0c8763d`, 21:27), so they used H-Nav's
+block order. The `sh_64k` run will use the benchmark's. Consequences, declared:
+
+- **`SUPPRESS` deletes by fact identity, not by position**, so its effect should
+  transfer across a reordering of the same blocks. Its *direction* is predicted;
+  its *magnitude* is not.
+- **Absolute `native` accuracy may shift** with block order. Void condition 2's
+  band is wide enough to absorb that and is unchanged.
+- **`DEMOTE_LATE` manipulates exactly this variable**, so its calibration
+  numbers transfer least of all. It is already excluded from the success
+  criterion (§3); this is a second, independent reason to read it as
+  exploratory.
+- Therefore: **the calibration "equal or better" result predicts DIRECTION, not
+  magnitude.** No part of the write-up may present the calibration nets (+66,
+  +38) as a forecast of the `sh_64k` net. §4's threshold is +10 and §8.2 already
+  says the effect is expected to be smaller; R3 adds order provenance as a third
+  reason.
+
+### R4 — void condition 8 (new)
+
+> **Void condition 8.** `n_rerank_fallbacks > 0`, any `page_edit_error`
+> recorded, or `n_containment_violations > 0`, on any question. **Voids the
+> whole run.**
+>
+> This is the false-null signature and it is the reason the guard package
+> exists: if the policy names a fact the page does not carry, `page_edit`
+> raises, the live seam fails open to the native page, and the artifact records
+> a run in which the intervention never happened — which from the outside is
+> indistinguishable from the intervention having had no effect. On a one-shot
+> confirmatory subset that is the worst available failure. A non-zero counter is
+> therefore reported as VOID and never as a null result.
+>
+> The positive control is part of the same condition: `n_fact_edits_applied`
+> must equal the number of questions on which the policy fired (expected 100 —
+> firing is unconditional at the frozen operating point) and
+> `n_facts_suppressed` must be > 0. "Edits applied but nothing suppressed" is
+> the silent-gutting signature and voids the run identically.
+
+Conditions 1–4, 6 and 7 are unchanged, as are the native band derivation, the
+A/A floor condition, `page_source` having no default, §1's scope wording, the
+no-optional-stopping language and §8's limitations.
