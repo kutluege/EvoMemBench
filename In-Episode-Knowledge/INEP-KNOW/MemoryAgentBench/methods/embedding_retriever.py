@@ -226,13 +226,18 @@ class  TextRetriever:
         # [HNAV] Same search, asked for the FULL pre-truncation ranking so H-Nav
         # can see rank/margin/entropy over the whole store. FAISS flat search is
         # exact, so the first top_k entries are the same documents in the same
-        # order the k=top_k search returned. The value returned below is
-        # byte-identical to the branch above.
+        # order the k=top_k search returned. In off/shadow mode the value
+        # returned below is byte-identical to the branch above (page starts as
+        # the native truncation and a shadow decision never replaces it). Under
+        # HNAV_MODE=live only, apply_read_decision may REORDER the page — same
+        # chunk set, same top_k count, order only (STAGE1_PLAN.md Faz B) — and
+        # falls back to the native page on any irregularity.
         n_docs = len(self._current_documents) if self._current_documents else initial_k
         query_vector = self.embedding_model.embed_query(query)
         scored = self.vectorstore.similarity_search_with_score_by_vector(
             query_vector, k=max(n_docs, initial_k))
         retrieved_docs = [doc.page_content for doc, _ in scored]
+        page = retrieved_docs[:top_k]
         try:
             decision = hnav.on_retrieve(
                 query=query,
@@ -242,13 +247,12 @@ class  TextRetriever:
                 query_vector=query_vector,
                 score_kind="l2sq",   # LangChain FAISS returns squared L2 distance
             )
-            assert decision.shadow, "H-Nav returned an actionable decision in shadow mode"
-        except AssertionError:
-            raise
+            if not getattr(decision, "shadow", True):
+                page = hnav.apply_read_decision(decision, scored, top_k)
         except Exception:
-            pass
+            page = retrieved_docs[:top_k]
 
-        return retrieved_docs[:top_k]
+        return page
     
 
 

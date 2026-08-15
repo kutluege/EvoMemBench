@@ -258,7 +258,13 @@ def main() -> int:
 
     mode = env.get("HNAV_MODE", "off")
     if mode == "live":
-        report(FAIL, "HNAV_MODE", "is 'live' — Stage 0 must run with off/shadow only")
+        # Post-T8 transition (STAGE1_PLAN.md §2 Faz B step 2): live is legal
+        # for the Stage-1 READ-PATH campaign only. Stage-0 measurement scripts
+        # still refuse it themselves (config.require_not_live). A repo-root
+        # .env pinning live would leak into everything — campaign arms should
+        # set HNAV_MODE per process instead, hence the warning.
+        report(WARN, "HNAV_MODE", "'live' — legal only for the Stage-1 read-path "
+                                  "campaign; keep .env at off and set live per-run")
     else:
         report(OK, "HNAV_MODE", mode)
 

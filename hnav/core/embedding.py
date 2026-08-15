@@ -106,13 +106,22 @@ class DiskCachedEmbedder:
 
     Kept separate from :class:`HFEmbedder` so that the cache can be exercised in
     tests against :class:`HashEmbedder`.
+
+    ``persist=False`` makes the cache READ-ONLY: misses are still computed by
+    the inner embedder but never written back. This is how the Stage-1 live
+    stack protects the fp32-keyed cache — its fallback endpoint may serve a
+    different serving dtype, and a vector from a different source must never be
+    filed under the fp32 key (``hnav/_cache`` invariant: dtype drift moves
+    every threshold). ``n_misses`` stays the tripwire either way.
     """
 
-    def __init__(self, inner: EmbedderProtocol, cache_dir: Path, key: str) -> None:
+    def __init__(self, inner: EmbedderProtocol, cache_dir: Path, key: str,
+                 persist: bool = True) -> None:
         self.inner = inner
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.key = key
+        self.persist = bool(persist)
         self.dim = getattr(inner, "dim", 0)
         self.n_hits = 0
         self.n_misses = 0
@@ -132,7 +141,8 @@ class DiskCachedEmbedder:
             fresh = self.inner.encode([texts[i] for i in todo])
             for j, i in enumerate(todo):
                 out[i] = fresh[j]
-                np.save(_cache_path(self.cache_dir, self.key, texts[i]), fresh[j])
+                if self.persist:
+                    np.save(_cache_path(self.cache_dir, self.key, texts[i]), fresh[j])
         if not len(texts):
             return np.zeros((0, self.dim), dtype=np.float32)
         stacked = np.stack([np.asarray(o, dtype=np.float32) for o in out])  # type: ignore[arg-type]

@@ -52,6 +52,11 @@ class HNavConfig:
     embed_device: int = 1
     embed_dtype: str = "float32"
     embed_batch: int = 32
+    # Served /v1/embeddings endpoint (vLLM :8001). Used by the LIVE/shadow
+    # read stack, which runs inside the benchmark process with no GPU of its
+    # own — fact vectors come from the shared disk cache first and fall back
+    # to this endpoint WITHOUT persisting (see mab_adapter._build_components).
+    embed_base_url: str = "http://localhost:8001/v1"
 
     # answer model — local vLLM, OpenAI-compatible, no API key, temperature 0.
     llm_base_url: str = "http://localhost:8000/v1"
@@ -60,10 +65,11 @@ class HNavConfig:
     llm_max_tokens: int = 128
     llm_api_key: str = "EMPTY"
 
-    # NLI cross-encoder — read-gate stage 2 (T9). GPU1, next to the embedder;
-    # ~1.7 GB fp32, verified to fit by hnav/deploy/check_env.py.
+    # NLI cross-encoder — read-gate stage 2 (T9). ``nli_device`` accepts an
+    # int (CUDA ordinal) or a string ("cpu", "cuda:0"); the Stage-1 campaign
+    # arms run with CUDA_VISIBLE_DEVICES unset and HNAV_NLI_DEVICE=cpu.
     nli_model: str = "cross-encoder/nli-deberta-v3-large"
-    nli_device: int = 1
+    nli_device: int | str = 1
     nli_dtype: str = "float32"
     nli_batch: int = 16
 
@@ -88,11 +94,19 @@ class HNavConfig:
         return self.cache_dir / "emb"
 
     def require_not_live(self) -> None:
-        """Stage 0 must never run in live mode (brief §0, protocol §4)."""
+        """Stage-0 MEASUREMENT scripts must never run in live mode.
+
+        Post-T8 status (deliberate protocol transition, STAGE1_PLAN.md §2
+        Faz B step 2): ``HNAV_MODE=live`` is now a legitimate mode for the
+        READ-PATH rerank only — the MAB adapter no longer calls this. Every
+        ``hnav/stage0/`` measurement still does, because a Stage-0 number
+        taken under intervention is not a Stage-0 number.
+        """
         if self.mode == MODE_LIVE:
             raise RuntimeError(
-                "HNAV_MODE=live but Stage 0 permits off/shadow only. "
-                "Live arms are gated behind the T8 human decision."
+                "HNAV_MODE=live but this code path is a Stage-0 measurement, "
+                "which permits off/shadow only. Live is reserved for the "
+                "Stage-1 read-path campaign (STAGE1_PLAN.md)."
             )
 
 
@@ -110,19 +124,24 @@ def from_env(env: dict[str, str] | None = None, repo: Path | None = None) -> HNa
     if mode not in MODES:
         raise ValueError(f"HNAV_MODE={mode!r} not in {MODES}")
 
+    nli_dev_raw = env.get("HNAV_NLI_DEVICE", "1").strip()
+    nli_device: int | str = int(nli_dev_raw) if nli_dev_raw.lstrip("-").isdigit() \
+        else nli_dev_raw
+
     return HNavConfig(
         mode=mode,
         embed_model=env.get("HNAV_EMBED_MODEL", "Qwen/Qwen3-Embedding-4B"),
         embed_device=int(env.get("HNAV_EMBED_DEVICE", "1")),
         embed_dtype=env.get("HNAV_EMBED_DTYPE", "float32"),
         embed_batch=int(env.get("HNAV_EMBED_BATCH", "32")),
+        embed_base_url=env.get("QWEN3_EMBED_BASE_URL", "http://localhost:8001/v1"),
         llm_base_url=env.get("HNAV_LLM_BASE_URL", "http://localhost:8000/v1"),
         llm_model=env.get("HNAV_LLM_MODEL", "Qwen/Qwen3-4B-Instruct-2507"),
         llm_temperature=float(env.get("HNAV_LLM_TEMPERATURE", "0")),
         llm_max_tokens=int(env.get("HNAV_LLM_MAX_TOKENS", "128")),
         llm_api_key=env.get("HNAV_LLM_API_KEY", "EMPTY"),
         nli_model=env.get("HNAV_NLI_MODEL", "cross-encoder/nli-deberta-v3-large"),
-        nli_device=int(env.get("HNAV_NLI_DEVICE", "1")),
+        nli_device=nli_device,
         nli_dtype=env.get("HNAV_NLI_DTYPE", "float32"),
         nli_batch=int(env.get("HNAV_NLI_BATCH", "16")),
         cache_dir=_as_path(repo, env.get("HNAV_CACHE_DIR", "hnav/_cache")),

@@ -16,6 +16,16 @@ returns the exact ``message`` it was handed (identity, not a copy);
 check before acting. Nothing here mutates a store, and nothing here makes an LLM
 call (invariants I1/I2/I3).
 
+**Live mode (Stage 1, T11) arms exactly one seam.** Under ``HNAV_MODE=live``
+the read decision is returned with ``shadow=False`` and the retriever hook
+routes it through :meth:`MABAdapter.apply_read_decision`, which reorders the
+native top-k page and nothing else — same chunk set, same count, order only,
+with a fail-open fallback to the native page on any irregularity. The write
+path stays observation-only in every mode (``write_policy`` NO_GO forever,
+``KAPI_KARARI.md``). Protocol trail for lifting ``require_not_live`` here:
+``STAGE1_PLAN.md`` §2 Faz B step 2; Stage-0 measurement scripts still refuse
+live via ``config.require_not_live``.
+
 Leakage: this module reads fact text and serial numbers only. It never opens the
 dataset JSON, so it cannot see the ``questions`` list or the answer list that
 sit in the same file. ``hnav/tests/test_leakage_audit.py`` enforces that by AST
@@ -160,7 +170,10 @@ class MABAdapter:
                  signals=None, geometry=None, diff=None, write_policy=None,
                  read_policy=None) -> None:
         self.cfg = cfg or _config.get_config()
-        self.cfg.require_not_live()
+        # Deliberate protocol transition (T11, STAGE1_PLAN.md §2 Faz B step 2):
+        # the Stage-0 require_not_live() guard is lifted HERE and only here —
+        # live mode arms the read-path rerank seam below. Stage-0 measurement
+        # scripts keep calling config.require_not_live() themselves.
         self.mode = self.cfg.mode
         self.embedder = embedder
         self.replica = replica
@@ -183,12 +196,22 @@ class MABAdapter:
         self.context_id: Any = None
         self.n_write_decisions = 0
         self.n_read_decisions = 0
+        self.n_reranks_applied = 0
+        self.n_rerank_fallbacks = 0
+        self.n_embed_errors = 0
 
     # ── embedding ────────────────────────────────────────────────────────────
     def embed(self, texts: Sequence[str]) -> np.ndarray | None:
+        """Never raises: an unreachable embedding endpoint must degrade to
+        "no vectors" (gate stays quiet, benchmark unharmed), not to a broken
+        memorize pass. Failures are counted so they are visible in audit."""
         if self.embedder is None:
             return None
-        return self.embedder.encode(list(texts))
+        try:
+            return self.embedder.encode(list(texts))
+        except Exception:  # noqa: BLE001
+            self.n_embed_errors += 1
+            return None
 
     def _embed_one(self, text: str) -> np.ndarray | None:
         v = self.embed([text])
@@ -405,8 +428,17 @@ class MABAdapter:
             sig = self.signals.compute(view)
 
         if self.read_policy is not None:
-            decision = self.read_policy.decide(
-                view, store, ctx={"signals": sig, "stale_hits": stale_hits})
+            try:
+                pool = self._read_candidates(view)
+                decision = self.read_policy.decide(
+                    pool, ordering=list(view.top_ids), signal_view=sig,
+                    latest_key=self.latest_key, id_map=self._fact_chunk.get)
+                decision.reasons["n_stale_in_topk"] = len(stale_hits)
+                decision.reasons["n_read_candidates"] = len(pool)
+            except Exception as e:  # noqa: BLE001 — fail OPEN, but audibly
+                decision = Decision(action="PASS", reasons={
+                    "read_policy_error": repr(e)[:300],
+                    "n_stale_in_topk": len(stale_hits)})
             decision.shadow = self.mode != _config.MODE_LIVE
         else:
             decision = Decision(action="PASS", shadow=True,
@@ -427,6 +459,53 @@ class MABAdapter:
                            if f in self._fact_by_id)
         return out
 
+    # ── read-gate plumbing (Stage 1, T11) ────────────────────────────────────
+    @staticmethod
+    def latest_key(rec: MemoryRecord) -> int:
+        """LATEST is the benchmark's own rule: the highest fact serial, which
+        the adapter stored as ``version``. Supplied to the gate so the core
+        never has to know what a serial is."""
+        return rec.version
+
+    @staticmethod
+    def same_key_pair(a: MemoryRecord, b: MemoryRecord) -> bool:
+        """Subject-identity screen for the gate (supervisor Note 1): a pair may
+        reach the NLI only when BOTH facts parse and their ``(relation,
+        subject)`` keys are equal. Unparseable facts are rejected rather than
+        waved through — the NLI has been measured to rubber-stamp
+        same-template/different-subject pairs, so absence of identity evidence
+        must not default to trust. Parser coverage is 99.5%+, so the recall
+        cost is bounded and the calibration artifact reports it."""
+        ka = a.metadata.get("key")
+        return ka is not None and ka == b.metadata.get("key")
+
+    def _read_candidates(self, view: RetrievalView) -> list[MemoryRecord]:
+        """The gate's candidate pool: facts inside the retrieved page, capped
+        at ``cfg.top_m`` (the frozen Stage-0 neighbourhood depth, 50) by
+        query-fact cosine when a query vector is available.
+
+        The cap is what keeps the gate tractable — a 64k page holds ~2,900
+        facts and the gate's leave-one-out residual is quadratic in pool size —
+        and query relevance is the only decision-time-legitimate ranking for
+        it. Selected facts keep their (chunk-rank, serial) order so the pool is
+        deterministic. Facts without vectors are excluded (the gate would
+        refuse them); an all-vectorless pool disarms the gate for that read.
+        """
+        facts = [f for f in self.facts_in(view.top_ids) if f.vector is not None]
+        cap = max(2, int(self.cfg.top_m))
+        if len(facts) <= cap:
+            return facts
+        if view.query_vector is not None:
+            q = np.asarray(view.query_vector, dtype=np.float64)
+            n = np.linalg.norm(q)
+            if n > 0:
+                q = q / n
+            sims = np.stack([np.asarray(f.vector, dtype=np.float64)
+                             for f in facts]) @ q
+            keep = sorted(np.argsort(-sims, kind="stable")[:cap].tolist())
+            return [facts[i] for i in keep]
+        return facts[:cap]
+
     # ── agent.py send_message callbacks ──────────────────────────────────────
     def on_send_message_enter(self, message: str, memorizing: bool = False,
                               query_id: Any = None, context_id: Any = None) -> None:
@@ -446,15 +525,84 @@ class MABAdapter:
         in shadow it exists only to close the audit record."""
         return result
 
-    def apply_read_decision(self, decision: Decision, scored, top_k: int):
-        """Live-mode seam. Stage 0 must never reach it."""
-        raise RuntimeError(
-            "apply_read_decision is live-mode code and is gated behind the T8 "
-            "decision. Stage 0 runs in off/shadow only."
-        )
+    def apply_read_decision(self, decision: Decision, scored, top_k: int) -> list[str]:
+        """Live-mode execution seam (T11). Returns the page of texts the
+        retriever hands back — ALWAYS the same count and the same chunk set as
+        the native page; only the order may differ, and only when every guard
+        agrees:
+
+        * mode is ``live`` and the decision is armed (``shadow=False``) and is
+          an actual ``RERANK`` with a payload — anything else returns the
+          native page byte-identically (off/shadow neutrality);
+        * the payload order is exactly a permutation of the native page's
+          chunk ids — otherwise fall back to native and count it, never guess.
+        """
+        native = native_page_from_scored(scored, top_k)
+        if (self.mode != _config.MODE_LIVE or decision is None or decision.shadow
+                or decision.action != "RERANK" or not decision.payload):
+            return native
+        order = list((decision.payload or {}).get("order") or [])
+        text_of: dict[str, str] = {}
+        for t in native:
+            chunk = self._chunk_by_text.get(t)
+            if chunk is None:                      # unknown page — refuse to act
+                self.n_rerank_fallbacks += 1
+                return native
+            text_of[chunk.id] = t
+        if sorted(order) != sorted(text_of) or len(order) != len(native):
+            self.n_rerank_fallbacks += 1           # duplicate texts collapse here too
+            return native
+        self.n_reranks_applied += 1
+        return [text_of[cid] for cid in order]
 
 
 _ADAPTER: MABAdapter | None = None
+
+
+def _build_components(cfg) -> dict:
+    """Best-effort default components for a hook-constructed adapter (T11).
+
+    Everything degrades independently and silently to ``None`` — the benchmark
+    must run whatever is broken — but every degradation is VISIBLE: a live arm
+    without a ``read_policy`` produces zero RERANK records in the audit log,
+    which the campaign's pre-registered analysis treats as a void run. Heavy
+    imports stay inside this function (no torch at import time).
+
+    Embeddings: shared disk cache first (the fp32 T1 cache — for the campaign
+    subsets every fact text is already there), served endpoint as a
+    NON-PERSISTING fallback so a differently-served dtype can never poison the
+    fp32 cache namespace. ``n_misses`` on the wrapper is the tripwire.
+    """
+    out: dict = {}
+    try:
+        from hnav.core.retrieval_signals import RetrievalSignals
+        out["signals"] = RetrievalSignals(top_m=cfg.top_m, k=cfg.churn_k)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from hnav.core.audit import audit_from_env
+        out["audit"] = audit_from_env(cfg, kind="read",
+                                      arm=f"stage1-{cfg.mode}")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from hnav.core.embedding import (DiskCachedEmbedder, OpenAIEmbedder,
+                                         cache_key)
+        out["embedder"] = DiskCachedEmbedder(
+            OpenAIEmbedder(base_url=cfg.embed_base_url, model=cfg.embed_model),
+            cfg.emb_cache_dir, cache_key(cfg.embed_model, cfg.embed_dtype),
+            persist=False)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from hnav.core.read_gate import ReadGate, build_nli
+        from hnav.core.read_policy import ReadRerankPolicy, stage1_thresholds
+        out["read_policy"] = ReadRerankPolicy(
+            ReadGate(build_nli(cfg), stage1_thresholds(),
+                     pair_filter=MABAdapter.same_key_pair))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
 
 def get_adapter(**kw) -> MABAdapter | None:
@@ -462,6 +610,9 @@ def get_adapter(**kw) -> MABAdapter | None:
 
     The benchmark hooks call this. It must never raise: a misconfigured H-Nav
     has to degrade to "no instrumentation", never to "broken benchmark".
+    Hook callers pass no kwargs; for them the default component stack
+    (:func:`_build_components`) is constructed in shadow and live modes.
+    Explicit kwargs (tests, measurement scripts) are used verbatim.
     """
     global _ADAPTER
     try:
@@ -469,7 +620,7 @@ def get_adapter(**kw) -> MABAdapter | None:
         if cfg.mode == _config.MODE_OFF:
             return None
         if _ADAPTER is None:
-            _ADAPTER = MABAdapter(cfg=cfg, **kw)
+            _ADAPTER = MABAdapter(cfg=cfg, **(kw or _build_components(cfg)))
         return _ADAPTER
     except Exception:  # noqa: BLE001
         return None

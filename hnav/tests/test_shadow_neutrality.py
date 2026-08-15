@@ -208,25 +208,39 @@ def test_wrap_memory_is_identity_when_off(monkeypatch):
     _config.get_config(refresh=True)
 
 
-def test_live_mode_is_refused_in_stage0(monkeypatch):
+def test_stage0_scripts_still_refuse_live_but_the_adapter_permits_it(monkeypatch):
+    """T11 protocol transition (STAGE1_PLAN.md §2 Faz B step 2, deliberate).
+
+    ``config.require_not_live`` keeps guarding every Stage-0 measurement
+    script; the ADAPTER no longer calls it, because live mode now legitimately
+    arms the read-path rerank seam. Both halves are pinned here so neither can
+    drift silently.
+    """
     monkeypatch.setenv("HNAV_MODE", "live")
     cfg = _config.from_env()
     with pytest.raises(RuntimeError, match="live"):
-        cfg.require_not_live()
-    with pytest.raises(RuntimeError):
-        mab.MABAdapter(cfg=cfg)
+        cfg.require_not_live()          # stage0 scripts: still refused
+    adapter = mab.MABAdapter(cfg=cfg)   # stage1 adapter: permitted
+    assert adapter.mode == _config.MODE_LIVE
 
 
-def test_apply_read_decision_is_unreachable_in_stage0(embedder):
-    adapter = mab.MABAdapter(cfg=SHADOW, embedder=embedder)
-    with pytest.raises(RuntimeError, match="live-mode"):
-        adapter.apply_read_decision(Decision(), scored=[], top_k=3)
+def test_apply_read_decision_is_inert_outside_live(embedder):
+    """In off/shadow the seam must return the native page byte-identically,
+    whatever decision it is handed — defence in depth for S2 neutrality."""
+    scored = [(_Doc("chunk one"), 0.1), (_Doc("chunk two"), 0.2)]
+    armed = Decision(action="RERANK", payload={"order": ["x", "y"]}, shadow=False)
+    for cfg in (OFF, SHADOW):
+        adapter = mab.MABAdapter(cfg=cfg, embedder=embedder)
+        page = adapter.apply_read_decision(armed, scored, top_k=2)
+        assert page == ["chunk one", "chunk two"]
+        assert adapter.n_reranks_applied == 0
 
 
 # ── the four benchmark edits ─────────────────────────────────────────────────
 EDITS = {
     "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/methods/embedding_retriever.py":
-        ["_hnav_adapter", "similarity_search_with_score_by_vector", "retrieved_docs[:top_k]"],
+        ["_hnav_adapter", "similarity_search_with_score_by_vector",
+         "retrieved_docs[:top_k]", "apply_read_decision"],
     "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/agent.py":
         ["_hnav_adapter", "_dispatch_message", "on_send_message_enter"],
     "Cross-Episode-Knowledge/CROSSEP-KNOW/cl_bench_memory/registry.py":
@@ -267,10 +281,17 @@ def test_hnav_import_failure_is_contained():
 
 
 def test_retriever_native_branch_is_intact():
-    """The un-hooked branch must still be the original three lines."""
+    """The un-hooked branch must still be the original three lines, and the
+    hooked branch must START from the identical native truncation (T11: it now
+    returns ``page``, which is initialized to that truncation and replaced
+    only by the live-mode apply seam — never in off/shadow)."""
     src = (REPO / "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/methods/"
                   "embedding_retriever.py").read_text()
     assert "results = self.vectorstore.similarity_search(query, k=initial_k)" in src
     assert "retrieved_docs = [doc.page_content for doc in results]" in src
-    assert src.count("return retrieved_docs[:top_k]") == 2, \
-        "both the native and the hooked branch must return the same expression"
+    assert src.count("return retrieved_docs[:top_k]") == 1, \
+        "the native branch must return the original expression"
+    assert src.count("page = retrieved_docs[:top_k]") == 2, \
+        "the hooked branch must initialize AND exception-restore the native page"
+    assert 'if not getattr(decision, "shadow", True):' in src, \
+        "the apply seam must be gated on an ARMED (non-shadow) decision"
