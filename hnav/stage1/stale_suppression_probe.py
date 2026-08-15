@@ -91,9 +91,24 @@ context as a single ``Memory 1:`` block in context order, identically for every
 arm. The native arm's accuracy is reported next to the campaign's recorded
 number so the size of that difference is visible rather than assumed.
 
+Running it
+----------
+The endpoint is ``HNAV_LLM_BASE_URL`` (default ``:8000``). The Stage-1 frozen
+substrate is the **:8003** chat server (``hnav/deploy/serve_stage1_chat.sh``:
+Qwen3-4B-Instruct-2507 bf16, ``--max-model-len 65536``,
+``--no-enable-prefix-caching --max-num-seqs 1 --enforce-eager``), so point the
+probe at it explicitly and expect prefill, not decode, to dominate: with prefix
+caching disabled every call re-reads its whole context. sh_6k is ~3.2M prompt
+tokens over 473 calls; sh_32k is ~16M over 465. Run sh_6k first — it is the
+subset the strata finding was measured on, and it answers the question on its
+own.
+
     python hnav/stage1/stale_suppression_probe.py --dry-run     # budget, no calls
     python hnav/stage1/stale_suppression_probe.py --smoke-llm   # offline stub
-    python hnav/stage1/stale_suppression_probe.py               # sh_6k + sh_32k
+    HNAV_LLM_BASE_URL=http://localhost:8003/v1 \
+        python hnav/stage1/stale_suppression_probe.py --subsets sh_6k
+    HNAV_LLM_BASE_URL=http://localhost:8003/v1 \
+        python hnav/stage1/stale_suppression_probe.py           # sh_6k + sh_32k
 """
 from __future__ import annotations
 
@@ -556,6 +571,14 @@ def main() -> int:
     print(f"  TOTAL {bud['total_calls']} calls, "
           f"~{bud['approx_total_prompt_tokens']:,} prompt tokens "
           f"(max_tokens={GENERATION_MAX_TOKENS} out)")
+    print(f"  server: {'STUB (no endpoint)' if args.smoke_llm else cfg.llm_base_url}"
+          f"   model: {'stub' if args.smoke_llm else cfg.llm_model}"
+          f"   mode: {cfg.mode}")
+    longest = max((row["approx_prompt_tokens"] // max(1, row["n_calls"])
+                   for row in bud["per_subset"]), default=0)
+    if longest > 60000:
+        print(f"  WARNING: ~{longest:,} tokens per prompt is close to the frozen "
+              "substrate's --max-model-len 65536")
 
     if args.dry_run:
         print("\n --dry-run: nothing sent.")
