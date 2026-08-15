@@ -88,21 +88,29 @@ def test_configured_length_covers_the_real_calibration_chunks():
 
 # ── the length must actually reach the tokenizer ─────────────────────────────
 class _FakeTokenizer:
-    """Records the max_length it is called with; returns a minimal batch."""
+    """Records the max_length it is called with; returns a minimal batch.
 
-    def __init__(self) -> None:
+    Returns TORCH tensors, not numpy: the encode path calls ``.unsqueeze()``
+    and ``.expand()`` on the attention mask. A numpy stub passes on a
+    torchless machine (where this test is skipped) and fails on the box —
+    which is exactly what happened, so the stub is now the real shape.
+    """
+
+    def __init__(self, torch) -> None:
         self.seen: list[int | None] = []
+        self._torch = torch
 
     def __call__(self, *args, **kw):
         self.seen.append(kw.get("max_length"))
         n = len(args[0]) if args and isinstance(args[0], list) else 1
+        torch = self._torch
 
         class _Enc(dict):
             def to(self, _device):
                 return self
 
-        return _Enc(input_ids=np.zeros((n, 3), dtype=int),
-                    attention_mask=np.ones((n, 3), dtype=int))
+        return _Enc(input_ids=torch.zeros((n, 3), dtype=torch.long),
+                    attention_mask=torch.ones((n, 3), dtype=torch.long))
 
 
 def test_max_length_is_passed_through_to_the_tokenizer(monkeypatch):
@@ -112,7 +120,7 @@ def test_max_length_is_passed_through_to_the_tokenizer(monkeypatch):
     torch = pytest.importorskip("torch", reason="torch-free box: covered by the "
                                                 "config and namespace tests")
     emb = HFEmbedder.__new__(HFEmbedder)          # bypass __init__ (loads a model)
-    tok = _FakeTokenizer()
+    tok = _FakeTokenizer(torch)
     emb.tok = tok
     emb._torch = torch
     emb.batch = 8
