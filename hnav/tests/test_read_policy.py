@@ -180,8 +180,13 @@ def test_policy_mutates_neither_ordering_nor_candidates():
     assert [(r.id, r.version) for r in cands] == before
 
 
-def test_stage1_thresholds_is_currently_the_faz_a_frozen_baseline():
-    assert stage1_thresholds() == GateThresholds()
+def test_stage1_thresholds_returns_a_gate_thresholds():
+    """Value equality with its provenance artifact is enforced by
+    test_threshold_provenance.py; here only the type/shape contract."""
+    thr = stage1_thresholds()
+    assert isinstance(thr, GateThresholds)
+    assert thr.nmargin is not None and thr.H_z is not None, \
+        "the frozen ambiguity constants must never be disabled in live wiring"
 
 
 # ── the gate's pair_filter screen (Note-1 mitigation seam) ───────────────────

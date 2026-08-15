@@ -377,3 +377,27 @@ Known fidelity gaps, declared rather than hidden:
   bf16 are a declared transfer assumption (same check).
 - The A/A noise floor is measured on sh_32k, not the confirmatory sh_64k —
   declared in the pre-registration as a transfer assumption.
+
+### 9b. Faz B calibration outcome (preliminary — box verification queued)
+
+The graded evaluation ran to completion on the box against the frozen :8003
+substrate (~470 chat calls; benchmark prompt shape, max_tokens 10) and the
+pre-registered objective printed:
+
+    NO feasible operating point with net > 0. REPORT AND STOP — do not force one.
+
+i.e. on sh_6k+sh_32k no grid cell produced positive net help within the harm
+caps. Grading-independent numbers already extracted: ambiguity screen (mode
+"any") fires 94/200; order changes on 68–115/200 questions per cell; Note-1
+false-verified rate 0.000 with the key screen vs 0.33–0.93 without.
+Cell-level helped/harmed distributions live in `hnav/_out/
+stage1_calibration.json` on the box (unreachable at time of writing).
+
+A plausible mechanism for a genuine null, to be tested against the cell data:
+the conflict prompt TELLS the model to resolve by highest serial across the
+whole pool, and on the calibration subsets every chunk fits the context —
+chunk ORDER may simply not bind this model's answer. If the null stands, the
+rerank-only Stage-1 design has no measurable lever on this substrate, and the
+campaign must not run — that is a result, the same way the write-path NO_GO
+was. Human decision required (STAGE1_PLAN anticipated only the positive
+case). No operating point frozen; pre-registration committed as DRAFT/BLOCKED.
