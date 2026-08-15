@@ -555,6 +555,27 @@ def evaluate(prepasses, states, cfg, args) -> dict:
             "n_llm_calls": n_llm_calls[0], "cells": cells, "chosen": chosen}
 
 
+def write_operating_point(res: dict) -> Path:
+    """The committed freeze artifact, from a finished evaluation result."""
+    ch = res["chosen"]
+    if ch is None:
+        raise SystemExit("no chosen cell — nothing to freeze (report and stop)")
+    art = {
+        "thresholds": {
+            "cos_pair": ch["cos_pair"], "r_min": ch["r_min"],
+            "nmargin": _rg.NMARGIN_CAL, "H_z": _rg.H_Z_CAL,
+            "ambiguity_mode": ch["ambiguity_mode"],
+            "nli_contradiction": ch["nli_contradiction"]},
+        "pair_filter": ch["pair_filter"],
+        "cell": {k: v for k, v in ch.items() if k != "by_subset"},
+        "by_subset": ch["by_subset"],
+        "provenance": res["provenance"],
+    }
+    dst = REPO / "stage0_results/stage1_operating_point.json"
+    dst.write_text(json.dumps(art, indent=1, default=str))
+    return dst
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -564,6 +585,11 @@ def main() -> int:
     ap.add_argument("--freeze", action="store_true",
                     help="with --evaluate: write the committed operating-point "
                          "artifact to stage0_results/stage1_operating_point.json")
+    ap.add_argument("--freeze-from-json", action="store_true",
+                    help="write the operating-point artifact from an EXISTING "
+                         "hnav/_out/stage1_calibration.json without recomputing "
+                         "anything (grading is expensive and its cache is "
+                         "in-memory)")
     ap.add_argument("--top-k", type=int, default=10)
     ap.add_argument("--chunk-size", type=int, default=4096)
     ap.add_argument("--max-questions", type=int, default=0)
@@ -585,6 +611,16 @@ def main() -> int:
     cfg = _config.get_config()
     cfg.require_not_live()
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.freeze_from_json:
+        res = json.loads((cfg.out_dir / "stage1_calibration.json").read_text())
+        if res.get("provenance", {}).get("smoke"):
+            print(" REFUSED: the stored calibration is a SMOKE run.")
+            return 2
+        dst = write_operating_point(res)
+        print(f" froze operating point -> {dst}")
+        return 0
+
     smoke = args.smoke_embedder or args.stub_nli or args.stub_llm
     tag = "_SMOKE" if smoke else ""
     if smoke:
@@ -659,20 +695,7 @@ def main() -> int:
                   f" coverage={ch['coverage']:.3f}"
                   f" false_verified={ch['false_verified_rate']}")
             if args.freeze and not smoke:
-                art = {
-                    "thresholds": {
-                        "cos_pair": ch["cos_pair"], "r_min": ch["r_min"],
-                        "nmargin": _rg.NMARGIN_CAL, "H_z": _rg.H_Z_CAL,
-                        "ambiguity_mode": ch["ambiguity_mode"],
-                        "nli_contradiction": ch["nli_contradiction"]},
-                    "pair_filter": ch["pair_filter"],
-                    "cell": {k: v for k, v in ch.items() if k != "by_subset"},
-                    "by_subset": ch["by_subset"],
-                    "provenance": res["provenance"],
-                }
-                dst = REPO / "stage0_results/stage1_operating_point.json"
-                dst.write_text(json.dumps(art, indent=1, default=str))
-                print(f" froze operating point -> {dst}")
+                print(f" froze operating point -> {write_operating_point(res)}")
     return 0
 
 
