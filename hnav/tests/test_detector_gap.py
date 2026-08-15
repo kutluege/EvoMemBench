@@ -52,6 +52,7 @@ ITEM = {
     "metadata": {"qa_pair_ids": ["factconsolidation_sh_6k_no0",
                                  "factconsolidation_sh_6k_no1"]},
 }
+RAW_CTX = ITEM["context"]
 FACTS = [(0, "The capital of Numenor is Armenelos."),
          (1, "The capital of Atlantis is Poseidonis."),
          (2, "The chairperson of Fatah is Ada Lovelace."),
@@ -523,3 +524,63 @@ def test_cross_harness_comparison_is_labelled_not_silently_ratioed():
     assert "NOT the detector/oracle ratio" in cmp_["harness_caveat"]
     plain = D.compare_to_oracle(_fake_result(), _fake_oracle())
     assert plain["harness_match"] is True and plain["harness_caveat"] is None
+
+
+# ── page selection must come from the benchmark, never from us (Amendment 3) ──
+def test_benchmark_pages_cover_every_question_and_index_real_chunks():
+    """Measured: re-encoding cannot reproduce the benchmark's sh_64k page (26/100
+    set agreement even at min cosine 0.99997), so the page is READ from the
+    benchmark's own vectors. This pins the shape of what is read."""
+    counts = {"sh_6k": 2, "sh_32k": 9, "sh_64k": 17}
+    for subset, n_chunks in counts.items():
+        pages = D.benchmark_pages(subset)
+        if pages is None:
+            pytest.skip(f"no refit artifact entry for {subset}")
+        assert len(pages) == 100, subset
+        for pg in pages:
+            assert len(pg) == min(10, n_chunks), subset
+            assert len(set(pg)) == len(pg), "a page cannot repeat a chunk"
+            assert all(0 <= i < n_chunks for i in pg), subset
+
+
+def test_a_complete_retrieval_page_holds_every_chunk():
+    """sh_6k and sh_32k have 2 and 9 chunks against top_k 10, so the benchmark's
+    page must be a permutation of ALL of them — which is exactly why page
+    MEMBERSHIP is not at risk on the calibration split and is at sh_64k."""
+    for subset, n_chunks in (("sh_6k", 2), ("sh_32k", 9)):
+        pages = D.benchmark_pages(subset)
+        if pages is None:
+            pytest.skip(f"no refit artifact entry for {subset}")
+        for pg in pages:
+            assert sorted(pg) == list(range(n_chunks)), subset
+
+
+def test_missing_artifact_yields_none_rather_than_a_guess(tmp_path):
+    assert D.benchmark_pages("sh_64k", path=tmp_path / "absent.json") is None
+    empty = tmp_path / "empty.json"
+    empty.write_text(json.dumps({"subsets": {}}), encoding="utf-8")
+    assert D.benchmark_pages("sh_64k", path=empty) is None
+
+
+def test_the_retrieval_harness_refuses_to_default_its_page_source():
+    """No default is the point: the two sources differ on 74% of sh_64k
+    questions, so choosing between them must be an explicit act."""
+    with pytest.raises(ValueError, match="explicit page_source"):
+        D.plan_subset({"context": RAW_CTX, "questions": [], "answers": []},
+                      "sh_6k", {"questions": [], "fact_chunk": {}}, {}, 0, {},
+                      harness="retrieval")
+
+
+def test_benchmark_page_source_refuses_when_nothing_is_recorded(monkeypatch,
+                                                                tmp_path):
+    monkeypatch.setattr(D, "BENCHMARK_PAGES", tmp_path / "absent.json")
+    with pytest.raises(SystemExit, match="do NOT fall back"):
+        D.plan_subset({"context": RAW_CTX, "questions": [], "answers": []},
+                      "sh_6k", {"questions": [], "fact_chunk": {}}, {}, 0, {},
+                      harness="retrieval", page_source="benchmark")
+
+
+def test_whole_context_harness_needs_no_page_source():
+    plan = D.plan_subset(ITEM, "sh_6k", {"questions": []}, {}, 0,
+                         D.fact_table(ITEM), harness="whole_context")
+    assert plan["page_source"] is None and plan["harness"] == "whole_context"

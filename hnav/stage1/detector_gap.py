@@ -170,6 +170,14 @@ WHOLE_CONTEXT_SHAPE = r"RAGSystem: 'Memory 1:\n<whole context>\n' + templated qu
 RETRIEVAL_SHAPE = (r"RAGSystem: 'Memory i:\n<chunk>' for the top-k retrieved "
                    r"chunks in similarity-rank order + templated query")
 CHUNK_SIZE = 4096                       # the benchmark's own chunk_text_into_sentences
+# The benchmark's OWN top-k page per question, produced by its own encoder
+# (bfloat16, untruncated) and recorded by hnav/deploy/refit_chunk_embeddings.py.
+# Re-encoding cannot reproduce it: matching dtype and truncation gets H-Nav's
+# chunk vectors to min cosine 0.99997 of the benchmark's, and the sh_64k page
+# still agrees on only 26/100 questions, because 17 tightly-clustered chunks
+# reshuffle at the top-10/11 boundary under a 3e-5 perturbation. So the page is
+# READ from the benchmark's vectors rather than recomputed from ours.
+BENCHMARK_PAGES = REPO / "stage0_results/stage1/chunk_embedding_refit.json"
 # r_min_label ordering, tightest first — used only as a deterministic tie-break.
 R_RANK = {"frozen": 0, "loose": 1, "off": 2}
 AMB_RANK = {"all": 0, "any": 1, "none": 2}
@@ -586,6 +594,25 @@ def shipped_page(arm: str, context: str, plan) -> str | None:
 # against it.
 
 
+def benchmark_pages(subset: str, path: Path | None = None) -> list[list[int]] | None:
+    """The benchmark's own top-k chunk indices per question, or ``None``.
+
+    ``None`` means the artifact does not cover this subset, and the caller must
+    then decide explicitly rather than silently falling back to a page H-Nav
+    computed for itself — that is the whole point of Amendment 3.
+    """
+    # Resolved at CALL time, not bound at definition time, so the artifact path
+    # stays a single source of truth that tests and callers can redirect.
+    path = Path(path or BENCHMARK_PAGES)
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    row = payload.get("subsets", {}).get(subset)
+    if not row or "benchmark" not in row.get("pages", {}):
+        return None
+    return [[int(i) for i in pg] for pg in row["pages"]["benchmark"]]
+
+
 def chunk_texts_for(item, prepass) -> list[str]:
     """The benchmark's own chunks, rebuilt and CHECKED against the prepass.
 
@@ -703,7 +730,8 @@ def retrieval_integrity(arm: str, page, edited, plan) -> bool:
 
 
 def plan_subset(item, name, prepass, decisions, cell_i, table,
-                max_questions=None, harness: str = "whole_context") -> dict:
+                max_questions=None, harness: str = "whole_context",
+                page_source: str | None = None) -> dict:
     """Build every arm for one subset, under either harness.
 
     ``whole_context`` reproduces the oracle probe exactly (one ``Memory 1:``
@@ -718,6 +746,24 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
         raise ValueError(f"harness={harness!r} not in {HARNESSES}")
     preamble, facts = split_context(item["context"])
     strata = {r["index"]: r for r in classify_questions(item)}
+    # Argument validation BEFORE any work: choosing the page source is the one
+    # decision that cannot be defaulted, so it must fail before the chunker does.
+    bpages = None
+    if harness == "retrieval":
+        if page_source is None:
+            raise ValueError(
+                "the retrieval harness needs an explicit page_source: "
+                "'benchmark' reads the benchmark's own top-k page (Amendment 3), "
+                "'prepass' uses the ranking H-Nav computed for itself. There is "
+                "no default, because the two differ on 74% of sh_64k questions.")
+        if page_source == "benchmark":
+            bpages = benchmark_pages(name)
+            if bpages is None:
+                raise SystemExit(
+                    f" REFUSED: no benchmark page recorded for {name} in "
+                    f"{_rel(BENCHMARK_PAGES)}. Run "
+                    "hnav/deploy/refit_chunk_embeddings.py first; do NOT fall "
+                    "back to H-Nav's own ranking.")
     chunks = chunk_texts_for(item, prepass) if harness == "retrieval" else None
 
     questions, mismatches, pages = [], 0, []
@@ -745,7 +791,10 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
                 arms[arm] = {"prompt": build_prompt(text, rec["question"]),
                              "n_facts": len(fl)}
         else:
-            page = [chunks[int(c.split(":")[1])] for c in q["top_ids"]]
+            if bpages is not None:
+                page = [chunks[i] for i in bpages[q["index"]]]
+            else:
+                page = [chunks[int(c.split(":")[1])] for c in q["top_ids"]]
             pages.append(len(page))
             message = QUERY_TEMPLATE.format(question=rec["question"])
             for arm in ARMS:
@@ -765,6 +814,7 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
         })
     return {"subset": name, "n_facts": len(facts), "questions": questions,
             "n_page_edit_mismatch": mismatches, "harness": harness,
+            "page_source": page_source,
             "n_chunks_total": len(chunks) if chunks is not None else None,
             "n_chunks_on_page": max(pages) if pages else None,
             "retrieval_complete": (len(chunks) <= max(pages)
@@ -869,6 +919,7 @@ def run_subset(plan, answer_fn) -> dict:
             "strata_counts": plan["strata_counts"],
             "n_page_edit_mismatch": plan["n_page_edit_mismatch"],
             "harness": plan["harness"],
+            "page_source": plan["page_source"],
             "n_chunks_total": plan["n_chunks_total"],
             "n_chunks_on_page": plan["n_chunks_on_page"],
             "retrieval_complete": plan["retrieval_complete"],
@@ -1012,8 +1063,10 @@ def format_run(results, comparisons) -> str:
     for res in results:
         cmp_ = comparisons.get(res["subset"])
         cov = ""
+        if res.get("page_source"):
+            cov += f", page={res['page_source']}"
         if res.get("n_chunks_total") is not None:
-            cov = (f", {res['n_chunks_on_page']}/{res['n_chunks_total']} chunks "
+            cov += (f", {res['n_chunks_on_page']}/{res['n_chunks_total']} chunks "
                    f"on page{'' if res['retrieval_complete'] else ' - INCOMPLETE'}")
         lines += ["", "=" * 100,
                   f" {res['subset']}  [{res.get('harness', 'whole_context')}]  "
@@ -1267,6 +1320,13 @@ def main() -> int:
                          "retrieval puts the benchmark's own top-k chunks on the "
                          "page in rank order and edits them through the shipped "
                          "page contract (pre-registration v2 section 10)")
+    ap.add_argument("--page-source", choices=("benchmark", "prepass"),
+                    default=None,
+                    help="retrieval harness only, and REQUIRED there. "
+                         "'benchmark' reads the benchmark's own top-k page from "
+                         "the refit artifact (Amendment 3); 'prepass' uses the "
+                         "ranking H-Nav computed for itself, which agrees with "
+                         "the benchmark on 26/100 sh_64k questions.")
     ap.add_argument("--max-questions", type=int, default=None)
     ap.add_argument("--allow-unstamped-prepass", action="store_true")
     ap.add_argument("--out", default=None)
@@ -1311,7 +1371,9 @@ def main() -> int:
         return 0
 
     cell = frozen_cell()
-    print(f" harness: {args.harness}")
+    print(f" harness: {args.harness}"
+          + (f" (page source: {args.page_source})"
+             if args.harness == "retrieval" else ""))
     print(f" operating point: cos_pair={cell['cos_pair']} "
           f"r_min={cell['r_min_label']} ambiguity={cell['ambiguity_mode']} "
           f"nli={cell['nli_contradiction']} pair_filter={cell['pair_filter']}")
@@ -1321,7 +1383,8 @@ def main() -> int:
         pp, table, recs = ctx["prepasses"][s], ctx["tables"][s], ctx["records"][s]
         decisions = decide_all(pp, recs, [cell], ReplayNLI(pp["nli_table"]))
         plans.append(plan_subset(ctx["items"][s], s, pp, decisions, 0, table,
-                                 args.max_questions, harness=args.harness))
+                                 args.max_questions, harness=args.harness,
+                                 page_source=args.page_source))
 
     bud = budget(plans)
     print("=" * 100)
@@ -1370,6 +1433,7 @@ def main() -> int:
         "git_head": _git_head(), "mode": cfg.mode,
         "smoke_llm": bool(args.smoke_llm),
         "harness": args.harness,
+        "page_source": args.page_source,
         "preregistration": "stage0_results/stage1_preregistration_v2.md",
         "operating_point": cell["artifact"],
         "harness": {
