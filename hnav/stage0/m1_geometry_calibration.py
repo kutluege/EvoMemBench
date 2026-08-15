@@ -57,7 +57,7 @@ def load_env() -> dict:
     env = dict(os.environ)
     f = REPO / ".env"
     if f.exists():
-        for line in f.read_text().splitlines():
+        for line in f.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)

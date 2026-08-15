@@ -255,7 +255,7 @@ EDITS = {
 def test_benchmark_edits_present_and_parseable(path, markers):
     f = REPO / path
     assert f.exists(), f"missing {path}"
-    src = f.read_text()
+    src = f.read_text(encoding="utf-8")
     ast.parse(src, filename=str(f))          # a syntax error here breaks the whole suite
     assert "[HNAV]" in src, "the edit must be marked so it is findable in a diff"
     for m in markers:
@@ -270,7 +270,7 @@ def test_hnav_import_failure_is_contained():
     try/except whose handler returns the un-instrumented value.
     """
     for path in EDITS:
-        src = (REPO / path).read_text()
+        src = (REPO / path).read_text(encoding="utf-8")
         tree = ast.parse(src, filename=path)
         helpers = [n for n in ast.walk(tree)
                    if isinstance(n, ast.FunctionDef) and n.name.startswith("_hnav")]
@@ -286,7 +286,7 @@ def test_retriever_native_branch_is_intact():
     returns ``page``, which is initialized to that truncation and replaced
     only by the live-mode apply seam — never in off/shadow)."""
     src = (REPO / "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/methods/"
-                  "embedding_retriever.py").read_text()
+                  "embedding_retriever.py").read_text(encoding="utf-8")
     assert "results = self.vectorstore.similarity_search(query, k=initial_k)" in src
     assert "retrieved_docs = [doc.page_content for doc in results]" in src
     assert src.count("return retrieved_docs[:top_k]") == 1, \

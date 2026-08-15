@@ -83,7 +83,7 @@ def test_heavy_imports_are_function_local():
     for p in sorted((REPO / "hnav").rglob("*.py")):
         if any(part in SKIP_DIRS for part in p.relative_to(REPO).parts):
             continue
-        tree = ast.parse(p.read_text(), filename=str(p))
+        tree = ast.parse(p.read_text(encoding="utf-8"), filename=str(p))
         for node in tree.body:  # top level only
             names = []
             if isinstance(node, ast.Import):

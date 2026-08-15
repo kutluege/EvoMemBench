@@ -106,7 +106,7 @@ def test_policy_modules_and_the_read_gate_never_reference_raw_entropy():
         paths.append(gate)
     assert paths, "read_gate.py missing — the T9 gate should exist"
     for path in paths:
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
             name = None
             if isinstance(node, ast.Attribute):

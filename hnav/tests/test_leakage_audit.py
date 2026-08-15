@@ -101,7 +101,7 @@ def test_online_modules_are_clean():
     assert len(files) >= 6, f"only found {[str(f) for f in files]}"
     violations: list[str] = []
     for f in files:
-        violations.extend(scan_source(f.read_text(), str(f.relative_to(REPO))))
+        violations.extend(scan_source(f.read_text(encoding="utf-8"), str(f.relative_to(REPO))))
     assert not violations, (
         "LEAKAGE: online modules reference benchmark ground truth:\n  "
         + "\n  ".join(violations))
@@ -118,7 +118,7 @@ def test_online_modules_do_not_import_the_benchmark():
                        "infer_context_memory", "eval_other_utils")
     bad = []
     for f in online_modules():
-        tree = ast.parse(f.read_text(), filename=str(f))
+        tree = ast.parse(f.read_text(encoding="utf-8"), filename=str(f))
         for node in ast.walk(tree):
             mods = []
             if isinstance(node, ast.Import):
