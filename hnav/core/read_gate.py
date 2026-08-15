@@ -28,6 +28,19 @@ Stage 2 — bidirectional NLI
     the same slot, not refinement. Final groups are connected components of
     verified edges only.
 
+Optional pair screen — the Note-1 mitigation seam (Faz B).
+    The Faz A audit measured that the NLI cross-encoder falsely verifies
+    same-template/DIFFERENT-SUBJECT pairs as bidirectional contradiction
+    ("Thomas Kyd was born in London." vs "Marlowe was born in London."
+    → 0.999 both directions), so NLI alone cannot carry subject identity.
+    ``ReadGate(pair_filter=...)`` lets the ADAPTER supply identity evidence
+    (e.g. equality of its parsed ``(relation, subject)`` key) as an extra
+    screen on cosine-passed pairs, BEFORE any NLI is spent on them. The core
+    stays benchmark-agnostic: the filter is an opaque callable on two
+    :class:`~hnav.core.types.MemoryRecord` objects; ``None`` (the default)
+    preserves the Faz A behaviour exactly. Rejections are counted in
+    ``GateDecision.n_pairs_filter_rejected``.
+
 Threshold provenance. Defaults are the FROZEN Stage-0 calibration values
 (``stage0_results/final/m3_headroom.json``, fit on sh_6k+sh_32k only,
 ``unfit_for_analysis: false``): ``nmargin < 0.0048``, ``H_z > 1.9569``,
@@ -309,6 +322,7 @@ class GateDecision:
     n_candidates: int = 0
     n_pairs_screened: int = 0
     n_pairs_cos: int = 0
+    n_pairs_filter_rejected: int = 0
     n_groups_cos: int = 0
     n_groups_geometric: int = 0
     n_pairs_nli: int = 0
@@ -352,11 +366,18 @@ class ReadGate:
 
     ``nli`` is required: verification without stage 2 is not verification.
     Tests use :class:`StubNLI`; live runs use :func:`build_nli`.
+
+    ``pair_filter`` is the optional identity screen described in the module
+    docstring: a callable ``(rec_a, rec_b) -> bool`` applied to every pair
+    that passes the cosine screen; ``False`` drops the edge before NLI.
     """
 
-    def __init__(self, nli: NLIClient, thresholds: GateThresholds | None = None) -> None:
+    def __init__(self, nli: NLIClient, thresholds: GateThresholds | None = None,
+                 pair_filter: Callable[[MemoryRecord, MemoryRecord], bool] | None = None,
+                 ) -> None:
         self.nli = nli
         self.thresholds = thresholds or GateThresholds()
+        self.pair_filter = pair_filter
 
     # ── ambiguity precondition ───────────────────────────────────────────────
     def _ambiguity(self, signal_view) -> tuple[bool, dict]:
@@ -418,12 +439,19 @@ class ReadGate:
         sims = mat @ mat.T
         n = len(recs)
 
-        # stage 1a: cosine screen
+        # stage 1a: cosine screen, then the optional identity screen
         all_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
         dec.n_pairs_screened = len(all_pairs)
-        edges = [(i, j) for i, j in all_pairs
-                 if thr.cos_pair is None or sims[i, j] >= thr.cos_pair]
+        edges = []
+        for i, j in all_pairs:
+            if thr.cos_pair is not None and sims[i, j] < thr.cos_pair:
+                continue
+            if self.pair_filter is not None and not self.pair_filter(recs[i], recs[j]):
+                dec.n_pairs_filter_rejected += 1
+                continue
+            edges.append((i, j))
         dec.n_pairs_cos = len(edges)
+        dec.reasons["pair_filter_active"] = self.pair_filter is not None
 
         tentative = _components(n, edges)
         dec.n_groups_cos = len(tentative)
