@@ -379,6 +379,15 @@ def run_nli(per_context_records: "OrderedDict[str, list[dict]]",
     Offline only: this uses the read gate's cross-encoder from the labeling
     side of the fence. Pair selection is deterministic (context order, then
     candidate order) and capped, and rates are reported per cluster.
+
+    **Truncation is STRUCTURAL here and is reported, never assumed away**
+    (T12 note 5). DeBERTa-v3's own ``max_position_embeddings`` is 512 and
+    premise and hypothesis share that budget, while CrossEp chunks run to
+    ~300 tokens per side after the 1200-char cut — so ~71.5% of pairs are cut
+    at the model's ceiling. The knob cannot be raised without leaving the
+    checkpoint's validated range, so the residue is measured: the returned
+    block carries a ``truncation`` sub-block from the engine itself, and
+    every contradiction number in this block must be quoted alongside it.
     """
     if engine == "stub":
         from hnav.core.read_gate import StubNLI
@@ -405,7 +414,9 @@ def run_nli(per_context_records: "OrderedDict[str, list[dict]]",
                 pairs.append((a, b))
                 owners.append(cid)
     if not pairs:
-        return {"engine": engine, "n_pairs": 0}
+        return {"engine": engine, "n_pairs": 0,
+                "truncation": (nli.truncation_report()
+                               if hasattr(nli, "truncation_report") else None)}
 
     fwd = nli.score_pairs(pairs)
     bwd = nli.score_pairs([(b, a) for a, b in pairs])
@@ -627,6 +638,14 @@ def main() -> int:
         p = (top.get("0.90") or {}).get("mean", float("nan"))
         print(f" NLI ({nli_block['engine']}): pairs={nli_block['n_pairs']}  "
               f"bidir-contra>=0.90 cluster-mean={p:.4f}")
+        # The contradiction figure is uninterpretable without this: DeBERTa's
+        # 512-token ceiling cuts most CrossEp chunk pairs (T12 note 5).
+        trunc = nli_block.get("truncation")
+        if trunc:
+            print(f"   truncation: {trunc.get('n_truncated')}/{trunc.get('n_scored')} "
+                  f"inputs cut at max_length={trunc.get('max_length')} "
+                  f"(rate {trunc.get('truncation_rate', float('nan')):.4f}) "
+                  f"— quote this beside every contradiction number above")
     print(f"\n wrote {out}")
     print(" This measurement fits NOTHING. Operating thresholds, if the [GATE]")
     print(" ever authorizes any, may be fit on the calibration clusters only.")
