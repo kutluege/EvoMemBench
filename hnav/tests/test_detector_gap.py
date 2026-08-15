@@ -728,3 +728,32 @@ def test_pool_and_named_checks_are_against_the_same_page_object(sh_6k):
     assert D.pool_violations([chunks[0]], pool)
     assert not D.containment_violations(chunks, plan)
     assert not D.pool_violations(chunks, pool)
+
+
+# ── the confirmatory prepass refuses everything except its one job ───────────
+def test_confirmatory_prepass_refuses_any_other_subset(monkeypatch, capsys):
+    from hnav.stage1 import confirmatory_prepass as CP
+    for subset in ("sh_6k", "sh_32k", "sh_262k"):
+        monkeypatch.setattr("sys.argv",
+                            ["confirmatory_prepass.py", "--subset", subset])
+        assert CP.main() == 2, subset
+        assert "REFUSED" in capsys.readouterr().out
+
+
+def test_confirmatory_prepass_forces_benchmark_page_and_cache_only(monkeypatch,
+                                                                   capsys):
+    """The two settings that must not be overridable from the command line:
+    the pool has to come from the page the model sees, and no vector may be
+    computed fresh on the confirmatory subset."""
+    from hnav.stage1 import confirmatory_prepass as CP
+    monkeypatch.setattr("sys.argv", ["confirmatory_prepass.py", "--dry-run"])
+    assert CP.main() == 0
+    out = capsys.readouterr().out
+    assert "page source : benchmark  (forced" in out
+    assert "cache-only (forced" in out
+    assert "tunables    : none" in out
+    import inspect
+    src = inspect.getsource(CP.main)
+    assert 'page_source="benchmark"' in src
+    assert "cache_only=True" in src
+    assert "--page-source" not in src, "page source must not be a CLI option"
