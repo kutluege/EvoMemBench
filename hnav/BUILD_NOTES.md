@@ -307,3 +307,73 @@ numbers: `CROSSEP_HEADROOM_RAPORU.md` (repo root). No policy code anywhere.
 Tests 175 → 196 (`test_crossep_adapter_signals.py`, `test_crossep_split.py`,
 `test_crossep_m5_headroom.py`), all green locally and on the box; leakage
 audit and no-torch-at-import untouched and green.
+
+## 9. T11 — Stage-1 Faz B: rerank policy, live wiring, calibration, substrate
+
+Built per `STAGE1_PLAN.md` §2 Faz B, on top of the audited Faz A gate, with
+the two binding supervisor findings addressed head-on.
+
+1. **`hnav/core/read_policy.py`** — the single permitted policy module.
+   `rerank_order` promotes each verified group's LATEST carrier immediately
+   above its highest-ranked stale rival; deterministic (plans sorted by first
+   stale position, single pop-and-insert each), token-neutral by construction
+   (non-permutations raise). `ReadRerankPolicy` packages gate + rerank into a
+   `Decision` that is born `shadow=True`; only the adapter arms it, only under
+   `HNAV_MODE=live`.
+2. **Note-1 mitigation, measured then frozen.** The gate gained an optional
+   `pair_filter` (adapter-supplied identity evidence, applied to cosine-passed
+   pairs BEFORE NLI). Calibration measured the exposure on sh_6k+sh_32k with
+   the real NLI: WITHOUT the screen the bidirectional criterion false-verifies
+   at 33–93% of verified pairs depending on the cosine screen (dominant class:
+   same-template/different-subject, the audit's measured shape — e.g. 12,896
+   cross-key rubber-stamps vs 923 true supersessions at cos 0.90). WITH
+   parsed-key equality (`MABAdapter.same_key_pair`, unparseable pairs
+   rejected) the measured false-verified rate is 0.000 at every one of 162
+   grid cells, verification precision 1.00. The screen is frozen ON.
+3. **Live wiring** (`mab_adapter` + the retriever hook): candidate pool =
+   facts in the retrieved page capped at `top_m` by query-fact cosine
+   (`select_pool`, shared verbatim with the calibration harness);
+   `latest_key` = the benchmark serial; `apply_read_decision` returns the
+   same chunk set and count, new order only, native fallback counted on any
+   irregularity. `get_adapter` assembles the default stack for hook callers
+   (signals, read audit, cache-first NON-persisting endpoint embedder so a
+   bf16-served fallback can never poison the fp32 cache, CPU-capable NLI).
+   Off stays inert; shadow computes and logs but never applies; the seam in
+   `embedding_retriever.py` acts only on an armed (non-shadow) decision.
+   `require_not_live` lifted from the adapter ONLY — every Stage-0 script
+   still refuses live (both halves pinned in tests).
+4. **Calibration** (`hnav/stage1/calibrate_read_policy.py`): sh_6k+sh_32k
+   only (others refused), campaign-faithful queries (RAGSystem's templated
+   retrieval extraction) and grading prompt (Memory-numbered, system message,
+   max_tokens 10, against the frozen :8003 substrate), 162-cell grid replayed
+   through the REAL gate + rerank with a replay NLI that refuses unknown
+   pairs. ABTT A/B logged (AUC same-key separation, raw→whitened: sh_6k
+   0.936→0.955, sh_32k 0.988→0.991 — evidence FOR whitening, no decision uses
+   it). Objective pre-registered in the module docstring.
+5. **Substrate frozen** (`serve_stage1_chat.sh` / `serve_stage1_embed.sh`):
+   :8003 Qwen3-4B bf16 weights, 65536 window, fp8 KV, eager, batch 1, no
+   prefix cache, util 0.58; :8001 embeddings **bf16** util 0.33 — a declared
+   deviation forced by arithmetic (fp32 embed weights + a 65k window do not
+   fit one 24 GB card; GPU0 carries the user's :8000, untouched). Gate
+   geometry stays fp32 via the cache-first embedder; both arms share the
+   bf16 retrieval.
+6. **Campaign tooling, not run by the builder**: `stage1_campaign_driver.sh`
+   (7 off + 7 live interleaved, refuses to start without the committed
+   pre-registration + operating point + a live-stack preflight),
+   `stage1_campaign_analysis.py` (the pre-registered criteria, verbatim),
+   `stage1_aa_driver.sh`/`stage1_aa_analysis.py` (frozen-substrate noise
+   floor, sh_32k), `stage1_shadow_check.sh` (realized-coverage rehearsal).
+
+Known fidelity gaps, declared rather than hidden:
+
+- The benchmark stores MEMORIZE-TEMPLATED chunks (wrapper + per-chunk
+  timestamp); the harness ranks raw chunks — the same simplification M2/M3
+  made. Fact-level gate geometry is unaffected (pool records are the clean
+  admitted facts); the chunk-ranking and grading-prompt deltas are absorbed
+  by the shadow coverage check on sh_32k, and the retrieve-time re-parse of
+  templated chunks can contaminate only the LAST fact's *text* in the
+  chunk-membership map, never the fact records themselves.
+- Campaign retrieval runs on bf16 embeddings; nmargin/H_z firing rates under
+  bf16 are a declared transfer assumption (same check).
+- The A/A noise floor is measured on sh_32k, not the confirmatory sh_64k —
+  declared in the pre-registration as a transfer assumption.
