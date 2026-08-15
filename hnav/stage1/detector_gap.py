@@ -1508,13 +1508,41 @@ def main() -> int:
                          "the benchmark on 26/100 sh_64k questions.")
     ap.add_argument("--max-questions", type=int, default=None)
     ap.add_argument("--allow-unstamped-prepass", action="store_true")
+    ap.add_argument("--confirmatory", action="store_true",
+                    help="THE ACT OF FIRING. Permits sh_64k, and ONLY sh_64k, "
+                         "and only with --harness retrieval --page-source "
+                         "benchmark. sh_262k stays refused. Use with --dry-run "
+                         "first to produce the guard pre-flight evidence.")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
     cfg = _config.get_config()
     cfg.require_not_live()
 
-    bad = [s for s in args.subsets if s not in CALIBRATION]
+    if args.confirmatory:
+        wrong = [s for s in args.subsets if s != "sh_64k"]
+        if wrong or not args.subsets:
+            print(" REFUSED: --confirmatory covers sh_64k and nothing else; got "
+                  + str(args.subsets) + ".\n sh_262k is outside the campaign "
+                  "(pre-registration v2 section 2).")
+            return 2
+        if args.harness != "retrieval" or args.page_source != "benchmark":
+            print(" REFUSED: the pre-registered confirmatory design is "
+                  "--harness retrieval\n --page-source benchmark (Branch A, "
+                  "Amendments 2 and 3). Got harness="
+                  + repr(args.harness) + " page_source="
+                  + repr(args.page_source) + ".")
+            return 2
+        print("=" * 100)
+        print(" CONFIRMATORY RUN - sh_64k, single shot, pre-registered at")
+        print("   stage0_results/stage1_preregistration_v2.md")
+        print(" Success: conflicted McNemar net >= +10 AND exact p < 0.01 AND"
+              " the protective criterion")
+        print(" Void conditions 1-4 and 6-8 void the RUN; condition 5 voids the"
+              " PROTECTIVE CLAIM only")
+        print("=" * 100)
+    bad = [s for s in args.subsets
+           if s not in CALIBRATION and not (args.confirmatory and s == "sh_64k")]
     if bad:
         print(f" REFUSED: {bad} is outside the calibration split {CALIBRATION}.\n"
               f" {CONFIRMATORY} is the confirmatory arena; measuring or tuning "
@@ -1656,6 +1684,7 @@ def main() -> int:
         "smoke_llm": bool(args.smoke_llm),
         "harness": args.harness,
         "page_source": args.page_source,
+        "confirmatory": bool(args.confirmatory),
         "preregistration": "stage0_results/stage1_preregistration_v2.md",
         "operating_point": cell["artifact"],
         "harness": {

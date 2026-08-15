@@ -757,3 +757,35 @@ def test_confirmatory_prepass_forces_benchmark_page_and_cache_only(monkeypatch,
     assert 'page_source="benchmark"' in src
     assert "cache_only=True" in src
     assert "--page-source" not in src, "page source must not be a CLI option"
+
+
+# ── --confirmatory is the act of firing, and it is narrow ────────────────────
+def test_confirmatory_refuses_any_subset_but_sh_64k(monkeypatch, capsys):
+    for subset in ("sh_262k", "sh_6k"):
+        monkeypatch.setattr("sys.argv", [
+            "detector_gap.py", "--confirmatory", "--subsets", subset,
+            "--harness", "retrieval", "--page-source", "benchmark"])
+        assert D.main() == 2, subset
+        assert "REFUSED" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("extra", [
+    ["--harness", "whole_context"],
+    ["--harness", "retrieval", "--page-source", "prepass"],
+    ["--harness", "retrieval"],
+])
+def test_confirmatory_refuses_any_design_but_the_pre_registered_one(
+        monkeypatch, capsys, extra):
+    monkeypatch.setattr("sys.argv",
+                        ["detector_gap.py", "--confirmatory",
+                         "--subsets", "sh_64k"] + extra)
+    assert D.main() == 2
+    assert "pre-registered confirmatory design" in capsys.readouterr().out
+
+
+def test_sh_64k_stays_refused_without_the_confirmatory_flag(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", [
+        "detector_gap.py", "--subsets", "sh_64k",
+        "--harness", "retrieval", "--page-source", "benchmark"])
+    assert D.main() == 2
+    assert "outside the calibration split" in capsys.readouterr().out
