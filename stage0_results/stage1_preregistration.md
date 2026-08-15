@@ -78,6 +78,27 @@
 > refuses to start (it requires this file committed as REGISTERED plus a
 > committed operating point — neither exists).
 >
+> ## Timing provenance — objective frozen before grading (verified 2026-08-16)
+>
+> Recorded here so an external reviewer finds it without asking, since the
+> credibility of a pre-registered objective rests entirely on it having been
+> fixed before any outcome was observed. The audit question was whether the
+> calibration's graded phase could have started before the objective was
+> committed. It could not:
+>
+> | event | time (+0300) | evidence |
+> |---|---|---|
+> | objective committed (`3bd59ef`, in the harness docstring) | **07:23:42** | `git log -1 --format=%ad 3bd59ef` |
+> | `:8003` chat server started | 07:32:45 | `hnav/_out/pipeline/chat_stage1.log` |
+> | **first graded request** | **07:33:48** | first `Received request` in that log |
+> | evaluate finished | 08:21:48 | log mtime; artifact `provenance.date` agrees (05:21:48 UTC) |
+>
+> The entire graded phase (469 LLM calls) postdates the committed objective by
+> ~10 minutes. **No restatement is required.** One clarification for
+> completeness: an earlier `--no-llm` grid pass did run before that commit, but
+> it produces no helped/harmed outcomes — only coverage and false-verified
+> counts — so no outcome data existed at the time the objective was frozen.
+>
 > Registered by commit BEFORE any sh_64k inference. Precedent and discipline:
 > `stage0_results/t4_s2_protocol.md` (S2). Binding sources:
 > `STAGE1_PLAN.md` §0 (user decisions, 2026-08-15), `KAPI_KARARI.md` §3/§6

@@ -231,31 +231,42 @@ threshold".
 | 7 | **m3 read accuracy columns and m4 itself: NOT re-fit** (need the LLM arm) — still L512-era. |
 | 8 | The corrected signals make sh_32k retrieval look **substantially more ambiguous** (margin −54%). |
 
-## 5. Open decision — NOT taken unilaterally
+## 5. Decision taken — option 3: mark superseded, do not change live values
 
-The runbook's deliverable 6 asks that `read_gate.py`'s `NMARGIN_CAL`/`H_Z_CAL`
-and `test_threshold_provenance.py` be updated in the same commit as the new
-JSONs. **I have not changed the constant values**, for two reasons:
+**Decided by the coordinator, 2026-08-16.** `NMARGIN_CAL` and `H_Z_CAL` keep
+their L512-era values; the corrected per-subset values are recorded alongside
+them in `hnav/core/read_gate.py` (`REFIT_PER_SUBSET`) and in
+`stage0_results/refit_L8192/per_subset_thresholds.json`.
 
-1. **Cross-agent surface.** `hnav/stage1/detector_gap.py` (another agent) reads
-   `_rg.NMARGIN_CAL`/`H_Z_CAL`, and its committed results
-   (`stage0_results/stage1/detector_gap_*.json`) were produced under the old
-   values. Swapping them silently would make those artifacts unreproducible.
-2. **The replacement would perpetuate a construct this report shows is
-   invalid.** Writing the new *pooled* scalars into the constants re-freezes the
-   §3 defect for another cycle.
+Rationale on the record:
 
-Recommended, for the coordinator/supervisor to decide:
+1. **Reproducibility wins.** `hnav/stage1/detector_gap.py`'s committed
+   artifacts — including the pre-registered, audited, one-shot held-out
+   confirmatory run — were produced under these exact constants. Swapping them
+   would make an audited result unreproducible from the code that produced it,
+   and the constants are **inert in the shipped configuration** anyway
+   (`ambiguity_mode="none"`).
+2. **The replacement would re-freeze the documented defect.** Writing the new
+   *pooled* scalars in would perpetuate exactly what §3 disproves.
 
-- **Option 1 (preferred):** replace the two scalars with **per-subset**
-  constants plus an explicit "no pooled threshold" rule, and update every
-  consumer to select by subset. Highest fidelity, touches `detector_gap.py`.
-- **Option 2 (minimal):** update the scalars to the new pooled values
-  (`nmargin 0.0039060968`, `H_z 2.0362532742`), repoint
-  `test_threshold_provenance.py` at `refit_L8192/m3_headroom_L8192.json`, and
-  keep §3 as a stated limitation.
-- **Option 3:** leave the constants pinned to L512 and mark them superseded in
-  code, since the mechanism they served (`read_policy`) is withdrawn.
+Enforcement (`hnav/tests/test_threshold_provenance.py`, 12 tests): the live
+values are pinned to the L512 numbers and asserted **not** to equal the L8192
+pooled ones; the superseded annotation's markers must be present, so deleting
+the label fails the suite; `REFIT_PER_SUBSET` must equal the artifact exactly;
+the two eras must remain distinct records; `R_MIN_CAL`'s 1.1e-06 stability is
+pinned with an ESCALATE message; and the sh_6k `H_z` vacuity is pinned against
+the artifact's `min == max == p75` plus the `ln 2` ceiling. Verified to fail on
+all four decay modes (live swap 3 fail, annotation deleted 1, per-subset drift
+1, eras aliased 2).
 
-Everything needed to execute any option is in this report and in
-`stage0_results/refit_L8192/`.
+**Rule going forward:** the live constants reproduce L512-era artifacts only.
+Any new analysis uses `REFIT_PER_SUBSET`, per subset, never pooled.
+
+## 6. Closed — LLM arms deliberately not re-run
+
+`m3`'s counterfactual columns and `m4` remain L512-era **LLM labels with
+confirmed-identical inputs** (§1e, §2). Coordinator decision 2026-08-16: not
+re-run, because the probe and detector-gap results have superseded m3's repair
+story with better measurements, and hours of contended GPU for numbers nothing
+now rests on is not a good trade. If a specific one later proves load-bearing,
+that one gets re-run.

@@ -74,6 +74,7 @@ from .types import MemoryRecord
 
 __all__ = [
     "NMARGIN_CAL", "H_Z_CAL", "R_MIN_CAL", "COS_PAIR_CAL", "NLI_CONTRA_DEFAULT",
+    "REFIT_PER_SUBSET", "H_Z_SH6K_DEGENERATE_VALUE",
     "NLI_MODEL_DEFAULT", "NLI_MAX_LENGTH_DEFAULT",
     "GateThresholds", "NLIScores", "NLIClient", "StubNLI",
     "CrossEncoderNLI", "PairCheck", "ConflictGroup", "GateDecision", "ReadGate",
@@ -84,9 +85,67 @@ __all__ = [
 # Full precision from stage0_results/final/m3_headroom.json ("thresholds",
 # fit_subsets ["sh_6k","sh_32k"], unfit_for_analysis false). Rounded forms
 # quoted in KAPI_KARARI.md §1: nmargin<0.0048, H_z>1.9569, r_min<0.1924.
+#
+# =============================================================================
+# SUPERSEDED FOR ANALYSIS - RETAINED FOR REPRODUCIBILITY
+# =============================================================================
+# NMARGIN_CAL and H_Z_CAL below were fit on embeddings truncated at 512 tokens
+# against 4096-token chunks (the T12 defect, BUILD_NOTES section 10). The
+# corrected re-fit is in stage0_results/refit_L8192/ and the full comparison in
+# stage0_results/refit_threshold_diff.md.
+#
+# They are DELIBERATELY NOT UPDATED (coordinator decision, 2026-08-16, option 3
+# of that report's section 5):
+#   1. hnav/stage1/detector_gap.py reads these constants, and its committed
+#      artifacts - including the pre-registered held-out confirmatory run - were
+#      produced under these exact values. Swapping them would make an audited
+#      one-shot result unreproducible from the code that produced it, for
+#      constants that are INERT in the shipped configuration
+#      (ambiguity_mode="none").
+#   2. The replacement would be a new POOLED scalar, and pooling is exactly the
+#      defect the re-fit documented (see REFIT_PER_SUBSET below).
+#
+# Rule: use these values only to reproduce L512-era artifacts. For any NEW
+# analysis use REFIT_PER_SUBSET, per subset, never pooled.
+# =============================================================================
 NMARGIN_CAL = 0.004764391389658354
 H_Z_CAL = 1.9569327964981853
 R_MIN_CAL = 0.19236616622633881
+# R_MIN_CAL is the one threshold the truncation never touched: it is fit from
+# write rows (facts), and a fact is far below 512 tokens. The re-fit confirmed
+# it at 1.1e-06 RELATIVE movement (0.19236616622633881 -> 0.19236637856277625),
+# i.e. fp32 accumulation noise. That stability is load-bearing: it is what
+# licenses treating every other fact-level Stage-0 quantity as unaffected.
+
+# Corrected (L8192) thresholds, PER SUBSET — the form the re-fit licenses.
+# Mirrors stage0_results/refit_L8192/per_subset_thresholds.json exactly;
+# test_threshold_provenance.py fails if the two drift apart.
+#
+# Percentiles are m3's own choices (nmargin p25, H_z p75, r_min p10) computed
+# WITHIN each subset rather than over the pooled rows. Why pooling is not
+# defensible here, with evidence: the pooled p75 is arithmetically sh_32k's
+# MEDIAN in both eras (L512 1.9569 vs sh_32k median 1.9573; L8192 2.0363 vs
+# 2.0377), because all 100 sh_6k rows sit below sh_32k's entire range. The
+# subsets are not exchangeable — n_chunks 2 vs 9, and H_z's support differs in
+# KIND (a point mass vs a distribution).
+REFIT_PER_SUBSET = {
+    "sh_6k": {"nmargin_p25": 0.008512413115359335,
+              "H_z_p75": 0.3653338550872077,
+              "r_min_p10": 0.7435854972714265},
+    "sh_32k": {"nmargin_p25": 0.001985078178457466,
+               "H_z_p75": 2.074701412612985,
+               "r_min_p10": 0.1768898278324488},
+}
+
+# H_z is STRUCTURALLY UNREACHABLE on sh_6k — a property of the statistic, not a
+# tuning accident. With n_chunks = 2, z-scoring two scores always yields
+# {+1, -1} whatever the scores are, so H_z is the constant below and the
+# entropy ceiling is ln(2) = 0.6931. No STRICT inequality can select a proper
+# subset of a constant, so the screen fires on 0 of 100 sh_6k reads under the
+# L512 threshold (1.9569), the L8192 threshold (2.0363), AND sh_6k's own p75 —
+# all three measured. Per-subset fitting does not rescue it; only recognizing
+# n_chunks = 2 does.
+H_Z_SH6K_DEGENERATE_VALUE = 0.3653338550872077
 # Mean of M1b best-F1 taus on the calibration split (sh_6k 0.91, sh_32k 0.93).
 COS_PAIR_CAL = 0.92
 # Probability-majority baseline for the bidirectional contradiction criterion.
