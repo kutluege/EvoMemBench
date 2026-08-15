@@ -844,3 +844,144 @@ any page whose last chunk ends that way; `SUPPRESS` and every committed
 whole-context result are untouched, because a single-block context has no
 dangling tail.
 
+---
+
+## 13. T13c — the `sh_64k` confirmatory result
+
+Pre-registered at `stage0_results/stage1_preregistration_v2.md` (commit
+`b0ed608`, 2026-08-15T19:52:24+03:00, plus Amendments 1–4). Fired
+**22:00:02**, finished **23:07:19**, at HEAD `3a2ebb9`. 500 calls, ~19.8M prompt
+tokens, frozen `:8003`, retrieval-path harness, page read from the benchmark's
+own vectors. Artifact:
+`stage0_results/stage1/detector_gap_confirmatory_sh64k.json`.
+
+### 13.1 Result
+
+| arm | overall | unique | conflicted | b/c | net | exact p | tok |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| native | 0.450 | 28/34 | 17/66 (25.8%) | — | — | — | 0 |
+| native_repeat | 0.450 | 28/34 | 17/66 | 0/0 | 0 | 1.0 | 0 |
+| **detector_suppress** | **0.640** | 27/34 | **37/66 (56.1%)** | **0/20** | **+20** | **1.907e-06** | **−0.31%** |
+| detector_demote_late | 0.480 | 28/34 | 20/66 (30.3%) | 2/5 | +3 | 0.4531 | 0.00% |
+| detector_anti | 0.430 | 28/34 | 15/66 (22.7%) | 3/1 | −2 | 0.625 | 0.00% |
+
+`b/c` is the **conflicted-stratum** McNemar; `detector_suppress`'s overall cells
+are b=1 / c=20, net +19, p=2.098e-05.
+
+**Primary criterion: MET.** Conflicted net +20 ≥ +10, exact p = 1.9e-06 < 0.01,
+token delta −0.31% ≤ 0. Conflicted **b = 0** — not one conflicted question was
+harmed.
+
+**Protective claim: VOID, by one question.** Unique stratum b=1 / c=0. Question
+77, `refusal_after_edit`: native `"John Milton"` → suppressed arm *"The provided
+knowledge pool does not contain any information about"*. Not borderline —
+`SequenceMatcher` ratio **0.182** against the 0.8 threshold, and the queried
+key's target serial 2558 was **not** in the suppressed set, so the gold
+information was demonstrably still on the page. Net −1 satisfies §5a; §5b voids
+the protective claim because the class is not `malformed_generation`.
+
+### 13.2 The registered conclusion, applied verbatim
+
+> **Effective but not yet safe.** Fact-level suppression of detector-verified
+> stale memory raises conflicted-stratum accuracy from 17/66 to 37/66 (+20 net
+> discordant pairs, exact p = 1.9e-06) at a measured cost of one non-conflicted
+> question via refusal-after-edit, and **may not be recommended for deployment
+> on traffic containing non-conflicted queries** until that mechanism is
+> understood and eliminated.
+
+Per Amendment 4 (R2), condition 5 voids the **protective claim only**: the run
+stands, the accuracy result stands, and the shot **is** spent.
+
+### 13.3 Void conditions, by number
+
+Stamped in the artifact as a `void_conditions` object rather than left to be
+reassembled from scattered counters.
+
+| # | voids | status | observed |
+| --- | --- | --- | --- |
+| 1 page-edit mismatch | run | **pass** | 0 |
+| 2 native in band | run | **pass** | overall 0.450 in [0.30, 0.50]; unique native 28/34 = 0.824 ≥ 0.80 |
+| 3 A/A floor zero | run | **pass** | b=0, c=0 |
+| 4 no harmful suppression | run | **pass** | 0 harmful of **735** suppressed; all 735 genuinely superseded |
+| **5 protected stratum** | **protective claim only** | **FAIL** | q77, `refusal_after_edit` |
+| 6/7 page source | run | **pass** | `benchmark` |
+| 8 guards + positive control | run | **pass** | containment 0, page_edit_errors 0, control OK |
+
+**Verdict: run NOT void, shot spent, protective claim void.**
+
+**Both condition-2 margins are thin and are stated here before a reader finds
+them.** Native overall **0.450** sits at the top edge of the pre-fixed
+[0.30, 0.50] band; unique native **28/34 = 0.824** clears the 0.80 floor by a
+single question. Both are genuine passes against a band fixed in advance — and
+the unique stratum is markedly noisier here than on calibration, where it was
+26/26 and 35/35. The protective design presumes that stratum is near-noiseless,
+and at `sh_64k` it is not.
+
+### 13.4 The gold-cut prediction — missed, and the reason is the interesting part
+
+Registered prediction (§6): **2** gold-cuts, from exposure 2/66 × conflicted
+recall 0.957 = 1.91, with 0/1/2 the only arithmetically possible outcomes.
+
+**Observed: 1 deletion, 0 accuracy losses.** The two exposed questions,
+re-derived from the artifact:
+
+| q | key | gold | latest | gold suppressed? | native | suppressed arm |
+| --- | --- | --- | --- | --- | --- | --- |
+| 18 | author of *Red Storm Rising* | 7 "Tom Clancy" | 1219 "Torquato Tasso" | **no** — key never acted on | wrong ("Torquato Tasso") | wrong |
+| 20 | continent of Great Britain | 2374 "Europe" | 2468 "Asia" | **yes** | **correct** ("Europe") | **correct** ("Europe") |
+
+So the prediction missed low by one, and the single real gold deletion cost
+nothing: with "Europe" removed and only "Asia" left on the page, the model
+**still answered "Europe"**.
+
+That is not reassurance, and must not be written as any. It weakens the implicit
+`gold_cut ⇒ harm` assumption the registered prediction rested on, but the reason
+it fails here is that the model answered from **world knowledge over the
+context** — the H-parametric behaviour the T12 probe was designed to separate
+from H-position. The answer was right for a reason the benchmark cannot see.
+Read strictly: on this question the evaluator was satisfied despite the page
+having been made *less* correct, so "0 accuracy losses from gold cuts" is
+evidence about the evaluator, not evidence that gold cuts are safe.
+
+> **Correction of record.** The commit message of `077ca68` and the first
+> relayed summary stated these two questions **backwards** — they attributed the
+> deletion to q18 and the "already wrong natively" explanation to q20. The table
+> above is the re-derived truth. The artifact carries the same correction in its
+> `corrections` field. An accompanying attribution to the 50-fact pool cap is
+> **withdrawn**: per-question pools were not recorded in that artifact, so the
+> claim was not verifiable. `detector_gap` now records `n_pool` and `pool` per
+> question so that any future claim of that shape can be checked.
+
+### 13.5 Harm classes, and the arms that were not the claim
+
+| arm | harms | classes |
+| --- | --- | --- |
+| detector_suppress | 1 | `refusal_after_edit` 1 |
+| detector_demote_late | 2 | `information_loss` 2 |
+| detector_anti | 3 | `information_loss` 3 |
+
+`gold_cut` = **0** in every arm. `refusal_after_edit` = 1 falls in Amendment 4's
+registered **1–3 band**: it voids the protective claim and is reported as an
+unresolved harm mechanism warranting a replicate — it is **not** the ≥ 4 scaling
+effect.
+
+`detector_demote_late` (+3, p=0.45) remains indistinguishable from noise, as on
+both calibration subsets. `detector_anti` is harmful a third time (−2), so
+across the deployed layout it is **−1, −6, −2**: once the page is the one the
+model actually gets, the direction control never once pointed the wrong way.
+That is the resolution of the §11.4b inconsistency, now confirmed on held-out
+data.
+
+### 13.6 The effect shrank, as registered
+
++62 / +66 conflicted net on `sh_6k`, +44 / +38 on `sh_32k`, **+20** here.
+Pre-registration §8.2 registered that the `sh_64k` effect would be **smaller**
+than `sh_32k`'s and forbade presenting the calibration nets as a forecast; §4's
+threshold was set at +10 for exactly this reason. Suppression volume fell in
+step: 1,416 and 1,257 facts on the calibration subsets against **735** here.
+
+**No oracle-ceiling ratio exists for `sh_64k` and none may be quoted for it.**
+The oracle probe is whole-context, and whole-context does not fit the window at
+this scale (§0), so no oracle arm was ever run — the artifact's
+`detector_vs_oracle` is correctly empty. The 0.984 / 0.957 figures are
+calibration-only and additionally cross-harness.

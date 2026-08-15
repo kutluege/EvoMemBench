@@ -873,6 +873,12 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
             "truths": rec["truths"], "stratum": rec["stratum"],
             "key": list(rec["key"]) if rec["key"] else None,
             "target_serial": rec.get("target_serial"),
+            # Recorded so that claims about the pool cap are checkable from the
+            # artifact alone; the confirmatory run's first draft attributed a
+            # missed prediction to the pool without this, and could not be
+            # verified.
+            "n_pool": len(q.get("pool", [])),
+            "pool": list(q.get("pool", [])),
             "plan": plan, "arms": arms,
             "identical_to_native": {a: arms[a]["prompt"] == native_prompt
                                     for a in ARMS},
@@ -887,7 +893,15 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
             "positive_control": {
                 "n_questions": len(questions),
                 "n_questions_policy_fired": n_fired,
+                # ACCUMULATED ACROSS THE TWO EDITING ARMS (suppress and
+                # demote_late), so the expected value is n_questions_policy_fired
+                # x n_editing_arms, NOT n_questions_policy_fired. The
+                # pre-registration's VC8 wording ("must equal the number of
+                # questions fired, expected 100") describes the PER-ARM figure;
+                # both are reported so neither can be misread as a failure.
                 "n_fact_edits_applied": n_edits_applied,
+                "n_editing_arms": 2,
+                "n_fact_edits_applied_per_arm": n_edits_applied / 2,
                 "n_facts_suppressed": n_suppressed_total,
                 "ok": bool(n_fired and n_suppressed_total
                            and n_edits_applied >= n_fired)},
@@ -950,6 +964,7 @@ def run_subset(plan, answer_fn) -> dict:
     for q in plan["questions"]:
         row = {"index": q["index"], "stratum": q["stratum"], "key": q["key"],
                "truths": q["truths"], "target_serial": q.get("target_serial"),
+               "n_pool": q.get("n_pool"), "pool": q.get("pool"),
                "plan": q["plan"], "arms": {}}
         for arm in ARMS:
             prompt = q["arms"][arm]["prompt"]
@@ -1068,6 +1083,87 @@ def harm_report(per_question, arm: str) -> dict:
             "protective_claim_void": bool(voiding),
             "voiding_questions": [r["index"] for r in voiding],
             "harms": rows}
+
+
+# ── void conditions, assembled in one place (pre-registration v2 §7) ─────────
+NATIVE_BAND = (0.30, 0.50)      # VC2, derived in advance from the m3 offset
+UNIQUE_NATIVE_FLOOR = 0.80      # VC2, the protective design's premise
+CONFIRMATORY_ARM = "detector_suppress"
+
+
+def void_condition_report(res: dict, table: dict, page_source: str | None) -> dict:
+    """Every pre-registered void condition, evaluated and named.
+
+    Assembled here rather than left scattered across counters: an external
+    reviewer should be able to read the verdict, not reconstruct it. Each entry
+    carries the observed value that decided it.
+
+    Condition 5 is the only one that voids the PROTECTIVE CLAIM alone; every
+    other condition voids the whole run (Amendment 4, R2).
+    """
+    arms, strat = res["arms"], res["by_stratum"]
+    harm = res["harm"][CONFIRMATORY_ARM]
+    pc = res["positive_control"]
+    m = blank_metrics()
+    for q in res["per_question"]:
+        classify_drops(m, [f"fact:{x}" for x in q["plan"]["suppress_serials"]],
+                       table)
+    nat = arms["native"]["accuracy"]
+    uniq = (strat.get("unique") or {}).get("arms", {}).get("native", {}).get("accuracy")
+    aa = res["aa_floor"]
+
+    def cond(num, scope, ok, observed, note=""):
+        return {"condition": num, "voids": scope,
+                "status": "pass" if ok else "fail",
+                "observed": observed, "note": note}
+
+    out = {
+        "1_page_edit_mismatch": cond(
+            1, "run", res["n_page_edit_mismatch"] == 0,
+            res["n_page_edit_mismatch"]),
+        "2_native_in_band": cond(
+            2, "run",
+            bool(nat is not None and NATIVE_BAND[0] <= nat <= NATIVE_BAND[1]
+                 and (uniq is None or uniq >= UNIQUE_NATIVE_FLOOR)),
+            {"native_overall": nat, "band": list(NATIVE_BAND),
+             "unique_native": uniq, "unique_floor": UNIQUE_NATIVE_FLOOR}),
+        "3_aa_floor_zero": cond(
+            3, "run", aa["b_native_only"] + aa["c_arm_only"] == 0,
+            {"b": aa["b_native_only"], "c": aa["c_arm_only"]}),
+        "4_no_harmful_suppression": cond(
+            4, "run", m["n_suppressed_harmful"] == 0,
+            {"n_suppressed_harmful": m["n_suppressed_harmful"],
+             "n_suppressed_superseded": m["n_suppressed_superseded"],
+             "n_suppressed_same_value": m["n_suppressed_same_value"]}),
+        "5_protected_stratum": cond(
+            5, "protective_claim_only", not harm["protective_claim_void"],
+            {"voiding_questions": harm["voiding_questions"],
+             "counts": harm["counts"]},
+            "the ONLY condition that leaves the run and the accuracy result "
+            "standing; the shot is still spent"),
+        "6_7_page_source": cond(
+            6, "run", page_source == "benchmark" or page_source is None,
+            {"page_source": page_source},
+            "Amendments 1 and 3: chunk vectors valid AND the page is the "
+            "benchmark's own"),
+        "8_guards_and_positive_control": cond(
+            8, "run",
+            bool(res.get("n_containment_violations", 0) == 0
+                 and res.get("n_page_edit_errors", 0) == 0 and pc["ok"]),
+            {"containment": res.get("n_containment_violations"),
+             "page_edit_errors": res.get("n_page_edit_errors"),
+             "positive_control": pc}),
+    }
+    run_failed = [k for k, v in out.items()
+                  if v["status"] == "fail" and v["voids"] == "run"]
+    out["verdict"] = {
+        "run_void": bool(run_failed),
+        "run_void_because": run_failed,
+        "protective_claim_void": bool(
+            out["5_protected_stratum"]["status"] == "fail"),
+        "shot_spent": not bool(run_failed),
+    }
+    return out
 
 
 # ── the headline: detector vs oracle ─────────────────────────────────────────
@@ -1240,6 +1336,16 @@ def format_run(results, comparisons) -> str:
                 f"/{pc['n_questions']} edits={pc['n_fact_edits_applied']}"
                 f" suppressed={pc['n_facts_suppressed']} "
                 f"-> {'OK' if pc['ok'] else 'FAILED'}")
+        vc = res.get("void_conditions") or {}
+        if vc:
+            v = vc["verdict"]
+            lines.append(
+                "  VOID CONDITIONS  " + "  ".join(
+                    f"{k.split('_')[0]}:{vv['status']}"
+                    for k, vv in vc.items() if k != "verdict"))
+            lines.append(f"  VERDICT  run_void={v['run_void']} "
+                         f"protective_claim_void={v['protective_claim_void']} "
+                         f"shot_spent={v['shot_spent']}")
         for arm, h in res.get("harm", {}).items():
             if not h["n_harmed"]:
                 continue
@@ -1677,6 +1783,9 @@ def main() -> int:
     if args.smoke_llm:
         print("\n *** SMOKE RUN - primacy-anchored stub, not a model. ***")
     results = [run_subset(p, answer_fn) for p in plans]
+    for res, pl in zip(results, plans):
+        res["void_conditions"] = void_condition_report(
+            res, ctx["tables"][res["subset"]], pl["page_source"])
     comparisons = {}
     for res in results:
         c = compare_to_oracle(res, load_oracle(res["subset"]))

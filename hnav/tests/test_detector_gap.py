@@ -803,3 +803,90 @@ def test_confirmatory_and_select_are_mutually_exclusive(monkeypatch, capsys):
     assert D.main() == 2
     out = capsys.readouterr().out
     assert "mutually exclusive" in out and "held-out" in out.lower()
+
+
+# ── the void-condition object (supervisor note 1) ────────────────────────────
+def _vc_result(**over):
+    base = {
+        "arms": {"native": _acc_block(45, 100)},
+        "by_stratum": {"unique": {"arms": {"native": _acc_block(28, 34)}}},
+        "aa_floor": {"b_native_only": 0, "c_arm_only": 0},
+        "n_page_edit_mismatch": 0, "n_containment_violations": 0,
+        "n_page_edit_errors": 0,
+        "positive_control": {"ok": True, "n_questions": 100,
+                             "n_questions_policy_fired": 100,
+                             "n_fact_edits_applied": 200,
+                             "n_facts_suppressed": 735},
+        "harm": {"detector_suppress": {"protective_claim_void": False,
+                                       "voiding_questions": [],
+                                       "counts": {c: 0 for c in D.HARM_CLASSES}}},
+        "per_question": [],
+    }
+    base.update(over)
+    return base
+
+
+def test_void_conditions_all_pass_on_a_clean_result(table):
+    vc = D.void_condition_report(_vc_result(), table, "benchmark")
+    entries = {k: v for k, v in vc.items() if k != "verdict"}
+    assert len(entries) == 7, "conditions 1,2,3,4,5,6/7,8"
+    assert all(v["status"] == "pass" for v in entries.values())
+    assert vc["verdict"] == {"run_void": False, "run_void_because": [],
+                             "protective_claim_void": False, "shot_spent": True}
+
+
+def test_condition_5_voids_only_the_protective_claim(table):
+    res = _vc_result(harm={"detector_suppress": {
+        "protective_claim_void": True, "voiding_questions": [77],
+        "counts": dict.fromkeys(D.HARM_CLASSES, 0)}})
+    vc = D.void_condition_report(res, table, "benchmark")
+    assert vc["5_protected_stratum"]["status"] == "fail"
+    assert vc["5_protected_stratum"]["voids"] == "protective_claim_only"
+    assert vc["verdict"]["run_void"] is False, "the run and the shot still stand"
+    assert vc["verdict"]["protective_claim_void"] is True
+    assert vc["verdict"]["shot_spent"] is True
+
+
+@pytest.mark.parametrize("over,cond", [
+    ({"n_page_edit_mismatch": 1}, "1_page_edit_mismatch"),
+    ({"arms": {"native": _acc_block(80, 100)}}, "2_native_in_band"),
+    ({"by_stratum": {"unique": {"arms": {"native": _acc_block(20, 34)}}}},
+     "2_native_in_band"),
+    ({"aa_floor": {"b_native_only": 1, "c_arm_only": 0}}, "3_aa_floor_zero"),
+    ({"n_containment_violations": 1}, "8_guards_and_positive_control"),
+    ({"n_page_edit_errors": 1}, "8_guards_and_positive_control"),
+])
+def test_each_run_voiding_condition_can_actually_fail(table, over, cond):
+    vc = D.void_condition_report(_vc_result(**over), table, "benchmark")
+    assert vc[cond]["status"] == "fail"
+    assert vc["verdict"]["run_void"] is True
+    assert vc["verdict"]["shot_spent"] is False, "a void run does not spend it"
+
+
+def test_a_non_benchmark_page_source_voids_the_run(table):
+    vc = D.void_condition_report(_vc_result(), table, "prepass")
+    assert vc["6_7_page_source"]["status"] == "fail"
+    assert vc["verdict"]["run_void"] is True
+
+
+def test_the_committed_confirmatory_artifact_carries_its_verdict():
+    """The artifact an external reviewer will read must state the verdict, not
+    imply it. Also pins the VC8 counter clarification."""
+    import json
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[2] / \
+        "stage0_results/stage1/detector_gap_confirmatory_sh64k.json"
+    if not p.exists():
+        pytest.skip("confirmatory artifact not present")
+    d = json.loads(p.read_text(encoding="utf-8"))
+    r = d["results"][0]
+    v = r["void_conditions"]["verdict"]
+    assert v["run_void"] is False and v["shot_spent"] is True
+    assert v["protective_claim_void"] is True
+    pc = r["positive_control"]
+    assert pc["n_fact_edits_applied"] == 200 and pc["n_editing_arms"] == 2
+    assert pc["n_fact_edits_applied_per_arm"] == 100
+    assert "ACCUMULATES" in pc["counter_note"]
+    assert d["detector_vs_oracle"] == {}, \
+        "no oracle arm exists at sh_64k; no ratio may be quoted for it"
+    assert any("BACKWARDS" in i for c in d["corrections"] for i in c["items"])

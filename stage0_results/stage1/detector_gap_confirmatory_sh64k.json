@@ -254,7 +254,10 @@
         "n_questions_policy_fired": 100,
         "n_fact_edits_applied": 200,
         "n_facts_suppressed": 735,
-        "ok": true
+        "ok": true,
+        "n_editing_arms": 2,
+        "n_fact_edits_applied_per_arm": 100.0,
+        "counter_note": "n_fact_edits_applied ACCUMULATES ACROSS THE TWO EDITING ARMS (suppress and demote_late). 200 = 100 questions x 2 arms; the per-arm figure is 100, which is what pre-registration v2 VC8 means by 'must equal the number of questions fired'. ok=true and the condition is MET; the raw 200 is not a failure."
       },
       "harness": "retrieval",
       "page_source": "benchmark",
@@ -8283,8 +8286,118 @@
             }
           }
         }
-      ]
+      ],
+      "void_conditions": {
+        "1_page_edit_mismatch": {
+          "condition": 1,
+          "voids": "run",
+          "status": "pass",
+          "observed": 0,
+          "note": ""
+        },
+        "2_native_in_band": {
+          "condition": 2,
+          "voids": "run",
+          "status": "pass",
+          "observed": {
+            "native_overall": 0.45,
+            "band": [
+              0.3,
+              0.5
+            ],
+            "unique_native": 0.8235294117647058,
+            "unique_floor": 0.8
+          },
+          "note": ""
+        },
+        "3_aa_floor_zero": {
+          "condition": 3,
+          "voids": "run",
+          "status": "pass",
+          "observed": {
+            "b": 0,
+            "c": 0
+          },
+          "note": ""
+        },
+        "4_no_harmful_suppression": {
+          "condition": 4,
+          "voids": "run",
+          "status": "pass",
+          "observed": {
+            "n_suppressed_harmful": 0,
+            "n_suppressed_superseded": 735,
+            "n_suppressed_same_value": 0
+          },
+          "note": ""
+        },
+        "5_protected_stratum": {
+          "condition": 5,
+          "voids": "protective_claim_only",
+          "status": "fail",
+          "observed": {
+            "voiding_questions": [
+              77
+            ],
+            "counts": {
+              "gold_cut": 0,
+              "malformed_generation": 0,
+              "refusal_after_edit": 1,
+              "information_loss": 0
+            }
+          },
+          "note": "the ONLY condition that leaves the run and the accuracy result standing; the shot is still spent"
+        },
+        "6_7_page_source": {
+          "condition": 6,
+          "voids": "run",
+          "status": "pass",
+          "observed": {
+            "page_source": "benchmark"
+          },
+          "note": "Amendments 1 and 3: chunk vectors valid AND the page is the benchmark's own"
+        },
+        "8_guards_and_positive_control": {
+          "condition": 8,
+          "voids": "run",
+          "status": "pass",
+          "observed": {
+            "containment": 0,
+            "page_edit_errors": 0,
+            "positive_control": {
+              "n_questions": 100,
+              "n_questions_policy_fired": 100,
+              "n_fact_edits_applied": 200,
+              "n_facts_suppressed": 735,
+              "ok": true,
+              "n_editing_arms": 2,
+              "n_fact_edits_applied_per_arm": 100.0,
+              "counter_note": "n_fact_edits_applied ACCUMULATES ACROSS THE TWO EDITING ARMS (suppress and demote_late). 200 = 100 questions x 2 arms; the per-arm figure is 100, which is what pre-registration v2 VC8 means by 'must equal the number of questions fired'. ok=true and the condition is MET; the raw 200 is not a failure."
+            }
+          },
+          "note": ""
+        },
+        "verdict": {
+          "run_void": false,
+          "run_void_because": [],
+          "protective_claim_void": true,
+          "shot_spent": true
+        }
+      }
     }
   ],
-  "detector_vs_oracle": {}
+  "detector_vs_oracle": {},
+  "corrections": [
+    {
+      "applied_at_utc": "2026-08-15",
+      "kind": "post-run annotation only - no measured value was recomputed or changed",
+      "items": [
+        "void_conditions object added, derived entirely from counters already in this artifact plus the parse-derived harm audit; the supervisor had to assemble it by hand from scattered fields.",
+        "positive_control gains n_editing_arms / n_fact_edits_applied_per_arm and counter_note, because the raw 200 could be misread against VC8's 'expected 100'.",
+        "GOLD-CUT MECHANISM CORRECTION. The commit message of 077ca68 and the first relayed report stated the two gold-not-latest questions BACKWARDS. Correct, re-derived from this artifact: q18 (gold serial 7, 'Tom Clancy'; latest 1219, 'Torquato Tasso') was NEVER acted on - its gold was not suppressed - and native answered wrongly ('Torquato Tasso'). q20 (gold serial 2374, 'Europe'; latest 2468, 'Asia') DID have its gold fact suppressed, native was correct, and the suppressed arm answered correctly ANYWAY. So 2 predicted gold-cuts produced 1 deletion and 0 accuracy losses.",
+        "The pool-cap attribution offered for the missed prediction is WITHDRAWN: per-question pools were not recorded in this artifact, so it was not verifiable. detector_gap now records n_pool and pool per question so future claims of that shape can be checked.",
+        "NO ORACLE-CEILING RATIO EXISTS FOR sh_64k. detector_vs_oracle is empty because no oracle arm was ever run there - the whole-context probe does not fit the window. The 0.984 / 0.957 ratios are calibration-only and cross-harness, and may not be quoted for this subset."
+      ]
+    }
+  ]
 }

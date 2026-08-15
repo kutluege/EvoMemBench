@@ -348,6 +348,19 @@ run.**
 
 ---
 
+## 9b. One prohibition on how the result may be quoted
+
+**No oracle-ceiling ratio exists for `sh_64k`, and none may be quoted for it.**
+The oracle probe is a whole-context design, and whole-context does not fit the
+window at `sh_64k` (§0) — so no oracle arm was ever run there, and the
+confirmatory artifact's `detector_vs_oracle` is correctly **empty**. The
+0.984 / 0.957 detector-over-oracle figures belong to the CALIBRATION split
+only, and are additionally cross-harness (whole-context oracle vs
+retrieval-path detector). Any document that attaches them, or any ratio like
+them, to `sh_64k` is wrong and must be corrected.
+
+---
+
 ## 10. Companion exploratory arm — retrieval path on the CALIBRATION split
 
 **Explicitly NOT part of the confirmatory claim**, reported separately, and run
@@ -710,6 +723,15 @@ block order. The `sh_64k` run will use the benchmark's. Consequences, declared:
 > firing is unconditional at the frozen operating point) and
 > `n_facts_suppressed` must be > 0. "Edits applied but nothing suppressed" is
 > the silent-gutting signature and voids the run identically.
+>
+> **Counter semantics, clarified post-run (2026-08-15, annotation only — the
+> condition and its threshold are unchanged).** The artifact's
+> `n_fact_edits_applied` **accumulates across the two editing arms**
+> (`detector_suppress` and `detector_demote_late`), so the expected value is
+> `n_questions_policy_fired × n_editing_arms`. "Expected 100" above is the
+> **per-arm** figure. The artifact now reports `n_editing_arms` and
+> `n_fact_edits_applied_per_arm` alongside the raw total, so a reader cannot
+> mistake the accumulated 200 for a failure against a stated 100.
 
 Conditions 1–4, 6 and 7 are unchanged, as are the native band derivation, the
 A/A floor condition, `page_source` having no default, §1's scope wording, the
