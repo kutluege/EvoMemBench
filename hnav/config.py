@@ -78,6 +78,11 @@ class HNavConfig:
     nli_device: int | str = 1
     nli_dtype: str = "float32"
     nli_batch: int = 16
+    # Premise and hypothesis SHARE this budget. 512 is DeBERTa-v3's own
+    # position limit, not headroom — CrossEp chunk pairs (p50 585 tokens)
+    # still exceed it, and that residue is reported via the engine's
+    # truncation counters rather than configured away (T12 note 5).
+    nli_max_length: int = 512
 
     # paths (both gitignored)
     cache_dir: Path = field(default_factory=lambda: REPO / "hnav/_cache")
@@ -151,6 +156,7 @@ def from_env(env: dict[str, str] | None = None, repo: Path | None = None) -> HNa
         nli_device=nli_device,
         nli_dtype=env.get("HNAV_NLI_DTYPE", "float32"),
         nli_batch=int(env.get("HNAV_NLI_BATCH", "16")),
+        nli_max_length=int(env.get("HNAV_NLI_MAX_LENGTH", "512")),
         cache_dir=_as_path(repo, env.get("HNAV_CACHE_DIR", "hnav/_cache")),
         out_dir=_as_path(repo, env.get("HNAV_OUT_DIR", "hnav/_out")),
         top_m=int(env.get("HNAV_TOP_M", "50")),

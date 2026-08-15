@@ -485,3 +485,55 @@ reverts (truncation back to 512, namespace dropped): 3 tests fail in each case.
 not valid for the corrected embedder. The re-fit is CALIBRATION-SPLIT ONLY and
 is specified in `hnav/deploy/REFIT_RUNBOOK.md`; until it lands, no frozen
 threshold from the truncated era may be used to justify a live decision.
+
+### 10b. T12 note 5 — the same defect class in the NLI cross-encoder
+
+Found by the T12 audit: `CrossEncoderNLI` defaulted to `max_length=256`, and
+**premise and hypothesis share that budget**. Harmless in the primary arena (a
+fact is one short sentence, far below it — which is why every T11
+primary-arena NLI number stands unchanged) but not in CrossEp:
+`crossep_m5_write_headroom.run_nli` truncates each chunk to 1200 chars and
+pairs them, so each side was cut to roughly its first ~128 tokens.
+
+**Measured on the real CL-bench contexts with the real chunker** (60 contexts,
+505 chunks), per side after the 1200-char cut: **p50 291 / p90 342 / max 674**
+tiktoken tokens — **94.7% of sides exceed the old 128-token half-budget**.
+
+**The honest part: this one cannot be fully fixed by configuration.** 512 is
+DeBERTa-v3's own `max_position_embeddings`, so it is a ceiling, not a headroom
+choice — and **71.5% of CrossEp pairs still exceed it** (pair p50 585, max
+1351 tokens). Unlike the embedder (8192 ≪ 32768, fully fixed), the residue
+here is STRUCTURAL. It is therefore *reported* rather than assumed away:
+`CrossEncoderNLI` counts `n_scored`/`n_truncated` and exposes
+`truncation_rate` / `truncation_report()`, and M5's `run_nli` output carries a
+`"truncation"` block. If the CrossEp NLI numbers matter, that rate must be
+quoted beside them.
+
+Corrections, mirroring the embedder fix:
+- `NLI_MAX_LENGTH_DEFAULT = 512`, configurable via `HNAV_NLI_MAX_LENGTH` /
+  `cfg.nli_max_length`;
+- `build_nli` and M5's construction pass **every argument by keyword** — both
+  previously stopped before `max_length` and inherited a default nobody chose;
+- `check_position_limit()` refuses a budget above the checkpoint's own
+  `max_position_embeddings` (module-level so the guard is unit-testable
+  without loading 1.7 GB of weights) — no silent extrapolation.
+
+**Caching, checked explicitly** (the embedder's namespace hazard is why):
+`CrossEncoderNLI` and `StubNLI` hold **no cache** — scores are recomputed per
+call, so there is no key to poison. But `hnav/stage1/calibrate_read_policy.py`
+**persists** NLI scores (`nli_table` in `stage1_prepass_*.json`, keyed by
+`sha1(premise)|sha1(hypothesis)` with no engine parameters) and `--evaluate`
+replays them, which is the same hazard. The prepass now stamps
+`nli_config` (model, max_length, stub) and `--evaluate` REFUSES a table
+scored under a different configuration, rather than silently mixing.
+
+Regression cover: `hnav/tests/test_nli_truncation.py`, 9 tests, torch-free
+(numpy shims for the tokenizer/tensor surface, so the counter logic is
+verifiable on a torchless machine like the rest of the numeric core). Verified
+to fail on each silent revert: default back to 256 (2 fail), `build_nli`
+keyword dropped (1), M5 call-site keyword dropped (1). Includes an AST check
+of the M5 call site and a measured assertion, from the real data, that CrossEp
+pairs genuinely exceed both the old and the new budget.
+
+**Blocks:** the CrossEp M5 real-embedder run (`--nli cpu`) must not launch
+before this lands.

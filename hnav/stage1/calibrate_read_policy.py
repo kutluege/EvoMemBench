@@ -351,6 +351,15 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
             "top_k": args.top_k, "pool_cap": cfg.top_m,
             "cos_loose": COS_LOOSE,
             "queries": "templated (RAGSystem extraction, campaign-faithful)",
+            # The prepass PERSISTS NLI scores (nli_table) and --evaluate
+            # replays them, so the table is a cache — and its key is
+            # sha1(premise)|sha1(hypothesis) with no engine parameters in it.
+            # Stamping the engine config here is the analogue of putting
+            # max_length in the embedding cache namespace (T12): it makes a
+            # mismatched replay detectable instead of silent.
+            "nli_config": {"model": cfg.nli_model,
+                           "max_length": cfg.nli_max_length,
+                           "stub": bool(getattr(args, "stub_nli", False))},
             "questions": out_qs, "nli_table": nli_table,
             "fact_chunk": st["fact_chunk"], "abtt_ab": ab}
 
@@ -654,7 +663,23 @@ def main() -> int:
             p = cfg.out_dir / f"stage1_prepass_{name}{tag}.json"
             if not p.exists():
                 print(f" missing {p} — run --prepass first"); return 1
-            prepasses.append(json.loads(p.read_text()))
+            pp = json.loads(p.read_text())
+            # The replayed nli_table is a cache keyed only by the pair text.
+            # Refuse to replay scores produced by a DIFFERENT engine config —
+            # the T12 lesson: a stale hit is worse than a miss because it
+            # looks like a result.
+            want = {"model": cfg.nli_model, "max_length": cfg.nli_max_length,
+                    "stub": bool(args.stub_nli)}
+            got = pp.get("nli_config")
+            if got is None:
+                print(f" REFUSED: {p.name} predates NLI-config stamping "
+                      f"(T12). Re-run --prepass.")
+                return 2
+            if got != want:
+                print(f" REFUSED: {p.name} was scored with {got}, but this "
+                      f"run is configured {want}. Re-run --prepass.")
+                return 2
+            prepasses.append(pp)
         res = evaluate(prepasses, states, cfg, args)
         res["provenance"] = {
             "git": _git_head(),
@@ -665,6 +690,7 @@ def main() -> int:
                       "cache_misses": getattr(emb, "n_misses", None),
                       "cache_hits": getattr(emb, "n_hits", None)},
             "nli_model": cfg.nli_model,
+            "nli_max_length": cfg.nli_max_length,
             "llm": None if args.no_llm else {
                 "base_url": cfg.llm_base_url, "model": cfg.llm_model,
                 "max_tokens": GENERATION_MAX_TOKENS,

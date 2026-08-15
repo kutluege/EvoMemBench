@@ -386,8 +386,12 @@ def run_nli(per_context_records: "OrderedDict[str, list[dict]]",
     else:
         from hnav.core.read_gate import CrossEncoderNLI
         cfg = _config.get_config()
+        # max_length BY KEYWORD and from config (T12 note 5): this call used
+        # to stop before it and inherit 256, which premise and hypothesis had
+        # to SHARE — so each 1200-char chunk side was cut to ~128 tokens.
         nli = CrossEncoderNLI(model_name=cfg.nli_model, device=engine,
-                              dtype="float32", batch=8)
+                              dtype="float32", batch=8,
+                              max_length=cfg.nli_max_length)
 
     pairs, owners = [], []
     for cid, records in per_context_records.items():
@@ -423,6 +427,11 @@ def run_nli(per_context_records: "OrderedDict[str, list[dict]]",
         "engine": engine,
         "n_pairs": len(pairs),
         "allowed_splits": sorted(allowed_splits),
+        # CrossEp chunk pairs structurally exceed even DeBERTa-v3's 512-token
+        # limit (measured: 71.5% of pairs), so the residual truncation is
+        # REPORTED rather than assumed away (T12 note 5).
+        "truncation": (nli.truncation_report()
+                       if hasattr(nli, "truncation_report") else None),
         "per_cluster": rows,
         "bidir_contra_frac_ge__over_clusters": {
             f"{t:.2f}": pcts([r["bidir_contra_frac_ge"][f"{t:.2f}"] for r in rows])

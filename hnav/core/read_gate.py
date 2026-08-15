@@ -74,7 +74,8 @@ from .types import MemoryRecord
 
 __all__ = [
     "NMARGIN_CAL", "H_Z_CAL", "R_MIN_CAL", "COS_PAIR_CAL", "NLI_CONTRA_DEFAULT",
-    "NLI_MODEL_DEFAULT", "GateThresholds", "NLIScores", "NLIClient", "StubNLI",
+    "NLI_MODEL_DEFAULT", "NLI_MAX_LENGTH_DEFAULT",
+    "GateThresholds", "NLIScores", "NLIClient", "StubNLI",
     "CrossEncoderNLI", "PairCheck", "ConflictGroup", "GateDecision", "ReadGate",
     "build_nli",
 ]
@@ -92,6 +93,28 @@ COS_PAIR_CAL = 0.92
 NLI_CONTRA_DEFAULT = 0.5
 
 NLI_MODEL_DEFAULT = "cross-encoder/nli-deberta-v3-large"
+
+# Tokenizer truncation for the cross-encoder — premise and hypothesis SHARE
+# this budget.  [T12, note 5]
+#
+# The previous value was 256, which was harmless in the primary arena (a fact
+# is one short sentence, far below the budget) but silently halved the
+# CrossEp inputs: `crossep_m5_write_headroom.run_nli` truncates each chunk to
+# 1200 chars and pairs them, so each side got roughly the first ~128 tokens.
+# Measured on the real CL-bench contexts with the real chunker (505 chunks,
+# 60 contexts), per side after the 1200-char cut: p50 291 / p90 342 / max 674
+# tiktoken tokens — 94.7% of sides exceed 128 tokens.
+#
+# 512 is the model's own documented limit (DeBERTa-v3 `max_position_embeddings`
+# = 512), NOT a value chosen for headroom, so this is as far as the knob goes.
+# It does not eliminate CrossEp truncation: 71.5% of pairs exceed 512 tokens
+# combined (pair p50 585, max 1351). That residue is STRUCTURAL — it must be
+# reported by the caller, not configured away. `CrossEncoderNLI` counts
+# truncated inputs (`n_truncated` / `truncation_rate`) so the residue is
+# measured per run instead of assumed. Raising this above the model's
+# `max_position_embeddings` is unvalidated extrapolation; check the checkpoint
+# before doing it.
+NLI_MAX_LENGTH_DEFAULT = 512
 
 _AMBIGUITY_MODES = ("any", "all", "none")
 
@@ -201,6 +224,27 @@ class StubNLI:
                                autojunk=False).ratio()
 
 
+def check_position_limit(max_length: int, model_limit, model_name: str = "") -> int:
+    """Refuse a budget larger than the checkpoint's own position limit.
+
+    DeBERTa's relative attention can sometimes extrapolate past it, but that
+    is unvalidated for this head, and a silently-degraded score is exactly the
+    failure class T12 exists to remove. Returns the limit (0 = unknown, which
+    is permitted but tells the caller nothing was verified).
+
+    Module-level so the guard can be exercised directly: ``__init__`` loads
+    ~1.7 GB of weights, and a rule only checkable by loading a model in a unit
+    test is a rule that stops being checked.
+    """
+    limit = int(model_limit or 0)
+    if limit and int(max_length) > limit:
+        raise ValueError(
+            f"max_length={max_length} exceeds {model_name or 'the model'}'s "
+            f"max_position_embeddings={limit}. Lower it, or validate the "
+            f"extrapolation deliberately before raising this.")
+    return limit
+
+
 class CrossEncoderNLI:
     """MNLI-class cross-encoder (default ``cross-encoder/nli-deberta-v3-large``).
 
@@ -217,7 +261,8 @@ class CrossEncoderNLI:
     """
 
     def __init__(self, model_name: str = NLI_MODEL_DEFAULT, device: int | str = 1,
-                 dtype: str = "float32", batch: int = 16, max_length: int = 256) -> None:
+                 dtype: str = "float32", batch: int = 16,
+                 max_length: int = NLI_MAX_LENGTH_DEFAULT) -> None:
         import torch  # noqa: PLC0415 — deliberate: keeps module import torch-free
         from transformers import (AutoModelForSequenceClassification,  # noqa: PLC0415
                                   AutoTokenizer)
@@ -226,6 +271,11 @@ class CrossEncoderNLI:
         self.model_name = model_name
         self.batch = int(batch)
         self.max_length = int(max_length)
+        # Truncation accounting: premise and hypothesis share max_length, so a
+        # long pair loses its tail silently. These counters make the loss a
+        # reported number instead of an assumption (see NLI_MAX_LENGTH_DEFAULT).
+        self.n_scored = 0
+        self.n_truncated = 0
         if isinstance(device, int):
             self.device = f"cuda:{device}" if torch.cuda.is_available() else "cpu"
         else:
@@ -249,6 +299,11 @@ class CrossEncoderNLI:
         if set(self._idx) != {"entailment", "neutral", "contradiction"}:
             raise ValueError(f"{model_name} id2label={id2label} is not a 3-way NLI head")
 
+        self.model_max_positions = check_position_limit(
+            self.max_length,
+            getattr(self.model.config, "max_position_embeddings", 0),
+            model_name)
+
     def score_pairs(self, pairs: Sequence[tuple[str, str]]) -> list[NLIScores]:
         if not pairs:
             return []
@@ -258,6 +313,12 @@ class CrossEncoderNLI:
             enc = self.tok([p for p, _ in chunk], [h for _, h in chunk],
                            padding=True, truncation=True, max_length=self.max_length,
                            return_tensors="pt").to(self.device)
+            # A row that fills the budget exactly is one the tokenizer cut.
+            # (padding=True pads to the batch's longest, not to max_length, so
+            # a full row cannot be an artefact of padding.)
+            lengths = enc["attention_mask"].sum(dim=1)
+            self.n_scored += len(chunk)
+            self.n_truncated += int((lengths >= self.max_length).sum())
             with self._torch.no_grad():
                 logits = self.model(**enc).logits.float()
                 probs = self._torch.softmax(logits, dim=-1).cpu().numpy()
@@ -271,12 +332,30 @@ class CrossEncoderNLI:
     def score(self, premise: str, hypothesis: str) -> NLIScores:
         return self.score_pairs([(premise, hypothesis)])[0]
 
+    @property
+    def truncation_rate(self) -> float:
+        """Fraction of scored pairs the tokenizer cut. Report it; do not
+        assume it is zero — on CrossEp chunk pairs it structurally is not."""
+        return self.n_truncated / self.n_scored if self.n_scored else 0.0
+
+    def truncation_report(self) -> dict:
+        return {"model": self.model_name, "max_length": self.max_length,
+                "model_max_positions": getattr(self, "model_max_positions", None),
+                "n_scored": self.n_scored, "n_truncated": self.n_truncated,
+                "truncation_rate": self.truncation_rate}
+
 
 def build_nli(cfg) -> CrossEncoderNLI:
     """The configured real NLI engine. Importing this module never loads it;
-    only calling this does (same contract as ``embedding.build_embedder``)."""
+    only calling this does (same contract as ``embedding.build_embedder``).
+
+    Every argument is passed BY KEYWORD — the same discipline the embedder's
+    truncation defect forced (T12): this call previously stopped before
+    ``max_length`` and silently inherited a default nobody had chosen.
+    """
     return CrossEncoderNLI(model_name=cfg.nli_model, device=cfg.nli_device,
-                           dtype=cfg.nli_dtype, batch=cfg.nli_batch)
+                           dtype=cfg.nli_dtype, batch=cfg.nli_batch,
+                           max_length=cfg.nli_max_length)
 
 
 # ── gate output ──────────────────────────────────────────────────────────────
