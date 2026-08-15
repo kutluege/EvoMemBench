@@ -1621,6 +1621,19 @@ def main() -> int:
               " " + str(bad_ctrl))
         return 7
 
+    print("\n GUARD PRE-FLIGHT (void condition 8 - all must be zero / OK)")
+    for pl in plans:
+        pc = pl["positive_control"]
+        print(f"  {pl['subset']:<9} page_source={str(pl['page_source']):<10}"
+              f" containment={pl['n_containment_violations']}"
+              f" page_edit_errors={pl['n_page_edit_errors']}"
+              f" mismatches={pl['n_page_edit_mismatch']}")
+        print(f"            positive control: fired "
+              f"{pc['n_questions_policy_fired']}/{pc['n_questions']}, "
+              f"edits applied {pc['n_fact_edits_applied']}, "
+              f"facts suppressed {pc['n_facts_suppressed']} -> "
+              f"{'OK' if pc['ok'] else 'FAILED'}")
+
     if args.dry_run:
         print("\n --dry-run: nothing sent.")
         return 0
