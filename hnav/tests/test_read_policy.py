@@ -182,11 +182,18 @@ def test_policy_mutates_neither_ordering_nor_candidates():
 
 def test_stage1_thresholds_returns_a_gate_thresholds():
     """Value equality with its provenance artifact is enforced by
-    test_threshold_provenance.py; here only the type/shape contract."""
+    test_threshold_provenance.py; here only the type/shape contract.
+
+    The frozen ambiguity CONSTANTS must stay on the record even when the T13
+    operating point runs the screen in ``ambiguity_mode="none"`` — dropping them
+    would erase the trail of what was disabled. That the departure is argued in
+    the committed artifact is asserted by
+    ``test_threshold_provenance.py::test_disabling_the_ambiguity_screen_is_declared_in_the_artifact``.
+    """
     thr = stage1_thresholds()
     assert isinstance(thr, GateThresholds)
     assert thr.nmargin is not None and thr.H_z is not None, \
-        "the frozen ambiguity constants must never be disabled in live wiring"
+        "the frozen ambiguity constants must stay recorded in live wiring"
 
 
 # ── the gate's pair_filter screen (Note-1 mitigation seam) ───────────────────

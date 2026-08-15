@@ -73,3 +73,35 @@ def test_stage1_operating_point_artifact_matches_the_live_thresholds():
     assert thr.H_z == op["H_z"]
     assert thr.nli_contradiction == op["nli_contradiction"]
     assert thr.ambiguity_mode == op["ambiguity_mode"]
+
+
+def test_stage1_operating_point_was_fit_on_the_calibration_split_only():
+    """The one invariant a threshold artifact can violate silently.  [T13]"""
+    art = REPO / "stage0_results/stage1_operating_point.json"
+    if not art.exists():
+        return
+    prov = json.loads(art.read_text(encoding="utf-8"))["provenance"]
+    assert sorted(prov["fit_subsets"]) == ["sh_32k", "sh_6k"]
+    assert sorted(prov["confirmatory_refused"]) == ["sh_262k", "sh_64k"]
+
+
+def test_disabling_the_ambiguity_screen_is_declared_in_the_artifact():
+    """``ambiguity_mode="none"`` switches off the frozen Stage-0 nmargin/H_z
+    precondition. That is a legitimate, argued choice (T13) — but it must never
+    be a silent one, so the artifact has to carry the argument, and the frozen
+    constants have to stay recorded even while the screen is off."""
+    art = REPO / "stage0_results/stage1_operating_point.json"
+    thr = read_policy.stage1_thresholds()
+    assert thr.nmargin is not None and thr.H_z is not None, (
+        "the frozen ambiguity constants must stay on the record even when the "
+        "screen is off — otherwise the departure stops being auditable")
+    if thr.ambiguity_mode != "none":
+        return
+    assert art.exists(), (
+        "the live gate disables the ambiguity screen but no operating-point "
+        "artifact explains why")
+    payload = json.loads(art.read_text(encoding="utf-8"))
+    assert payload.get("ambiguity_note"), "ambiguity_note missing"
+    assert payload["pair_filter"] is True, (
+        "with the ambiguity screen off, the identity screen is the only thing "
+        "bounding intervention volume; the artifact must record it as required")

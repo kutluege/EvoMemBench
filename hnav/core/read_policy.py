@@ -65,7 +65,8 @@ from __future__ import annotations
 
 from typing import Callable, Sequence
 
-from .read_gate import GateDecision, GateThresholds, ReadGate
+from .read_gate import (H_Z_CAL, NMARGIN_CAL, GateDecision, GateThresholds,
+                        ReadGate)
 from .types import Decision
 
 __all__ = ["rerank_order", "suppress_ids", "demote_ids", "FACT_MECHANISMS",
@@ -81,14 +82,36 @@ FACT_MECHANISMS = tuple(FACT_ACTIONS)
 def stage1_thresholds() -> GateThresholds:
     """The gate operating point the live read path runs at.
 
-    Until the Faz B coverage-balanced calibration is frozen (sh_6k + sh_32k
-    ONLY, never sh_64k/sh_262k), this returns the Faz A defaults — the frozen
-    Stage-0 values whose provenance is documented in ``read_gate.py`` and
-    pinned by ``test_threshold_provenance.py``. The calibration freeze commit
-    replaces this body with the chosen operating point and extends the
-    provenance test to ``stage0_results/stage1_operating_point.json``.
+    FROZEN by ``hnav/stage1/detector_gap.py --select`` on the calibration split
+    (sh_6k + sh_32k, 200 questions), from DETECTION quality only — no LLM, no
+    accuracy, no gold answer — before any arm was graded. The committed artifact
+    is ``stage0_results/stage1_operating_point.json`` and
+    ``test_threshold_provenance.py`` pins these values to it.
+
+    At this point, on the calibration split: pair precision 1.0000, pair recall
+    within the candidate pool 0.9784, 2,673 facts named stale of which 2,673 are
+    genuinely superseded and **0** would change what the page says a key's
+    current value is.
+
+    ``ambiguity_mode="none"`` is a declared departure from the Faz A default,
+    not an oversight. ``nmargin`` and ``H_z`` are still carried here for the
+    record, but they are the only gate inputs derived from CHUNK embeddings,
+    which were truncated at 512 of ~4096 tokens (T12) and are not yet re-fit;
+    they are also the dominant recall bottleneck (conflicted-question recall
+    collapses from 0.957 to ~0.16 with the screen on); and the volume-limiting
+    job they were doing is now done by the adapter's identity screen plus the
+    bidirectional NLI at the precision above. The artifact records the same
+    argument under ``ambiguity_note``, and a campaign run after the embeddings
+    are re-fit must revisit it.
+
+    ``r_min=0.44`` is ``calibrate_read_policy.R_LOOSE`` — sqrt(1-0.90²)=0.436
+    rounded up, i.e. a pass-through for every pair the ``cos_pair=0.90`` screen
+    admits. It is hardcoded rather than imported because ``hnav/core/`` may not
+    import from ``hnav/stage1/``; the value is pinned by the provenance test.
     """
-    return GateThresholds()
+    return GateThresholds(cos_pair=0.90, r_min=0.44,
+                          nmargin=NMARGIN_CAL, H_z=H_Z_CAL,
+                          ambiguity_mode="none", nli_contradiction=0.90)
 
 
 def rerank_order(ordering: Sequence[str], decision: GateDecision,
