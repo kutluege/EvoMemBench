@@ -552,6 +552,7 @@ def main() -> int:
     args = ap.parse_args()
 
     cfg = _config.get_config()
+    cfg.require_not_live()   # uniform Stage-0 guard; see test_stage0_refuses_live.py
     text, missing = build_report(cfg.out_dir)
     path = Path(args.out) if args.out else REPO / "STAGE0_REPORT.md"
     path.write_text(text)

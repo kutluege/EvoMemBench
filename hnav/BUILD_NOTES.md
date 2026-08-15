@@ -401,3 +401,33 @@ rerank-only Stage-1 design has no measurable lever on this substrate, and the
 campaign must not run — that is a result, the same way the write-path NO_GO
 was. Human decision required (STAGE1_PLAN anticipated only the positive
 case). No operating point frozen; pre-registration committed as DRAFT/BLOCKED.
+
+### 9c. T11 supervisor-audit fixes (local)
+
+Two corrections from the T11 audit, both applied:
+
+1. **The "every `hnav/stage0/` script refuses live" claim was not literally
+   true** when first made: 6 of 9 called the guard;
+   `m1_geometry_calibration.py` and `report.py` had none. Practical risk was
+   nil (neither touches the adapters or the benchmark hooks), but an invariant
+   asserted in prose and enforced nowhere decays, so the guard is now
+   **uniform and mechanically enforced**. `report.py` calls
+   `cfg.require_not_live()`; `m1_geometry_calibration.py` — deliberately
+   stdlib-only, it imports the validated parser by path and never imports the
+   `hnav` package — carries an inline `require_not_live(env)` twin with
+   identical semantics. `hnav/tests/test_stage0_refuses_live.py` AST-scans
+   every `hnav/stage0/*.py` for a live guard reachable from `main()`
+   (docstrings, comments and guards parked in uncalled helpers do not count),
+   exercises BOTH guard forms for actual raising behaviour, and carries
+   negative controls so the scan can fail. `MABAdapter` remains the single
+   deliberate exemption, pinned separately in `test_shadow_neutrality.py`.
+2. **Test count corrected.** The "236 passed" figure in the T11 commit
+   messages was a PRE-MERGE count; the post-merge baseline including Thrust-2's
+   tests is 238, and with the 15 new guard tests the suite is **253**.
+
+Unrelated latent bug observed while verifying (NOT fixed — out of T11 scope,
+flagged for whoever owns `report.py`): on Windows, `report.py` crashes with
+`UnicodeEncodeError` writing `STAGE0_REPORT.md`, because `path.write_text(text)`
+takes no `encoding` and the report contains `≥`. Reproduced with all T11
+changes stashed, so it predates this work; harmless on the Linux box (UTF-8
+default). One-word fix: `write_text(text, encoding="utf-8")`.

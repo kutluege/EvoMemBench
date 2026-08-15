@@ -64,7 +64,7 @@ looks valid and isn't.
 Everything below runs from the repo root (`EvoMemBench/`).
 
 ```bash
-# Full test suite — no torch, no GPU, no network required. ~175 tests.
+# Full test suite — no torch, no GPU, no network required. ~253 tests.
 pytest hnav/tests/ -q
 
 # One file / one test

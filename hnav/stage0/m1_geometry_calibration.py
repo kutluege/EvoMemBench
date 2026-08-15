@@ -57,6 +57,24 @@ def load_env() -> dict:
     return env
 
 
+def require_not_live(env: dict) -> None:
+    """Same refusal as ``hnav.config.HNavConfig.require_not_live``, inlined.
+
+    This script is deliberately standalone (stdlib + numpy; it imports the
+    validated parser by path and never imports the ``hnav`` package), so the
+    guard is reproduced rather than imported. Post-T8 the LIVE mode exists for
+    the Stage-1 read-path campaign only; a Stage-0 measurement taken under
+    intervention is not a Stage-0 measurement. Enforced uniformly across
+    ``hnav/stage0/`` by ``hnav/tests/test_stage0_refuses_live.py``.
+    """
+    if env.get("HNAV_MODE", "off").strip().lower() == "live":
+        raise RuntimeError(
+            "HNAV_MODE=live but this code path is a Stage-0 measurement, "
+            "which permits off/shadow only. Live is reserved for the "
+            "Stage-1 read-path campaign (STAGE1_PLAN.md)."
+        )
+
+
 # ── embedder ─────────────────────────────────────────────────────────────────
 class Embedder:
     """In-process HF embedder, mean-pooled + L2-normalized.
@@ -220,6 +238,7 @@ def main() -> int:
     args = ap.parse_args()
 
     env = load_env()
+    require_not_live(env)
     model = env.get("HNAV_EMBED_MODEL", "Qwen/Qwen3-Embedding-4B")
     device = int(env.get("HNAV_EMBED_DEVICE", "1"))
     dtype = env.get("HNAV_EMBED_DTYPE", "float32")
