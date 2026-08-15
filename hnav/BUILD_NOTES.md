@@ -537,3 +537,162 @@ pairs genuinely exceed both the old and the new budget.
 
 **Blocks:** the CrossEp M5 real-embedder run (`--nli cpu`) must not launch
 before this lands.
+
+---
+
+## 11. T13 — fact-level mechanisms, and closing the oracle-to-detector gap
+
+### 11.1 What the probe settled
+
+The T12 oracle probe made the mechanism question decidable: on `sh_6k`'s
+conflicted stratum, deleting the stale fact takes accuracy from 4/74 to 66/74;
+moving the newest fact to the very END takes it to 20/74; moving it to the
+FRONT takes it to 1/74. `sh_32k` replicates all three. The model anchors on the
+**late-appearing** value, and it does so per FACT — which is also why T11's
+chunk-level upward rerank was harmful: it moved the superseder *away* from the
+position that helps, at a granularity (230–260 facts per chunk) that scrambles
+hundreds of unrelated ones.
+
+What the probe could not answer is whether any of that survives a detector.
+Every probe arm reads the expected answer to decide which fact to cut or move.
+
+### 11.2 The two mechanisms, and the page-contract decision
+
+`hnav/core/read_policy.py` keeps `rerank_order`/`ReadRerankPolicy` untouched —
+it is the evidence for the T11 null, not legacy — and adds two actions driven by
+the same `GateDecision`:
+
+| action | ids | effect | tokens |
+| --- | --- | --- | --- |
+| `SUPPRESS` | `suppress_ids` = every stale member of every verified group | dropped from the page | **down** |
+| `DEMOTE_LATE` | `demote_ids` = each verified group's LATEST carrier | moved to the end of the page | **exactly neutral** |
+
+**The decision that mattered:** the benchmark hook returns a page of *chunk*
+texts, so a fact-level edit has to be expressed as a rewrite of chunk text. The
+policy does **not** do that rewrite. It emits ids
+(`payload["drop_ids"]` / `payload["move_last_ids"]`) and the ADAPTER splices,
+because locating a fact inside a chunk requires the benchmark's serial numbering
+and its sentence-joining chunker — knowledge hard rule 2 keeps out of
+`hnav/core/`. The adapter side is `mab_adapter.fact_spans` / `page_edit`.
+
+The splice is byte-exact and the exactness is a contract, not an aspiration:
+
+- surviving facts keep their **original serials**, gaps included — the prompt
+  states its rule in terms of serial order, so renumbering would redefine the task;
+- surviving text is spliced from the original bytes: no re-rendering, no reflow,
+  no whitespace normalisation;
+- a fact owns the separator that FOLLOWS it, and the **last** fact of a chunk
+  owns the one BEFORE it — without that asymmetry, deleting the last fact of a
+  newline-joined context leaves a blank line;
+- the chunker's **dangling next-fact serial** (`"…Leeds. 307."`) is outside
+  every span: those bytes belong to a fact whose text lives in the next chunk;
+- `DEMOTE_LATE` re-appends moved facts in ascending serial order **before** the
+  last chunk's trailing whitespace, so the newest ends up last and the trailing
+  bytes survive;
+- the page keeps its length and block order in every case. Only contents change.
+
+Proven rather than asserted: on the real 455-fact `sh_6k` context,
+`page_edit(drop…)` and `page_edit(move…)` are byte-identical to the probe's own
+`suppress()`/`move_to_end()` + `render_context()` over 60 random draws
+(`test_read_policy_facts.py`). Without that the detector/oracle ratio would be
+comparing two different interventions.
+
+Invariants: `HNAV_MODE=off` is a byte-identical no-op; decisions are born
+`shadow=True` and only the adapter arms them under live; any irregularity — an
+id off the page, overlapping id sets, an unparseable chunk — returns the native
+page and increments `n_rerank_fallbacks`; `H_raw` is never consulted.
+`HNAV_READ_MECHANISM` selects the live mechanism and defaults to `rerank`, so
+adding these changed no existing command's behaviour.
+
+### 11.3 The frozen operating point
+
+`hnav/stage1/detector_gap.py --select` scores the same 162-cell grid
+`calibrate_read_policy` declared, on **detection quality only** — no LLM, no
+accuracy, no gold answer — and freezes
+`stage0_results/stage1_operating_point.json` before any arm is graded. The rule
+is pre-registered in `SELECTION_RULE`: require `pair_filter=True` and
+zero suppressions that would change what the page says a key's current value is;
+maximise pair recall within the pool; break ties toward the more conservative
+gate. 81 of the 162 cells are admissible — exactly the `pair_filter=True` half,
+so in practice the identity screen is the binding requirement. It is a
+requirement rather than a preference because of what the other half looks like:
+with the screen off, median pair precision across cells is **0.137**, the median
+cell would delete **769** facts that carry their key's current value, and the
+median cell cuts the gold-valued fact on **4** conflicted questions (max 15).
+
+```
+cos_pair 0.90 · r_min 0.44 (loose) · ambiguity_mode none · nli 0.90 · pair_filter True
+```
+
+Calibration split (sh_6k + sh_32k, 200 questions):
+
+| | pooled | sh_6k | sh_32k |
+| --- | --- | --- | --- |
+| pair precision | **1.0000** (2,673 verified, 0 false) | 1.0000 | 1.0000 |
+| pair recall, in pool | 0.9784 | 0.9806 | 0.9759 |
+| pair recall, whole page | 0.0269 | 0.0885 | 0.0151 |
+| conflicted-question recall | **133/139 = 0.957** | 72/74 = 0.973 | 61/65 = 0.938 |
+| facts named stale | 2,673 - all genuinely superseded | 1,416 | 1,257 |
+| would change a key's current value | **0** | 0 | 0 |
+
+`ambiguity_mode="none"` disables the frozen Stage-0 `nmargin`/`H_z`
+precondition. Declared, argued in the artifact's `ambiguity_note`, and asserted
+to be declared by `test_threshold_provenance.py`: those two signals are the only
+gate input derived from CHUNK embeddings, which are still truncated at 512 of
+~4096 tokens (§10, un-refit because re-embedding needs a GPU both servers hold);
+they are the dominant recall bottleneck (conflicted-question recall 0.957 with the screen off,
+0.403 at `ambiguity_mode="any"`, 0.144 at `"all"`); and the volume-limiting job they did is now done by the identity
+screen plus bidirectional NLI at precision 1.00. FACT vectors are unaffected and
+are *proven* to be the prepass's own — every pair cosine recomputed from the
+loaded vectors reproduces the prepass's stored value to 8.9e-16, or the run
+refuses.
+
+### 11.4 The measurement: same 5 arms, detector-driven
+
+`sh_6k`, 500 real calls, the frozen :8003 substrate, the probe's harness
+imported verbatim so the two runs are comparable by construction. The cross-run
+native check came back **identical** (29/100 in both), which is what licenses
+the ratios.
+
+| arm | overall | unique | conflicted | b/c | net | exact p | tok Δ |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| native | 0.290 | 25/26 | 4/74 (5.4%) | — | — | — | 0 |
+| native_repeat | 0.290 | 25/26 | 4/74 | 0/0 | 0 | 1.0 | 0 |
+| **detector_suppress** | **0.900** | 24/26 | **66/74 (89.2%)** | 1/62 | **+61** | 1.4e-17 | **−3.48%** |
+| detector_demote_late | 0.320 | 25/26 | 7/74 (9.5%) | 2/5 | +3 | 0.45 | 0.00% |
+| detector_anti | 0.250 | 25/26 | 0/74 (0.0%) | 4/0 | −4 | 0.125 | 0.00% |
+
+**Detector-achieved / oracle-achieved:**
+
+| mechanism | oracle arm | net ratio | conflicted-gain ratio |
+| --- | --- | --- | --- |
+| suppress | oracle_suppress | 61/62 = **0.984** | 62/62 = **1.000** |
+| demote_late | oracle_recency | 3/17 = 0.176 | 3/16 = 0.188 |
+| anti | anti | −4/−3 (both harmful; direction confirmed) | — |
+
+On the stratum it targets, the detector is **exactly** the oracle: conflicted
+b/c is 0/62 for both, 66/74 correct for both. The whole difference between the
+two runs is one flip on the *unique* stratum — question 76, where native
+answered "Shinzō Abe" and the suppressed arm answered "Sinzō Abe". A dropped
+letter, not a wrong fact; the substring-exact evaluator scores it wrong. That is
+the entire measured cost of replacing the oracle with the detector.
+
+### 11.5 Where the residual gap lives
+
+Both `sh_6k` misses have **both** key members inside the 50-fact pool, so the
+pool cap is not what loses them:
+
+- **q26** (BBC director): `"…is Tony Hall, Baron Hall of Birkenhead."` vs
+  `"…is Narendra Modi."` — pair cosine falls below the 0.90 screen because the
+  objects are lexically far apart. A **geometry** miss.
+- **q60** (John McVie's genre): `"rock music"` vs `"rap rock"`, cosine 0.9816,
+  but bidirectional contradiction is 0.002 / 0.193 — the NLI reads them as
+  compatible refinements rather than a conflict. A **semantics** miss.
+
+Neither is a policy defect, and the two failure modes want different fixes.
+
+`demote_late`'s shortfall is a property of the mechanism as specified, not of
+detection: the detector finds 9-20 verified groups per question (median 14 on
+`sh_6k`, and exactly one stale member each), so 14 latest-carriers get appended
+and only one of them can actually be last. The oracle arm moved exactly one fact — the queried key's — to the very
+end. Same detector, same edit primitive, a fifth of the effect.
