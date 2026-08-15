@@ -203,18 +203,27 @@ class _CachedQR:
 
 # ── subset state ─────────────────────────────────────────────────────────────
 def build_state(item, name, emb, cfg, args):
+    """Facts, chunks and per-question queries for one subset.
+
+    ``args.page_source == "benchmark"`` skips CHUNK embedding entirely (T13,
+    pre-registration v2 Amendment 3): the page is read from the benchmark's own
+    vectors, so a chunk ranking computed here would be both unused and
+    misleading. It also avoids embedding 5,243-token chunks in fp32, which does
+    not fit on a 24 GB card next to 17 GB of fp32 weights.
+    """
     context = item["context"]
+    page_source = getattr(args, "page_source", "prepass")
     facts = explode_facts(context)
     chunks, fallback = build_chunks(context, args.chunk_size)
     fact_vecs = emb.encode([t for _, t in facts])
-    chunk_vecs = emb.encode(chunks)
+    chunk_vecs = None if page_source == "benchmark" else emb.encode(chunks)
 
     records = []
     for i, (s, t) in enumerate(facts):
         key, obj = fact_key(t)
         records.append(MemoryRecord(id=f"fact:{s}", text=t, vector=fact_vecs[i],
                                     version=s, metadata={"key": key, "object": obj}))
-    chunk_store = StoreView.from_records([
+    chunk_store = None if chunk_vecs is None else StoreView.from_records([
         MemoryRecord(id=f"chunk:{i}", text=t, vector=chunk_vecs[i], version=i)
         for i, t in enumerate(chunks)])
 
@@ -239,7 +248,8 @@ def build_state(item, name, emb, cfg, args):
     return {"name": name, "facts": facts, "records": records, "by_id": by_id,
             "chunks": chunks, "chunk_store": chunk_store,
             "fallback_chunker": fallback, "fact_chunk": fact_chunk,
-            "fact_of_chunk": fact_of_chunk, "qs": qs}
+            "fact_of_chunk": fact_of_chunk, "qs": qs,
+            "page_source": page_source}
 
 
 # ── prepass ──────────────────────────────────────────────────────────────────
@@ -250,8 +260,33 @@ def loose_components(pool, sims) -> list[list[int]]:
     return _rg._components(n, edges)
 
 
+def benchmark_top_ids(subset: str, path=None):
+    """The benchmark's OWN top-k page per question, as ``chunk:i`` ids.
+
+    Read from ``stage0_results/stage1/chunk_embedding_refit.json``. Measured
+    there: re-encoding cannot reproduce this page — matching the benchmark's
+    dtype and truncation gets our chunk vectors to min cosine 0.99997 and the
+    sh_64k page still agrees on only 26/100 questions, because 17
+    tightly-clustered chunks reshuffle at the top-10/11 boundary. So it is read,
+    never recomputed (pre-registration v2 Amendment 3).
+    """
+    from pathlib import Path as _P
+    path = _P(path or REPO / "stage0_results/stage1/chunk_embedding_refit.json")
+    if not path.exists():
+        raise SystemExit(f" REFUSED: {path} missing; run "
+                         "hnav/deploy/refit_chunk_embeddings.py first.")
+    row = json.loads(path.read_text(encoding="utf-8")).get("subsets", {}).get(subset)
+    if not row or "benchmark" not in row.get("pages", {}):
+        raise SystemExit(f" REFUSED: no benchmark page recorded for {subset}. "
+                         "Do NOT fall back to a ranking computed here.")
+    return [[f"chunk:{int(i)}" for i in pg] for pg in row["pages"]["benchmark"]]
+
+
 def prepass_subset(st, emb, nli, cfg, args) -> dict:
-    replica = FaissFlatReplica(emb, top_k=args.top_k)
+    page_source = st.get("page_source", "prepass")
+    bench_pages = benchmark_top_ids(st["name"]) if page_source == "benchmark" else None
+    replica = (FaissFlatReplica(emb, top_k=args.top_k)
+               if st["chunk_store"] is not None else None)
     signals = RetrievalSignals(top_m=cfg.top_m, k=cfg.churn_k)
 
     whiten = ABTTWhitening(cfg.whiten_components, cfg.whiten_min_fit_n)
@@ -266,17 +301,28 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
     directed_seen: set[str] = set()
 
     for q in st["qs"]:
-        view = replica.rank(st["chunk_store"], q["retrieval_query"],
-                            top_k=args.top_k)
-        sig = signals.compute(view)
+        if bench_pages is not None:
+            # The page is the BENCHMARK's. nmargin/H_z would be derived from a
+            # chunk ranking that does not exist here; they are inert at the
+            # frozen operating point (ambiguity_mode="none") and are recorded as
+            # null rather than fabricated.
+            top_ids = list(bench_pages[q["index"]])
+            qv = emb.encode([q["retrieval_query"]])[0]
+            nmargin = H_z = None
+        else:
+            view = replica.rank(st["chunk_store"], q["retrieval_query"],
+                                top_k=args.top_k)
+            sig = signals.compute(view)
+            top_ids, qv = list(view.top_ids), view.query_vector
+            nmargin, H_z = float(sig.nmargin), float(sig.H_z)
         # Adapter-faithful page-fact order: MABAdapter.facts_in iterates chunks
         # in ADMISSION (index) order filtered by the retrieved set — not in
         # rank order — so the harness does the same.
-        wanted = set(view.top_ids)
+        wanted = set(top_ids)
         page_facts = [st["by_id"][f] for i in range(len(st["chunks"]))
                       if f"chunk:{i}" in wanted
                       for f in st["fact_of_chunk"][f"chunk:{i}"]]
-        pool = select_pool(page_facts, view.query_vector, cfg.top_m)
+        pool = select_pool(page_facts, qv, cfg.top_m)
 
         mat = np.stack([np.asarray(r.vector, dtype=np.float64) for r in pool]) \
             if pool else np.zeros((0, 1))
@@ -319,8 +365,8 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
 
         out_qs.append({"index": q["index"], "truths": q["truths"],
                        "retrieval_query": q["retrieval_query"],
-                       "top_ids": view.top_ids,
-                       "nmargin": float(sig.nmargin), "H_z": float(sig.H_z),
+                       "top_ids": top_ids,
+                       "nmargin": nmargin, "H_z": H_z,
                        "pool": [r.id for r in pool],
                        "pairs": pairs})
 
@@ -348,6 +394,9 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
     return {"subset": st["name"], "n_facts": len(st["facts"]),
             "n_chunks": len(st["chunks"]),
             "fallback_chunker": st["fallback_chunker"],
+            # Stamped so no future reader can conflate the two page sources.
+            "page_source": page_source,
+            "signals_available": page_source != "benchmark",
             "top_k": args.top_k, "pool_cap": cfg.top_m,
             "cos_loose": COS_LOOSE,
             "queries": "templated (RAGSystem extraction, campaign-faithful)",
@@ -599,6 +648,14 @@ def main() -> int:
                          "hnav/_out/stage1_calibration.json without recomputing "
                          "anything (grading is expensive and its cache is "
                          "in-memory)")
+    ap.add_argument("--page-source", choices=("prepass", "benchmark"),
+                    default="prepass",
+                    help="'prepass' ranks chunks here (the pre-T13 behaviour, "
+                         "unchanged by default); 'benchmark' reads the "
+                         "benchmark's own top-k page and builds the candidate "
+                         "pool from IT, so the facts the gate inspects are the "
+                         "facts the model will see (pre-registration v2 "
+                         "Amendment 3). Writes *_benchmarkpage.json.")
     ap.add_argument("--top-k", type=int, default=10)
     ap.add_argument("--chunk-size", type=int, default=4096)
     ap.add_argument("--max-questions", type=int, default=0)
@@ -631,7 +688,7 @@ def main() -> int:
         return 0
 
     smoke = args.smoke_embedder or args.stub_nli or args.stub_llm
-    tag = "_SMOKE" if smoke else ""
+    tag = ("_benchmarkpage" if args.page_source == "benchmark" else "")         + ("_SMOKE" if smoke else "")
     if smoke:
         print(" *** SMOKE RUN — no number below may feed a threshold. ***")
 

@@ -658,3 +658,73 @@ def _harm_q(idx, stratum, native, arm, target=None, cut=False):
                      "demote_serials": []},
             "arms": {"native": {"output": native, "correct": True},
                      "detector_suppress": {"output": arm, "correct": False}}}
+
+
+# ── the containment guard (the one that stops a wiring bug wearing a null's
+#    costume). A pool built from a different page than the model sees lets the
+#    policy name an absent fact; page_edit raises, the live adapter fails open,
+#    and the artifact records an intervention that never happened.
+def test_containment_passes_when_every_named_fact_is_on_the_page():
+    plan = {"suppress_serials": [1], "demote_serials": [3]}
+    assert D.containment_violations([PAGE_A, PAGE_B], plan) == []
+
+
+def test_containment_names_exactly_the_absent_ids():
+    plan = {"suppress_serials": [1, 42], "demote_serials": [3, 99]}
+    assert D.containment_violations([PAGE_A, PAGE_B], plan) == \
+        ["fact:42", "fact:99"]
+
+
+def test_containment_catches_the_real_failure_mode(sh_6k):
+    """The exact bug the guard exists for: a pool built from a page that
+    includes chunk 1, applied to a page that does not."""
+    from hnav.stage0.m2_retrieval_calibration import build_chunks
+    chunks, fallback = build_chunks(sh_6k["context"], D.CHUNK_SIZE)
+    assert not fallback and len(chunks) == 2
+    only_first = [chunks[0]]
+    in_second = [s for s, _ in explode_facts(chunks[1])][:3]
+    plan = {"suppress_serials": list(in_second), "demote_serials": []}
+    missing = D.containment_violations(only_first, plan)
+    assert missing == [f"fact:{s}" for s in sorted(in_second)]
+    # ... and the same plan is clean against the full page
+    assert D.containment_violations(chunks, plan) == []
+
+
+def test_an_empty_plan_can_never_violate_containment():
+    assert D.containment_violations([PAGE_A], {"suppress_serials": [],
+                                               "demote_serials": []}) == []
+
+
+def test_prepass_path_separates_the_two_page_sources():
+    from hnav import config as _config
+    cfg = _config.HNavConfig()
+    a = D.prepass_path(cfg, "sh_64k", "benchmark")
+    b = D.prepass_path(cfg, "sh_64k", "prepass")
+    assert a != b
+    assert a.name == "stage1_prepass_sh_64k_benchmarkpage.json"
+    assert b.name == "stage1_prepass_sh_64k.json"
+    assert D.prepass_path(cfg, "sh_64k", None) == b, \
+        "the whole-context harness keeps the original filename"
+
+
+# ── G1/G2/G3: the guard package, each able to fail ───────────────────────────
+def test_pool_violations_catch_a_pool_that_escaped_the_page():
+    """G1. The named ids are a subset of the pool, so a pool that already
+    escapes the page is the upstream bug — caught one step earlier."""
+    assert D.pool_violations([PAGE_A, PAGE_B], ["fact:0", "fact:3"]) == []
+    assert D.pool_violations([PAGE_A], ["fact:0", "fact:2", "fact:3"]) == \
+        ["fact:2", "fact:3"]
+
+
+def test_pool_and_named_checks_are_against_the_same_page_object(sh_6k):
+    """Both guards take the page they are handed, so neither can be satisfied
+    by a page other than the one page_edit will edit."""
+    from hnav.stage0.m2_retrieval_calibration import build_chunks
+    chunks, _ = build_chunks(sh_6k["context"], D.CHUNK_SIZE)
+    second = [s for s, _ in explode_facts(chunks[1])][:2]
+    plan = {"suppress_serials": second, "demote_serials": []}
+    pool = [f"fact:{s}" for s in second]
+    assert D.containment_violations([chunks[0]], plan)
+    assert D.pool_violations([chunks[0]], pool)
+    assert not D.containment_violations(chunks, plan)
+    assert not D.pool_violations(chunks, pool)

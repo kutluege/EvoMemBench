@@ -703,6 +703,37 @@ def page_move_front(page_texts, ids):
     return out
 
 
+def containment_violations(page, plan) -> list[str]:
+    """Ids the policy names that the page does not carry.
+
+    THE guard. The candidate pool is built from a page; if that page is not the
+    page the model will be shown, the policy can name a fact that is simply not
+    there. ``page_edit`` then raises, the live adapter fails open to the native
+    page, and the artifact records a run in which the intervention never
+    happened — which is indistinguishable, from the outside, from the
+    intervention having no effect. On a one-shot confirmatory subset that is the
+    worst failure available: a wiring bug wearing the costume of a null result.
+
+    So containment is checked EXPLICITLY, per question, before anything is sent,
+    and a violation refuses the run rather than degrading it.
+    """
+    present = {f"fact:{sp.serial}" for t in page for sp in fact_spans(t)}
+    named = [f"fact:{x}" for x in plan["suppress_serials"]] +             [f"fact:{x}" for x in plan["demote_serials"]]
+    return sorted(set(named) - present)
+
+
+def pool_violations(page, pool_ids) -> list[str]:
+    """Pool members the page does not carry (G1).
+
+    Stronger than :func:`containment_violations` and checked alongside it: the
+    named ids are a subset of the pool, so a pool that already escapes the page
+    is the upstream bug, caught one step earlier and against the SAME page
+    object that is handed to ``page_edit``.
+    """
+    present = {f"fact:{sp.serial}" for t in page for sp in fact_spans(t)}
+    return sorted(set(pool_ids) - present)
+
+
 def retrieval_arm_page(arm: str, page, plan):
     """The page one arm shows the model, through the SHIPPED edit path."""
     if arm in ("native", "native_repeat"):
@@ -779,7 +810,9 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
                     "back to H-Nav's own ranking.")
     chunks = chunk_texts_for(item, prepass) if harness == "retrieval" else None
 
-    questions, mismatches, pages = [], 0, []
+    questions, mismatches, pages, containment = [], 0, [], []
+    page_edit_errors: list[dict] = []
+    n_fired = n_suppressed_total = n_edits_applied = 0
     for q in prepass["questions"]:
         if max_questions and len(questions) >= max_questions:
             break
@@ -808,12 +841,30 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
                 page = [chunks[i] for i in bpages[q["index"]]]
             else:
                 page = [chunks[int(c.split(":")[1])] for c in q["top_ids"]]
+            missing = containment_violations(page, plan)
+            if missing:
+                containment.append({"index": q["index"], "kind": "named",
+                                    "missing": missing})
+            escaped = pool_violations(page, q.get("pool", []))
+            if escaped:
+                containment.append({"index": q["index"], "kind": "pool",
+                                    "missing": escaped[:10]})
+            if plan["suppress_serials"] or plan["demote_serials"]:
+                n_fired += 1
+            n_suppressed_total += len(plan["suppress_serials"])
             pages.append(len(page))
             message = QUERY_TEMPLATE.format(question=rec["question"])
             for arm in ARMS:
-                edited = retrieval_arm_page(arm, page, plan)
+                try:
+                    edited = retrieval_arm_page(arm, page, plan)
+                except Exception as e:  # noqa: BLE001 — counted, never swallowed
+                    page_edit_errors.append({"index": q["index"], "arm": arm,
+                                             "error": repr(e)[:200]})
+                    edited = list(page)
                 if retrieval_integrity(arm, page, edited, plan):
                     mismatches += 1
+                if arm in ("detector_suppress", "detector_demote_late")                         and edited != list(page):
+                    n_edits_applied += 1
                 arms[arm] = {"prompt": build_user_prompt(edited, message),
                              "n_facts": len(page_facts(edited))}
         native_prompt = arms["native"]["prompt"]
@@ -829,6 +880,17 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
     return {"subset": name, "n_facts": len(facts), "questions": questions,
             "n_page_edit_mismatch": mismatches, "harness": harness,
             "page_source": page_source,
+            "n_containment_violations": len(containment),
+            "containment_violations": containment[:20],
+            "n_page_edit_errors": len(page_edit_errors),
+            "page_edit_errors": page_edit_errors[:20],
+            "positive_control": {
+                "n_questions": len(questions),
+                "n_questions_policy_fired": n_fired,
+                "n_fact_edits_applied": n_edits_applied,
+                "n_facts_suppressed": n_suppressed_total,
+                "ok": bool(n_fired and n_suppressed_total
+                           and n_edits_applied >= n_fired)},
             "n_chunks_total": len(chunks) if chunks is not None else None,
             "n_chunks_on_page": max(pages) if pages else None,
             "retrieval_complete": (len(chunks) <= max(pages)
@@ -933,6 +995,11 @@ def run_subset(plan, answer_fn) -> dict:
     return {"subset": plan["subset"], "n_facts": plan["n_facts"],
             "strata_counts": plan["strata_counts"],
             "n_page_edit_mismatch": plan["n_page_edit_mismatch"],
+            "n_containment_violations": plan["n_containment_violations"],
+            "containment_violations": plan["containment_violations"],
+            "n_page_edit_errors": plan["n_page_edit_errors"],
+            "page_edit_errors": plan["page_edit_errors"],
+            "positive_control": plan["positive_control"],
             "harness": plan["harness"],
             "page_source": plan["page_source"],
             "n_chunks_total": plan["n_chunks_total"],
@@ -1162,8 +1229,17 @@ def format_run(results, comparisons) -> str:
         aa = res["aa_floor"]
         lines.append(f"  A/A floor: {aa['b_native_only']}/{aa['c_arm_only']} "
                      f"discordant of {aa['n']} (p={aa['p_exact']:.3f})")
-        lines.append(f"  page-edit mismatches vs the shipped contract: "
-                     f"{res['n_page_edit_mismatch']} (must be 0)")
+        pc = res.get("positive_control") or {}
+        lines.append(f"  GUARDS  mismatches={res['n_page_edit_mismatch']} "
+                     f"containment={res.get('n_containment_violations', 0)} "
+                     f"page_edit_errors={res.get('n_page_edit_errors', 0)}"
+                     "   (all MUST be 0 - void condition 8)")
+        if pc:
+            lines.append(
+                f"  POSITIVE CONTROL  fired={pc['n_questions_policy_fired']}"
+                f"/{pc['n_questions']} edits={pc['n_fact_edits_applied']}"
+                f" suppressed={pc['n_facts_suppressed']} "
+                f"-> {'OK' if pc['ok'] else 'FAILED'}")
         for arm, h in res.get("harm", {}).items():
             if not h["n_harmed"]:
                 continue
@@ -1206,6 +1282,18 @@ def subset_of(item: dict) -> str:
         .replace("factconsolidation_", "")
 
 
+def prepass_path(cfg, subset: str, page_source: str | None):
+    """Where the prepass for this page source lives.
+
+    Two page sources means two prepasses, and they are NOT interchangeable: the
+    candidate pool is built from the page, so a pool derived from H-Nav's own
+    ranking can name a fact absent from the benchmark's page. Separate filenames
+    stop that by accident; the stamped ``page_source`` stops it on purpose.
+    """
+    suffix = "_benchmarkpage" if page_source == "benchmark" else ""
+    return cfg.out_dir / f"stage1_prepass_{subset}{suffix}.json"
+
+
 def load_context(cfg, subsets, args) -> dict:
     """Dataset items, prepasses, ground-truth tables and gate-ready records.
 
@@ -1221,15 +1309,28 @@ def load_context(cfg, subsets, args) -> dict:
     if missing:
         raise SystemExit(f" REFUSED: no dataset item for {missing}")
 
+    want_source = getattr(args, "page_source", None)
     prepasses, unstamped = {}, []
     for s in subsets:
-        p = cfg.out_dir / f"stage1_prepass_{s}.json"
+        p = prepass_path(cfg, s, want_source)
         if not p.exists():
+            extra = (" --page-source benchmark"
+                     if want_source == "benchmark" else "")
             raise SystemExit(
                 f" REFUSED: {p} missing. Run\n"
                 f"   python hnav/stage1/calibrate_read_policy.py --prepass "
-                f"--subsets {s}\n first (it needs the embedder and the NLI).")
+                f"--subsets {s}{extra}\n first (it needs the embedder and NLI).")
         pp = json.loads(p.read_text(encoding="utf-8"))
+        # GUARD: the prepass must have been built from the SAME page this run
+        # will edit. A pool derived from a different ranking can name a fact the
+        # page does not carry; page_edit would raise, the adapter would fall
+        # back, and the artifact would look exactly like a null result.
+        got_source = pp.get("page_source", "prepass")
+        if want_source is not None and got_source != want_source:
+            raise SystemExit(
+                f" REFUSED: {p.name} was built with page_source={got_source!r} "
+                f"but this run uses {want_source!r}. The candidate pool would "
+                "come from a different page than the model sees.")
         stamp = pp.get("nli_config")
         if stamp is None:
             unstamped.append(s)
@@ -1327,7 +1428,8 @@ def freeze(chosen, ctx, subsets) -> Path:
             "git_head": _git_head(),
             "fit_subsets": sorted(subsets),
             "confirmatory_refused": list(CONFIRMATORY),
-            "prepass": {s: f"hnav/_out/stage1_prepass_{s}.json" for s in subsets},
+            "prepass": {s: str(prepass_path(cfg, s, getattr(args, "page_source", None)))
+                        for s in subsets},
             "prepass_unstamped_nli_config": ctx["unstamped"],
             "embed_cache_namespace": ctx["embed_namespaces"],
             "max_pair_cosine_error_vs_prepass": ctx["max_cosine_error"],
@@ -1482,12 +1584,42 @@ def main() -> int:
           f"   model: {'stub' if args.smoke_llm else cfg.llm_model}"
           f"   mode: {cfg.mode}")
 
+    # GUARDS, checked before a single call is sent. Both are VOID conditions,
+    # not "the intervention did nothing": a run whose edits silently failed to
+    # apply looks exactly like a null result, and on a one-shot confirmatory
+    # subset that mistake is unrecoverable.
     bad_edit = [p["subset"] for p in plans if p["n_page_edit_mismatch"]]
+    bad_contain = [(p["subset"], p["n_containment_violations"],
+                    p["containment_violations"][:2])
+                   for p in plans if p["n_containment_violations"]]
+    if bad_contain:
+        print("\n REFUSED - VOID, not null: the policy names facts that are NOT"
+              " on the page it\n would edit: " + str(bad_contain) + "\n"
+              " The candidate pool came from a different page than the model"
+              " sees. Such a run\n would fall back to the native page and record"
+              " an intervention that never\n happened. Nothing was sent.")
+        return 5
     if bad_edit:
-        print(f"\n REFUSED: the probe-style arm and the shipped page_edit path "
-              f"disagree on {bad_edit}.\n The measurement would not be measuring "
-              "the mechanism that ships. Nothing was sent.")
+        print("\n REFUSED - VOID, not null: the probe-style arm and the shipped"
+              f" page_edit path\n disagree on {bad_edit}. The measurement would"
+              " not be measuring the mechanism\n that ships. Nothing was sent.")
         return 4
+    bad_err = [(p["subset"], p["n_page_edit_errors"]) for p in plans
+               if p["n_page_edit_errors"]]
+    if bad_err:
+        print("\n REFUSED - VOID, not null: page_edit raised on "
+              + str(bad_err) + ".\n That is the false-null signature"
+              " (void condition 8). Nothing was sent.")
+        return 6
+    bad_ctrl = [(p["subset"], p["positive_control"]) for p in plans
+                if not p["positive_control"]["ok"]]
+    if bad_ctrl:
+        print("\n REFUSED - VOID, not null: the positive control failed on "
+              + str([b[0] for b in bad_ctrl]) + ".\n The policy never fired, or"
+              " edits were applied while nothing was suppressed: the\n"
+              " silent-gutting signature (void condition 8). Nothing was sent.\n"
+              " " + str(bad_ctrl))
+        return 7
 
     if args.dry_run:
         print("\n --dry-run: nothing sent.")
@@ -1554,7 +1686,8 @@ def main() -> int:
                 "FRONT",
         },
         "detector_inputs": {
-            "prepass": {s: f"hnav/_out/stage1_prepass_{s}.json" for s in subsets},
+            "prepass": {s: str(prepass_path(cfg, s, getattr(args, "page_source", None)))
+                        for s in subsets},
             "prepass_unstamped_nli_config": ctx["unstamped"],
             "embed_cache_namespace": ctx["embed_namespaces"],
             "max_pair_cosine_error_vs_prepass": ctx["max_cosine_error"],
@@ -1564,6 +1697,12 @@ def main() -> int:
             "page_contract_check":
                 "each suppress/demote arm re-derived through "
                 "mab_adapter.page_edit and asserted byte-identical",
+            "containment_check":
+                "every id the policy names is asserted present on the page it "
+                "will edit, per question, before any call is sent; a violation "
+                "REFUSES the run (exit 5) instead of falling back to native",
+            "void_if_nonzero": ["n_page_edit_mismatch",
+                                "n_containment_violations"],
         },
         "split": {"calibration": list(CALIBRATION),
                   "refused": list(CONFIRMATORY)},
