@@ -284,7 +284,7 @@ London."* vs *"Marlowe was born in the city of London."* → çelişki **0.99949
 | Geometri öncülü (M1) | çakışan çift medyan benzerlik **0.964** vs kontrol **0.60**; **AUC ≥ 0.9999** 4/4 subset | SAĞLAM (fact düzeyi — kesmeden etkilenmez) |
 | Geometrik gruplama (M1b) | best-F1 **0.892** (sh_6k, τ=0.91) → **0.757** (sh_262k, τ=0.95); precision 0.83–0.90 | SAĞLAM (fact düzeyi) |
 | Replika sadakati (M0) | **top-1 = top-k = Kendall τ = 1.0000**, maks skor hatası ≤ 4.5e-5, 400/400 çift | KESİN (benchmark'ın kendi vektörleriyle) |
-| Sinyal dejenerasyonu (M2) | **NOT_DEGENERATE 4/4** — önceki BFCL dejenerasyon bulgusunu çürütür | GEÇİCİ (chunk düzeyi) |
+| Sinyal dejenerasyonu (M2) | **NOT_DEGENERATE — 2/2 kalibrasyon, düzeltilmiş embedder ile YENİDEN KAZANILDI**; sh_64k/sh_262k hâlâ L512 dönemi | SAĞLAM (kalibrasyon), AÇIK (held-out) |
 | Gölge nötrlüğü (T4/S2) | off↔shadow %2.42 < off↔off %3.04; TOST ±2.0 eşdeğerlik (p=0.0008/0.017) | SAĞLAM |
 | Ayrıştırıcı kapsamı | %99.44–99.65 | KESİN |
 
@@ -307,6 +307,36 @@ katmanında** — 28 koşu-çiftinde çakışmayan soruda **sıfır** çevirme.
 Kanıt: `stage0_results/t4_s2_trials_summary.json`, `t4_s2_protocol.md`,
 `question_strata.json`. **Durum: KESİN.**
 *Sonuç:* bu literatürdeki tek-koşu benchmark iddiaları bu bandın içinde.
+
+**D2b — YENİDEN TÜRETME SONUCU (2026-08-16): kusur gerçekti, yayılımı sınırlıydı.**
+Düzeltilmiş embedder ile kalibrasyon split'i yeniden ölçüldü
+(`stage0_results/refit_L8192/`, `refit_threshold_diff.md`):
+
+| büyüklük | sonuç |
+|---|---|
+| **`R_MIN_CAL`** | **DEĞİŞMEDİ** — 0.1923661662 → 0.1923663786 (bağıl 1.1e-06, fp32 gürültüsü). *Tüm triyajın dayandığı "olgu düzeyi sinyaller güvenli" öncülü DOĞRULANDI.* |
+| M1 AUC, `gate_pass` | 1.000000, True — değişmedi |
+| M1b τ/P/R/F1, dolayısıyla `COS_PAIR_CAL`=0.92 | **bit-özdeş** |
+| m3 yazma tarafı, m4 girdileri | 4–6 ondalıkta özdeş |
+| `nmargin` p25 (havuzlanmış) | **−%18.0** (0.0047644 → 0.0039061) |
+| `H_z` p75 (havuzlanmış) | +%4.1 (1.9569 → 2.0363) |
+| sh_32k retrieval belirsizliği | `margin` p50 **−%54**, `nmargin` p50 **−%52** — kesilmiş ölçüm arenayı olduğundan **kolay** göstermiş |
+
+**Havuzlama kusurunun sert kanıtı:** havuzlanmış p75, **her iki dönemde de**
+sh_32k'nın medyanına eşit (1.9569 vs 1.9573; 2.0363 vs 2.0377) — yani bu
+istatistik hiçbir subset'i tarif etmiyor. Ayrıca `H_z` ekranı sh_6k'da
+**yapısal olarak erişilemez**: `n_chunks=2` iken `H_z ≡ 0.3653338551` (tam),
+dolayısıyla hiçbir kesin eşitsizlik onu seçemez — eski eşikle de, yeni eşikle
+de, sh_6k'nın kendi p75'iyle de. Eşikler **subset başına** tüketilmelidir.
+
+**Karar:** canlı sabitler (`NMARGIN_CAL`/`H_Z_CAL`) **değiştirilmedi**; L512
+dönemi değerleri "analiz için aşıldı, artefakt yeniden üretilebilirliği için
+korundu" diye işaretlendi ve düzeltilmiş **subset-başına** değerler yanına
+kaydedildi. Gerekçe: (1) doğrulama koşumu dâhil commit'li artefaktlar bu
+sabitlerle üretildi — sessiz değişim, ön-kayıtlı tek atışı kendi koduyla
+yeniden üretilemez kılardı; (2) sevk edilen konfigürasyonda bu sabitler zaten
+**atıldır** (`ambiguity_mode="none"`). *Not:* m3/m4'ün LLM-türevli etiketleri
+L512 dönemidir (girdileri özdeş doğrulandı) — beyan edilir, yeniden koşulmaz.
 
 **D3 — 512-token kesme tuzağı (kendi kusurumuz, düzeltildi).**
 `build_embedder` dört konumsal argüman geçtiği için `max_length=512` hiç
