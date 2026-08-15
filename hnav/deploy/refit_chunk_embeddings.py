@@ -273,8 +273,13 @@ def legacy_chunk_vectors(cfg, payload) -> dict:
 
     emb = DiskCachedEmbedder(_FailOnMiss(), cfg.emb_cache_dir, LEGACY_KEY,
                              persist=False)
-    return {name: {"chunks": emb.encode(blob["chunks"]),
-                   "queries": emb.encode(blob["queries"])}
+    # Chunks only. The legacy namespace holds every fact and chunk the committed
+    # prepasses used, but not their retrieval QUERIES — those were embedded
+    # transiently. That costs nothing here: a retrieval query is ~30 tokens, so
+    # neither the length knob nor the truncation defect can touch it, and each
+    # page below is ranked with query vectors of its own dtype, which is the
+    # matched comparison anyway.
+    return {name: {"chunks": emb.encode(blob["chunks"])}
             for name, blob in payload.items()}
 
 
@@ -371,7 +376,7 @@ def main() -> int:
             bf16["vectors"][name]["chunks"], bf16["vectors"][name]["queries"],
             args.top_k)
         pages["hnav_L512_legacy"] = rank_pages(
-            legacy[name]["chunks"], legacy[name]["queries"], args.top_k)
+            legacy[name]["chunks"], fp32["vectors"][name]["queries"], args.top_k)
         if fp32_chunks is not None:
             pages["hnav_fp32_L8192"] = rank_pages(
                 fp32_chunks["vectors"][name]["chunks"],
@@ -417,7 +422,7 @@ def main() -> int:
     for name in payload:
         try:
             old = legacy_chunk_vectors(
-                cfg, {name: {"chunks": payload[name]["facts"], "queries": []}}
+                cfg, {name: {"chunks": payload[name]["facts"]}}
             )[name]["chunks"]
         except SystemExit:
             fact_check[name] = {"status": "legacy facts absent"}
