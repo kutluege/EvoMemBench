@@ -25,6 +25,7 @@ under ``HNAV_CACHE_DIR/emb``. T2 and everything after therefore reuse T1's
 from __future__ import annotations
 
 import hashlib
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol, Sequence, runtime_checkable
 
@@ -32,7 +33,7 @@ import numpy as np
 
 __all__ = ["EmbedderProtocol", "HashEmbedder", "HFEmbedder", "OpenAIEmbedder",
            "DiskCachedEmbedder", "cache_key", "l2_normalize",
-           "DEFAULT_MAX_LENGTH"]
+           "DEFAULT_MAX_LENGTH", "expanded_gqa_attention"]
 
 # Tokenizer truncation length for the real embedders.  [T12]
 #
@@ -178,6 +179,65 @@ class DiskCachedEmbedder:
         return stacked
 
 
+# ── attention memory: the GQA / fused-kernel interaction  [T13] ──────────────
+@contextmanager
+def expanded_gqa_attention(enabled: bool = True):
+    """Make the fused (memory-efficient) SDPA kernels ELIGIBLE for this model.
+
+    Why this exists — the measured root cause, not the assumed one. A single
+    long text OOM'd a 24 GB card even at batch size 1, and the reason is a
+    *grouped-query attention* interaction, not merely "SDPA picked the math
+    path":
+
+    Qwen3-Embedding-4B has 32 query heads and 8 KV heads. Transformers'
+    ``sdpa_attention`` calls ``use_gqa_in_sdpa()``, which returns True when
+    the attention mask is ``None`` (the single-text case, where an all-ones
+    mask is optimized away). It then hands SDPA **un-expanded** K/V with
+    ``enable_gqa=True``. PyTorch's fused kernels reject that for dense inputs
+    ("both fused kernels require query, key and value to have the same
+    num_heads. Query.sizes(): [1, 32, 4885, 128], Key sizes(): [1, 8, 4885,
+    128]"), so it silently falls back to MATH, which materializes the full
+    [1, 32, N, N] score matrix — 730 MiB per 8-head chunk at N=4885, on top of
+    ~15.1 GiB of fp32 weights. Forcing ``EFFICIENT_ATTENTION`` directly does
+    NOT help: it aborts with "No available kernel", because eligibility, not
+    priority, is what is missing. (FLASH is fp16/bf16-only, so it is never an
+    option under the fp32 pin.)
+
+    This context manager makes ``use_gqa_in_sdpa`` return False, so
+    transformers takes its own ``repeat_kv`` path and materializes K/V at 32
+    heads. The fused kernel then becomes eligible and PyTorch selects it
+    automatically.
+
+    **Numerically neutral by construction**: ``repeat_kv`` broadcasts the same
+    K/V that ``enable_gqa=True`` would have broadcast internally — identical
+    attention, different materialization. Measured, not assumed: forcing
+    EFFICIENT_ATTENTION on top of this produced BIT-IDENTICAL vectors
+    (max|Δ| = 0.0), and re-encoding cached texts reproduces the committed
+    fp32 cache (see ``hnav/BUILD_NOTES.md`` §11 for the equivalence table).
+
+    Fails open: if the transformers internal is absent or renamed, the patch
+    is skipped and the caller runs exactly as before. Yields whether it
+    applied, so callers can record it rather than assume it.
+    """
+    if not enabled:
+        yield False
+        return
+    try:
+        import transformers.integrations.sdpa_attention as _sa  # noqa: PLC0415
+    except Exception:  # noqa: BLE001 — old/!transformers: nothing to patch
+        yield False
+        return
+    original = getattr(_sa, "use_gqa_in_sdpa", None)
+    if original is None:
+        yield False
+        return
+    _sa.use_gqa_in_sdpa = lambda *a, **k: False
+    try:
+        yield True
+    finally:
+        _sa.use_gqa_in_sdpa = original
+
+
 # ── real embedders (lazy heavy imports) ──────────────────────────────────────
 class HFEmbedder:
     """In-process HuggingFace embedder, mean-pooled + L2-normalized.
@@ -204,6 +264,11 @@ class HFEmbedder:
         self.model = AutoModel.from_pretrained(model_name, torch_dtype=torch_dtype).to(self.device)
         self.model.eval()
         self.dim = int(self.model.config.hidden_size)
+        # Whether the fused-kernel eligibility fix actually applied — recorded,
+        # not assumed, so a transformers rename shows up as False in provenance
+        # instead of as an OOM three hours into a run. See
+        # :func:`expanded_gqa_attention`.
+        self.gqa_expansion_applied: bool | None = None
 
     def encode(self, texts: Sequence[str]) -> np.ndarray:
         if not len(texts):
@@ -213,7 +278,12 @@ class HFEmbedder:
             batch_texts = list(texts[s: s + self.batch])
             enc = self.tok(batch_texts, padding=True, truncation=True,
                            max_length=self.max_length, return_tensors="pt").to(self.device)
-            with self._torch.no_grad():
+            # K/V expanded so the fused SDPA kernel is eligible: without this a
+            # single 4.9k-token text OOMs a 24 GB card at batch size 1, because
+            # the math fallback materializes the [1, 32, N, N] score matrix.
+            # Numerically neutral — verified against the committed fp32 cache.
+            with self._torch.no_grad(), expanded_gqa_attention() as applied:
+                self.gqa_expansion_applied = applied
                 res = self.model(**enc)
             last = res.last_hidden_state if hasattr(res, "last_hidden_state") else res[0]
             mask = enc["attention_mask"].unsqueeze(-1).expand(last.size()).to(last.dtype)

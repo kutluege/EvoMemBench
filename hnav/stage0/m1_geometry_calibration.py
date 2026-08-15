@@ -40,6 +40,14 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "hnav" / "labeling"))
 from conflict_analysis import parse as parse_fact  # noqa: E402  (validated, 99.5%+ coverage)
 
+# The ONE shared piece of package code this otherwise-standalone script uses:
+# the fused-kernel eligibility fix (T13). Imported, never re-implemented, so
+# the standalone and package embedders cannot drift apart on attention memory.
+# hnav/core/embedding.py imports no torch at module level, so this stays cheap.
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from hnav.core.embedding import expanded_gqa_attention as _expanded_gqa_attention  # noqa: E402
+
 DATA = REPO / "In-Episode-Knowledge/INEP-KNOW/MemoryAgentBench/data/Conflict_Resolution.json"
 FACT_RE = re.compile(r"^\s*(\d+)\.\s+(.*)$", re.M)
 
@@ -60,9 +68,11 @@ def load_env() -> dict:
 def require_not_live(env: dict) -> None:
     """Same refusal as ``hnav.config.HNavConfig.require_not_live``, inlined.
 
-    This script is deliberately standalone (stdlib + numpy; it imports the
-    validated parser by path and never imports the ``hnav`` package), so the
-    guard is reproduced rather than imported. Post-T8 the LIVE mode exists for
+    This script is near-standalone (stdlib + numpy; it imports the validated
+    parser by path). It does import ``hnav.core.embedding`` for the shared
+    attention-memory fix (T13) — a torch-free module import — but deliberately
+    not ``hnav.config``, so the guard is reproduced rather than imported and
+    the script keeps working from a bare checkout. Post-T8 the LIVE mode exists for
     the Stage-1 read-path campaign only; a Stage-0 measurement taken under
     intervention is not a Stage-0 measurement. Enforced uniformly across
     ``hnav/stage0/`` by ``hnav/tests/test_stage0_refuses_live.py``.
@@ -107,6 +117,7 @@ class Embedder:
         self.model = AutoModel.from_pretrained(model_name, torch_dtype=self.dtype).to(self.device)
         self.model.eval()
         self.dim = int(self.model.config.hidden_size)
+        self.gqa_expansion_applied = None
         print(f"  loaded. hidden_size = {self.dim}", flush=True)
 
     def _cache_path(self, text: str) -> Path:
@@ -128,7 +139,12 @@ class Embedder:
             batch_texts = [texts[i] for i in idx]
             enc = self.tok(batch_texts, padding=True, truncation=True,
                            max_length=self.max_length, return_tensors="pt").to(self.device)
-            with self.torch.no_grad():
+            # Same fused-kernel eligibility fix as hnav/core/embedding.py (T13):
+            # at L8192 a single MAB chunk is ~4.9k tokens, and without this the
+            # math fallback's [1, 32, N, N] score matrix OOMs the card. Imported
+            # rather than re-implemented so the two paths cannot drift.
+            with self.torch.no_grad(), _expanded_gqa_attention() as applied:
+                self.gqa_expansion_applied = applied
                 res = self.model(**enc)
             last = res.last_hidden_state if hasattr(res, "last_hidden_state") else res[0]
             mask = enc["attention_mask"].unsqueeze(-1).expand(last.size()).to(last.dtype)

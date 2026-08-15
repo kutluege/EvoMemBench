@@ -985,3 +985,94 @@ The oracle probe is whole-context, and whole-context does not fit the window at
 this scale (§0), so no oracle arm was ever run — the artifact's
 `detector_vs_oracle` is correctly empty. The 0.984 / 0.957 figures are
 calibration-only and additionally cross-harness.
+
+## 11. T13 — the long-sequence OOM, and why it was not the math path alone
+
+**Symptom** (found by the Thrust-2 agent on the CrossEp M5 real-embedder run):
+`embedder.encode([content])` OOM'd a 24 GB card on a SINGLE text, so batch
+size was irrelevant by construction — batch 8 → 2 → 1 failed identically.
+
+**Measured root cause — a GQA/fused-kernel interaction, not merely "SDPA chose
+the math path".** Qwen3-Embedding-4B has 32 query heads and 8 KV heads.
+Transformers' `sdpa_attention` calls `use_gqa_in_sdpa()`, which returns True
+when the attention mask is `None` — the single-text case, where an all-ones
+mask is optimized away — and then passes SDPA **un-expanded** K/V with
+`enable_gqa=True`. PyTorch's fused kernels reject that for dense inputs:
+
+    both fused kernels require query, key and value to have the same num_heads.
+    Query.sizes(): [1, 32, 4885, 128], Key sizes(): [1, 8, 4885, 128]
+
+so it falls back to MATH, which materializes the `[1, 32, N, N]` score matrix
+(730 MiB per 8-head chunk at N=4885) on top of ~15.1 GiB of fp32 weights.
+
+Two things this explains that the "math path" framing does not:
+- **Forcing `EFFICIENT_ATTENTION` does not work** — it aborts with "No
+  available kernel", because what is missing is *eligibility*, not priority.
+  Measured directly.
+- **FLASH is never an option** under the fp32 pin ("Expected query, key and
+  value to all be of dtype: {Half, BFloat16}").
+
+**The fix** (`expanded_gqa_attention`, `hnav/core/embedding.py`): make
+`use_gqa_in_sdpa` return False for the duration of the forward, so
+transformers takes its own `repeat_kv` path and materializes K/V at 32 heads.
+The fused kernel then becomes eligible and PyTorch selects it automatically —
+no backend forcing, hence no abort risk. Fails open (a transformers rename
+degrades to "unpatched" and is *recorded* as `gqa_expansion_applied=False`,
+never silently assumed). Applied in both embedders — `hnav/core/embedding.py`
+and the standalone `m1_geometry_calibration.py`, which imports it rather than
+re-implementing it so the two cannot drift.
+
+Scientifically neutral by construction: `repeat_kv` broadcasts exactly the K/V
+that `enable_gqa=True` would have broadcast internally. fp32 pin, model,
+`max_length`, and the `L8192` cache namespace are all unchanged.
+
+### Equivalence proof (required before commit; box, RTX 4090, fp32, torch 2.13)
+
+**A. Against the committed fp32 cache** — re-encoded texts already present in
+the legacy `Qwen_Qwen3-Embedding-4B|float32` namespace, at that namespace's
+`max_length=512`:
+
+| sample | n | token range | max\|1−cos\| | max\|Δcomponent\| |
+|---|---|---|---|---|
+| facts (short) | 40 | 8–16 | 4.768e-07 | 2.980e-07 |
+| chunks (long text) | 4 | 2455–5008 | 2.384e-07 | 1.639e-07 |
+
+**Stated limitation:** those cached vectors were themselves computed at
+`max_length=512`, so row 2 is a long *text* truncated to 512 — it does not
+exercise a long *sequence* through attention. No cached vector was ever
+computed above 512 tokens, so the cache cannot answer that question.
+
+**B. Patched vs UNPATCHED at full sequence length** (`max_length=8192`), which
+is the regime the re-fit will run in — this supplies what A cannot:
+
+| tokens | patched | unpatched | max\|1−cos\| | max\|Δcomponent\| |
+|---|---|---|---|---|
+| 58 | OK 15.12 GiB | OK 15.12 GiB | 0.000e+00 | 9.313e-08 |
+| 2455 | OK 16.14 GiB | OK 17.63 GiB | **0.000e+00** | 1.043e-07 |
+| 4885–5008 (9 chunks) | OK 17.17–17.21 GiB | **OOM** | — | — |
+
+Where both paths run the cosines are **bit-identical** and components agree to
+fp32 epsilon (~1.2e-07). Where they differ, the old path simply does not run:
+**9 of the 11 real calibration chunks OOM unpatched.** The patched path also
+uses *less* memory where both succeed (16.14 vs 17.63 GiB at 2455 tokens).
+
+Both well under the pre-registered 1e-5 stop threshold and at the ~1e-6 level
+expected. Backend selection is deterministic here: forcing
+`EFFICIENT_ATTENTION` on top of the patch produced bit-identical vectors
+(max|Δ| = 0.0) and an identical peak, i.e. the automatic choice is already the
+efficient kernel once eligibility is satisfied.
+
+### Consequence for the queued re-fit
+
+The re-fit (`hnav/deploy/REFIT_RUNBOOK.md`) would have OOM'd on essentially
+every MAB chunk at `L8192`: the calibration chunks are 4,885–5,008 Qwen tokens,
+squarely in the failing regime. It is now unblocked, on the same card, with the
+fp32 pin and the `L8192` namespace intact.
+
+### Durable CrossEp measurement (from the Thrust-2 agent, no GPU needed)
+
+CrossEp texts: p50 1,045 / p90 1,130 / p99 1,411 / max 5,076 tokens.
+**0.00% exceed 8192**, so the `L8192` pin never truncates CrossEp — but
+**92.55% exceed 512**, so the pre-T12 truncation was cutting nearly every
+CrossEp text. The T12 truncation fix therefore mattered *more* on CrossEp than
+on MAB, and that belongs in the write-up.
