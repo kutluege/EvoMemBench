@@ -163,6 +163,12 @@ ORACLE_COUNTERPART = {"detector_suppress": "oracle_suppress",
                       "detector_anti": "anti"}
 COS_TOLERANCE = 1e-6
 HARNESSES = ("whole_context", "retrieval")
+# How the page is laid out for the model, per harness. Recorded in every
+# artifact, because an artifact that misdescribes its own prompt shape is worse
+# than one that omits it.
+WHOLE_CONTEXT_SHAPE = r"RAGSystem: 'Memory 1:\n<whole context>\n' + templated query"
+RETRIEVAL_SHAPE = (r"RAGSystem: 'Memory i:\n<chunk>' for the top-k retrieved "
+                   r"chunks in similarity-rank order + templated query")
 CHUNK_SIZE = 4096                       # the benchmark's own chunk_text_into_sentences
 # r_min_label ordering, tightest first — used only as a deterministic tie-break.
 R_RANK = {"frozen": 0, "loose": 1, "off": 2}
@@ -1372,15 +1378,25 @@ def main() -> int:
             "temperature": cfg.llm_temperature,
             "max_tokens": GENERATION_MAX_TOKENS,
             "system_message": SYSTEM_MESSAGE,
-            "prompt_shape":
-                "RAGSystem: 'Memory 1:\\n<whole context>\\n' + templated query",
-            "prompt_source":
-                "hnav.stage1.stale_suppression_probe (imported verbatim)",
+            "prompt_shape": (
+                WHOLE_CONTEXT_SHAPE if args.harness == "whole_context"
+                else RETRIEVAL_SHAPE),
+            "prompt_source": (
+                "hnav.stage1.stale_suppression_probe (imported verbatim)"
+                if args.harness == "whole_context" else
+                "hnav.stage1.calibrate_read_policy.build_user_prompt "
+                "(imported verbatim)"),
             "grader": "hnav.labeling.counterfactual.substring_exact_match",
-            "identical_to_oracle_probe": (
+            "comparability_to_oracle_probe": (
                 "same prompt shape, same system message, same grader, same "
                 "frozen :8003 substrate - the headline is a RATIO against the "
-                "oracle arms and a ratio taken across harnesses is meaningless"),
+                "oracle arms and a ratio taken across harnesses is meaningless"
+                if args.harness == "whole_context" else
+                "SAME system message, grader and frozen :8003 substrate, but a "
+                "DIFFERENT prompt shape from the oracle probe (rank-ordered "
+                "multi-block page vs one whole-context block). Ratios against "
+                "the oracle are cross-harness; see "
+                "detector_vs_oracle.harness_caveat."),
         },
         "arms": {
             "native": "untouched context",
