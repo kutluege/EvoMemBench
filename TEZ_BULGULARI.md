@@ -25,7 +25,16 @@
 | **çakışmayan doğruluk** | **26/26 — 8 koşunun 8'inde** | — | — | — |
 | **çakışan doğruluk** | **0–5 / 74** | — | — | — |
 | manşet doğruluk (m3) | 0.330 | 0.470 | 0.440 | 0.200 |
-| **ima edilen çakışan-only** | **0.095** | 0.185 | 0.152 | ~0 (varsayım ihlali işaretli) |
+| **çakışan-only doğruluk** | **0.095** (ölçüm) | 0.185 (ima) | 0.152 (ima) | **[0, 0.26] sınır** |
+
+> **sh_262k neden nokta tahmin DEĞİL:** ima etme, "çakışmayan soru hep doğru"
+> varsayımına dayanır; sh_262k'da bu varsayım **ihlal ediliyor** (ima edilen
+> değer negatif çıkıyor → varsayımın yanlış olduğunun kanıtı). Varsayımsız
+> savunulabilir ifade: 100 sorunun 20'si doğru → çakışan-only doğruluk
+> **[0, 0.26]** aralığında, çakışmayan doğruluk ≤ 20/21. Negatif bir olasılık
+> yayımlamak, tüm ekstrapolasyonu haklı olarak şüpheye açar.
+> Ayrıca: ima edilen satırlar m3 koşum harness'inin istemiyle ölçülmüştür
+> (benchmark'ın şablonlu sorgusu değil); doğrudan ölçüm yalnız sh_6k'dadır.
 
 **Hata taksonomisi (8 koşu, 575 çakışan-soru hatası):** 572 `stale_value`,
 3 `off_list`, **0 boş**. Model bağlamı okuyor; kuralı uygulamıyor.

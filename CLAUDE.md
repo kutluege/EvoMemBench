@@ -29,10 +29,13 @@ These are not style preferences. Each one exists because breaking it silently pr
 looks valid and isn't.
 
 - **No leakage into any online path.** Gold answers, benchmark `questions`/`answers` keys, future
-  facts, and evaluator output may appear **only** under `hnav/labeling/` and `hnav/stage0/`. Nothing
-  under `hnav/core/` or `hnav/adapters/` may reference them. Enforced by an AST scan in
-  `hnav/tests/test_leakage_audit.py`. The questions and the fact contexts live in the *same JSON
-  file*, so this is the easiest mistake available.
+  facts, and evaluator output may appear **only** in the offline tier — `hnav/labeling/`,
+  `hnav/stage0/` and `hnav/stage1/` (the last holds `calibrate_read_policy.py` and
+  `stale_suppression_probe.py`, both offline oracles). Nothing under `hnav/core/` or
+  `hnav/adapters/` may reference them, and nothing online may import the offline tier. Enforced by
+  an AST scan in `hnav/tests/test_leakage_audit.py` (`ONLINE_DIRS = hnav/core, hnav/adapters`).
+  The questions and the fact contexts live in the *same JSON file*, so this is the easiest mistake
+  available.
 - **`hnav/core/` imports nothing from a benchmark.** Adapters own all benchmark-specific knowledge
   (chunk parsing, serial numbers, prompt formats).
 - **Write-time vs read-time visibility differ.** Use `latest_before(key, serial)` on the write path;
