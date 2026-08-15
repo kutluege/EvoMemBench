@@ -743,3 +743,104 @@ detection: the detector finds 9-20 verified groups per question (median 14 on
 `sh_6k`, and exactly one stale member each), so 14 latest-carriers get appended
 and only one of them can actually be last. The oracle arm moved exactly one fact — the queried key's — to the very
 end. Same detector, same edit primitive, a fifth of the effect.
+
+---
+
+## 12. T13b — the retrieval-path bridge, and the two things it changed
+
+Registered in advance as `stage0_results/stage1_preregistration_v2.md` §10,
+**explicitly not part of any confirmatory claim.** Calibration split only,
+500 calls per subset, frozen :8003, page = the benchmark's own top-k chunks in
+similarity-rank order, every arm performed through the shipped `page_edit`.
+
+### 12.1 Why it had to exist
+
+All T13 evidence was whole-context — one `Memory 1:` block. That was a
+*documented* deviation, justified because retrieval is COMPLETE on the
+calibration split (2 and 9 chunks ≤ `top_k` 10). Measured while scoping the
+confirmatory run, the justification expires at `sh_64k`: 17 chunks, 10
+retrieved, and a whole-context prompt there is **75,886 tokens against a 65,536
+window** — infeasible on the frozen substrate, and not the deployed setting
+either. So the whole-context→retrieval gap had to be measured, not assumed.
+
+### 12.2 Results
+
+| | `sh_6k` retrieval | (`sh_6k` whole-ctx) | `sh_32k` retrieval | (`sh_32k` whole-ctx) |
+| --- | --- | --- | --- | --- |
+| native overall | 0.280 | 0.290 | **0.480** | 0.420 |
+| native conflicted | 2/74 | 4/74 | **13/65** | 7/65 |
+| **suppress** conflicted | **68/74 (91.9%)** | 66/74 | **52/65 (80.0%)** | 51/65 |
+| suppress net (b/c) | **+66** (0/66) | +61 (1/62) | **+38** (2/40) | +44 (1/45) |
+| suppress exact p | 2.7e-20 | 1.4e-17 | 4.1e-10 | 1.3e-12 |
+| demote_late net | +3 (n.s.) | +3 (n.s.) | **+10, p=0.031** | +9, p=0.012 |
+| **anti net** | **−1** | −4 | **−6** | **+6** |
+| token Δ (suppress) | −3.48% | −3.48% | −0.63% | −0.63% |
+| A/A floor | 0/0 | 0/0 | 0/0 | 0/0 |
+| page-edit mismatches | 0 | 0 | 0 | 0 |
+
+**The mechanism survives the harness change.** Absolute conflicted accuracy is
+essentially identical or better (68 vs 66, 52 vs 51). The *net* falls at
+`sh_32k` (+38 vs +44) for a reason that is visible rather than mysterious: the
+rank-ordered multi-block page is itself a **better baseline** there — native
+conflicted 13/65 against 7/65 — so there is less headroom to recover, not less
+mechanism.
+
+### 12.3 What it changed — the `anti` control stops being inconsistent
+
+§11.4b had to report `anti` as sign-inconsistent: −4 on `sh_6k` but **+6** on
+`sh_32k` whole-context. In the retrieval harness it is **−1 and −6** — harmful
+on both subsets, matching the oracle's whole-context `anti` (−3, −4) and
+`sh_6k`'s sign.
+
+So the sign flip was an artifact of the whole-context layout: in one
+2,310-fact block, stacking ~13 newest facts at *either* edge helps, because both
+edges of a very long single block are privileged. Give the model the page it
+actually gets — nine `Memory i:` blocks — and the direction is consistent:
+newest-last helps (`demote_late` +10, p=0.031), newest-first hurts (−6). **The
+placement hypothesis is better supported in the deployed layout than in the one
+it was discovered in**, and pre-registration v2 §8.6 should be read with that.
+
+### 12.4 What it changed — the protective criterion fails here, and that matters
+
+`detector_suppress` harmed exactly 2 questions on `sh_32k` retrieval:
+
+| # | stratum | native → arm | gold fact deleted? | §5b class |
+| --- | --- | --- | --- | --- |
+| 9 | conflicted | `Rome` → `Watertown` | **yes** (serial 1291) | `information_loss` |
+| 14 | **unique** | `Beirut` → *"The provided knowledge pool does not contain any fact about"* | **no** | `information_loss` |
+
+Question 9 is the *predicted* gold-not-latest mode (prereg §6) and is fine.
+
+Question 14 is not, and it is the important one. The gold fact was **still on
+the page** — nothing about it was deleted — and the model nonetheless refused to
+answer. Under the pre-registered §5b rule (`malformed_generation` requires gold
+present AND `SequenceMatcher ≥ 0.8`; ratio here is 0.12) it classifies as
+**`information_loss`**, and §5b says a single unique-stratum `information_loss`
+**voids the protective claim whatever the net is**.
+
+This is the calibration split and an exploratory arm, so nothing is voided. But
+read literally and applied to `sh_64k`, the registered protective criterion
+would have failed on evidence like this. Reported as classified, not
+reclassified after the fact. It identifies a third harm mode that neither the
+whole-context runs nor the oracle probe exposed — **refusal after edit**: the
+edit changes the page enough that the model declines, without any needed fact
+having been removed. It deserves its own name and its own count before the
+confirmatory shot is spent.
+
+### 12.5 A real bug this arm caught
+
+The first retrieval run refused to send anything: the integrity check found that
+`page_edit` appended moved facts *after* a chunk's trailing bytes, and the
+benchmark's chunker ends `sh_6k` chunk 0 with `"...Leeds. 307."` — fact 307's
+serial, whose text opens chunk 1. Appending after it made the inline parser read
+the entire appended sentence as **the text of fact 307**, so the moved fact
+silently lost its own serial — the supersession key the whole mechanism turns
+on. Observed directly: `(5, "Pedro Pierluisi worked in...")` became
+`(307, "5. Pedro Pierluisi worked in...")`.
+
+`_content_tail` now treats a trailing dangling serial exactly like trailing
+whitespace: nothing may be appended after either. This affected `DEMOTE_LATE` on
+any page whose last chunk ends that way; `SUPPRESS` and every committed
+whole-context result are untouched, because a single-block context has no
+dangling tail.
+
