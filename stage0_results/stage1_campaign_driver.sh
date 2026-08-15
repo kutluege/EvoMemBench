@@ -29,6 +29,14 @@ log() { echo "[$(date '+%F %T')] $*"; }
 cd "$REPO_ROOT"
 git ls-files --error-unmatch stage0_results/stage1_preregistration.md >/dev/null 2>&1 \
     || { log "REFUSED: stage1_preregistration.md is not committed."; exit 1; }
+# A committed file is not a REGISTERED one. The sh_64k pre-registration was
+# WITHDRAWN on 2026-08-15 (mechanism refuted by the stratified finding;
+# STAGE1_PLAN.md R2) and retained as evidence, so "it exists in git" no longer
+# implies "it authorizes a campaign". A new pre-registration must be written
+# after the oracle probe; until then this driver stays shut.
+grep -q "WITHDRAWN" stage0_results/stage1_preregistration.md \
+    && { log "REFUSED: the sh_64k pre-registration is WITHDRAWN (STAGE1_PLAN.md R2)."; \
+         log "         Write a NEW pre-registration after the oracle probe."; exit 1; }
 git ls-files --error-unmatch stage0_results/stage1_operating_point.json >/dev/null 2>&1 \
     || { log "REFUSED: stage1_operating_point.json is not committed."; exit 1; }
 curl -sf "$CHAT/models" >/dev/null || { log "REFUSED: chat $CHAT not up."; exit 1; }

@@ -1,6 +1,72 @@
-# Stage-1 Confirmatory Campaign — PRE-REGISTRATION
+# Stage-1 Confirmatory Campaign — PRE-REGISTRATION  ·  **WITHDRAWN**
 
-> **STATUS: `DRAFT — NOT REGISTERED. CAMPAIGN BLOCKED.`** The graded Faz B
+> # ⛔ WITHDRAWN — 2026-08-15
+>
+> **This pre-registration is withdrawn and must not be executed.** The
+> document is retained in full, unedited below this banner, because evidence
+> is never deleted: it is the record of what was planned, on what basis, and
+> why the plan did not survive contact with the data. Superseded by
+> **`STAGE1_PLAN.md` REVISION R2** (commit `d9a56e9`).
+>
+> It was never registered — it never left DRAFT, no operating point was ever
+> frozen, and **no `sh_64k` inference was ever run**. Withdrawal therefore
+> costs no confirmatory evidence and burns no shot at the confirmatory subset.
+>
+> ## Why it is withdrawn — three independent reasons, any one sufficient
+>
+> **1. The mechanism is refuted.** Stratifying sh_6k's 100 questions by
+> whether the queried key is conflicted (`hnav/labeling/question_strata.py`,
+> `stage0_results/question_strata.json`, verified twice independently across
+> all EIGHT committed runs): unique-key questions are **26/26 correct in every
+> run**; conflicted-key questions are **0–5 of 74**. Of 575 conflicted-question
+> errors, **572 emit the STALE value of the correct key** (3 off-list, 0
+> empty). So the failure is not a retrieval-ordering failure at all — the
+> right key is found, and the model then applies the stale value despite a
+> prompt that explicitly states the larger serial is newer. Chunk-level UPWARD
+> rerank — the sole mechanism this document tests — cannot reach that lever.
+>
+> **2. Retrieval is already complete on the calibration split.** sh_6k has 2
+> chunks and sh_32k has 9, both ≤ `top_k` 10: *every* chunk is retrieved for
+> *every* question. There is no "missing superseder" to promote, which is why
+> the 162-cell calibration returned no operating point with net > 0. The
+> objective was not underpowered by accident — it was measuring a mechanism
+> with no room to act.
+>
+> **3. The success criterion was not defensible against the measured noise.**
+> The +3.0-point bar was set from the sh_6k off-run SD of 1.52 measured on a
+> DIFFERENT substrate (`:8000`, prefix caching on). The per-question noise
+> floor has since been measured at **3.3%/question**, and this document's
+> A/A section was never filled in — the frozen-substrate floor was never
+> measured, because the box became unreachable first. Running a 7+7 campaign
+> against an unmeasured floor, on a mechanism now known to be inert, would
+> produce a null that proves nothing about H-Nav and consumes the one-shot
+> subset doing it.
+>
+> ## Additional invalidating defect (independent of the above)
+>
+> Every threshold this document would have frozen was fit on embeddings
+> truncated at 512 tokens against 4096-token chunks — the T12 defect
+> (`hnav/BUILD_NOTES.md` §10). Even had the mechanism been sound, the
+> operating point would have been derived from ~12% of each chunk. Re-fit is
+> specified in `hnav/deploy/REFIT_RUNBOOK.md` and is calibration-split only.
+>
+> ## What replaces it
+>
+> Per `STAGE1_PLAN.md` R2, in order: **oracle probe first**
+> (`hnav/stage1/stale_suppression_probe.py`, already written, not run) to
+> measure the ceiling of the expanded mechanism set (stale-record
+> **suppression** and **placement/recency**, both user-authorized); then
+> mechanism selection on what the probe actually proves; then implementation;
+> then a **NEW pre-registration**; then the campaign. The new document must
+> set harm caps and a power calculation **above the measured 3.3%/question
+> noise floor**, and must not inherit this one's +3.0-point bar or its
+> truncated thresholds.
+>
+> Nothing below this banner has been altered.
+
+---
+
+> **STATUS (as written, superseded): `DRAFT — NOT REGISTERED. CAMPAIGN BLOCKED.`** The graded Faz B
 > calibration COMPLETED on the box (2026-08-15, log:
 > `hnav/_out/pipeline/stage1_evaluate.log`) and its pre-registered objective
 > returned **"NO feasible operating point with net > 0 — REPORT AND STOP"**:
