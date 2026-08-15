@@ -229,9 +229,12 @@ class  TextRetriever:
         # order the k=top_k search returned. In off/shadow mode the value
         # returned below is byte-identical to the branch above (page starts as
         # the native truncation and a shadow decision never replaces it). Under
-        # HNAV_MODE=live only, apply_read_decision may REORDER the page — same
-        # chunk set, same top_k count, order only (STAGE1_PLAN.md Faz B) — and
-        # falls back to the native page on any irregularity.
+        # HNAV_MODE=live only, apply_read_decision may edit the page, always
+        # keeping the same chunk COUNT and chunk ORDER of blocks:
+        #   RERANK       reorders the chunks; contents untouched (T11).
+        #   SUPPRESS     splices named stale FACTS out of the chunk text (T13).
+        #   DEMOTE_LATE  moves named facts to the end of the page (T13).
+        # Any irregularity falls back to the native page (STAGE1_PLAN.md §0 R2).
         n_docs = len(self._current_documents) if self._current_documents else initial_k
         query_vector = self.embedding_model.embed_query(query)
         scored = self.vectorstore.similarity_search_with_score_by_vector(

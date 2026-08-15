@@ -1,4 +1,12 @@
-"""Stage-1 (read-path rerank) offline tooling.  [T11]
+"""Stage-1 read-path offline tooling.  [T11 rerank; T12 probe; T13 detector gap]
+
+``calibrate_read_policy``     the chunk-rerank grid (T11) — the search that
+                              returned the directional null.
+``stale_suppression_probe``   the ORACLE ceiling (T12): what a perfect detector
+                              would buy, per mechanism.
+``detector_gap``              the same design with DETECTOR-driven arms (T13),
+                              and the ratio between the two.
+
 
 Like ``hnav/stage0/``, everything here is OFFLINE and may read benchmark
 questions and answers; nothing under ``hnav/core/`` or ``hnav/adapters/`` may

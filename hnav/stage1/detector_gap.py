@@ -832,7 +832,7 @@ def format_run(results, comparisons) -> str:
                   f" {res['subset']}  ({res['n_facts']} facts, "
                   f"{res['strata_counts']})", "=" * 100,
                   f"{'arm':<24}{'overall':>18}{'unique':>18}{'conflicted':>18}"
-                  f"{'b/c':>10}{'tok Δ%':>9}"]
+                  f"{'b/c':>10}{'tok d%':>9}"]
         for arm in ARMS:
             cells = ""
             if arm != "native":
