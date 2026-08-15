@@ -789,3 +789,17 @@ def test_sh_64k_stays_refused_without_the_confirmatory_flag(monkeypatch, capsys)
         "--harness", "retrieval", "--page-source", "benchmark"])
     assert D.main() == 2
     assert "outside the calibration split" in capsys.readouterr().out
+
+
+def test_confirmatory_and_select_are_mutually_exclusive(monkeypatch, capsys):
+    """--select FITS the grid. On the confirmatory subset that would be tuning
+    on held-out data, and it would write an operating-point artifact that a
+    later reader could mistake for the frozen one. Found in supervisor
+    pre-flight; the firing command never used --select, but nothing may invoke
+    sh_64k again without this refusal in place."""
+    monkeypatch.setattr("sys.argv", [
+        "detector_gap.py", "--confirmatory", "--subsets", "sh_64k",
+        "--harness", "retrieval", "--page-source", "benchmark", "--select"])
+    assert D.main() == 2
+    out = capsys.readouterr().out
+    assert "mutually exclusive" in out and "held-out" in out.lower()

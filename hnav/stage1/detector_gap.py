@@ -1520,6 +1520,13 @@ def main() -> int:
     cfg.require_not_live()
 
     if args.confirmatory:
+        if args.select:
+            print(" REFUSED: --confirmatory and --select are mutually exclusive."
+                  "\n --select FITS the operating-point grid. Running it on the"
+                  " confirmatory subset\n would tune on HELD-OUT data and write"
+                  " an artifact that a later reader could\n mistake for the"
+                  " frozen operating point, which is frozen at commit 4f66c52.")
+            return 2
         wrong = [s for s in args.subsets if s != "sh_64k"]
         if wrong or not args.subsets:
             print(" REFUSED: --confirmatory covers sh_64k and nothing else; got "
