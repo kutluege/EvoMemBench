@@ -54,7 +54,8 @@ from hnav.labeling.conflict_analysis import parse as parse_fact  # noqa: E402
 from hnav.labeling.conflict_index import (Entry, ReadConflictIndex,  # noqa: E402
                                           WriteConflictIndex, to_probe)
 
-__all__ = ["FACT_RE", "MABAdapter", "explode_facts", "fact_key", "native_page_from_scored"]
+__all__ = ["FACT_RE", "MABAdapter", "explode_facts", "fact_key",
+           "native_page_from_scored", "select_pool"]
 
 # The benchmark's own fact numbering. Identical to the regex already used by
 # conflict_analysis.analyze and by T1 — deliberately not a second dialect.
@@ -117,6 +118,32 @@ def explode_facts(message: str) -> list[tuple[int, str]]:
         if cleaned != text:
             facts[-1] = (serial, cleaned)
     return facts
+
+
+def select_pool(facts: Sequence[MemoryRecord], query_vector, cap: int) -> list[MemoryRecord]:
+    """The read-gate candidate pool rule, in one importable place (T11).
+
+    Facts without vectors are excluded (the gate would refuse them); when more
+    than ``cap`` remain and a query vector exists, keep the ``cap`` most
+    query-similar facts; the selected facts keep their original (chunk-rank,
+    serial) order so the pool is deterministic. The Stage-1 calibration
+    harness imports THIS function, so the offline grid measures exactly the
+    pool the live adapter builds.
+    """
+    kept = [f for f in facts if f.vector is not None]
+    cap = max(2, int(cap))
+    if len(kept) <= cap:
+        return kept
+    if query_vector is not None:
+        q = np.asarray(query_vector, dtype=np.float64)
+        n = np.linalg.norm(q)
+        if n > 0:
+            q = q / n
+        sims = np.stack([np.asarray(f.vector, dtype=np.float64)
+                         for f in kept]) @ q
+        keep = sorted(np.argsort(-sims, kind="stable")[:cap].tolist())
+        return [kept[i] for i in keep]
+    return kept[:cap]
 
 
 def native_page_from_scored(scored: Sequence[tuple[Any, float]], top_k: int) -> list[str]:
@@ -480,31 +507,13 @@ class MABAdapter:
         return ka is not None and ka == b.metadata.get("key")
 
     def _read_candidates(self, view: RetrievalView) -> list[MemoryRecord]:
-        """The gate's candidate pool: facts inside the retrieved page, capped
-        at ``cfg.top_m`` (the frozen Stage-0 neighbourhood depth, 50) by
-        query-fact cosine when a query vector is available.
-
-        The cap is what keeps the gate tractable — a 64k page holds ~2,900
-        facts and the gate's leave-one-out residual is quadratic in pool size —
-        and query relevance is the only decision-time-legitimate ranking for
-        it. Selected facts keep their (chunk-rank, serial) order so the pool is
-        deterministic. Facts without vectors are excluded (the gate would
-        refuse them); an all-vectorless pool disarms the gate for that read.
-        """
-        facts = [f for f in self.facts_in(view.top_ids) if f.vector is not None]
-        cap = max(2, int(self.cfg.top_m))
-        if len(facts) <= cap:
-            return facts
-        if view.query_vector is not None:
-            q = np.asarray(view.query_vector, dtype=np.float64)
-            n = np.linalg.norm(q)
-            if n > 0:
-                q = q / n
-            sims = np.stack([np.asarray(f.vector, dtype=np.float64)
-                             for f in facts]) @ q
-            keep = sorted(np.argsort(-sims, kind="stable")[:cap].tolist())
-            return [facts[i] for i in keep]
-        return facts[:cap]
+        """The gate's candidate pool for one retrieval — see :func:`select_pool`
+        for the rule; ``cap`` is ``cfg.top_m`` (the frozen Stage-0
+        neighbourhood depth, 50). The cap is what keeps the gate tractable —
+        a 64k page holds ~2,900 facts and the gate's leave-one-out residual is
+        quadratic in pool size."""
+        return select_pool(self.facts_in(view.top_ids), view.query_vector,
+                           self.cfg.top_m)
 
     # ── agent.py send_message callbacks ──────────────────────────────────────
     def on_send_message_enter(self, message: str, memorizing: bool = False,
