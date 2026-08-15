@@ -95,7 +95,7 @@ ve `_SMOKE` dosyasında işaretlidir.
 
 | Ölçüm | Durum | Neden / maliyet |
 |---|---|---|
-| Gerçek sim_max dağılımları (semantik near-dup) | GPU bekliyor | Qwen3-Embedding-4B fp32; ~7.3k chunk + ~15.5k diff-span gömme. **Tahmin: ≈0.3-0.4 GPU-saat** (diff dahil; `--no-diff` ile ≈0.15-0.2). Cache'e ~230MB ekler; mevcut 24k MAB girdisiyle çakışma yok. Orkestratör planlasın — kendi başıma başlatmadım (GPU1 bu hafta sonu Thrust 1'in). |
+| Gerçek sim_max dağılımları (semantik near-dup) | GPU bekliyor | Qwen3-Embedding-4B fp32, `max_length=8192`; ~7,9k chunk + ~15,8k diff-span gömme. **Tahmin: ≈0,6-1,0 GPU-saat** (T12 sonrası revize — §9.1/2; diff dahil, `--no-diff` ile ≈0,3-0,5). Cache'e ~240MB ekler; T12 ad alanı değişikliği nedeniyle eski 24k MAB girdisi okunmaz (CrossEp metinleri zaten cache'te değildi). Orkestratör planlasın — kendi başıma başlatmadım (GPU1 bu hafta sonu Thrust 1'in). |
 | NLI çelişki taban oranları | GPU koşusuyla birlikte | Model box'ta hazır (`cross-encoder/nli-deberta-v3-large`, Faz A'nın indirdiği ağırlıklar — yeniden kullanılıyor). Çift seçimi sim_max'a bağlı olduğundan smoke'ta koşmak yanıltıcı olurdu; gerçek-embedder koşusunda `--nli cpu` (~10-15 dk CPU) veya GPU'da ~1 dk, ön-tanımlı `--nli-splits calibration`. |
 | mem0 yazı akışı | Artefakt yok | mem0 akışı LLM-ekstraksiyonlu; hiç mem0 CrossEp koşusu yapılmamış (box'ta `memories/` boş). `iter_mem0_history` hazır: herhangi bir koşunun `history.db`'sinden ADD olaylarını sırayla okur (sentetik sqlite ile test edildi). Bir mem0 koşusu = DeepSeek API maliyeti + saatler → [GATE] öncesi orkestratör kararı. |
 | A-mem yazı akışı | Capture gerek | CL-bench A-mem sarmalayıcısı store'u persist etmiyor (in-memory Chroma); akış ancak koşu anında capture edilebilir → `generic_jsonl` okuyucusu bu amaçla var. |
@@ -117,6 +117,18 @@ olarak MAB'dan farklı.** MAB Stage-0'da `duplicate_rate` her yerde **0.000**
 | Jaccard ≥ 0.50 | 0.431 | 0.389 |
 | Jaccard p50 (küme p50'lerinin ort.) | 0.425 | 0.351 |
 
+> **T12 embedding düzeltmesinden etkilenmezlik (denetim notu).** Thrust 1
+> `5240774` ile 512-token kesme kusurunu düzeltti ve embedding cache ad
+> alanını değiştirdi. Yukarıdaki tablodaki **tüm manşet sayıları
+> embedder'dan BAĞIMSIZDIR**: MD5 exact-dup ham metnin hash'idir, leksik
+> Jaccard kelime kümesi üzerindedir — ikisi de HashEmbedder/Qwen ayrımına ve
+> `max_length`'e duyarsızdır. Dolayısıyla commit edilmiş SMOKE ölçümü
+> (`stage0_results/crossep/…_SMOKE.json`) ve §5'in dedup bulgusu **geçerli
+> kalır, yeniden koşulması gerekmez.** Etkilenen tek şey o dosyadaki
+> kosinüs-tabanlı alanlardır — zaten `SMOKE_HASH_EMBEDDER: true` ile
+> anlamsız işaretli ve hiçbir iddiaya girmiyorlar. Gerçek kosinüs eksenleri
+> §9.1 koşusuyla, T12 sonrası ad alanında ölçülecek.
+
 Mekanizma açık: her örneklemin trajektorisi bağlamın **aynı System Context
 bloğunu** yeniden içeriyor; chunker bunu her yazıda yeniden kesip bankaya
 koyuyor. Küme başına 5-12 örneklem × ~1-3 sistem-bloğu chunk'ı ⇒ yazıların
@@ -135,7 +147,7 @@ beklenti daha DÜŞÜK ham dup, ama ölçülmeden söylenemez).
 bir şey yok: dup 0.000, retrieval zaten LATEST'i buluyor") bu substratta
 exact-dup ekseninde GEÇERLİ DEĞİL. Yazı-kaskadı sorusu CrossEp'te artık
 "ölçülebilir alan var mı" değil, "alan ne kadar ve maliyete/doğruluğa çevrilir
-mi" sorusudur — bunun için sıradaki adım §4'teki ≈0.3-0.4 GPU-saatlik gerçek
+mi" sorusudur — bunun için sıradaki adım §4'teki ≈0,6-1,0 GPU-saatlik gerçek
 koşu + NLI taban oranlarıdır. Karar insanındır.
 
 ## 6. Çarpışma listesi durumu (HNAV_VISION_GAP §2'den, bu işe düşenler)
@@ -192,14 +204,14 @@ koşu + NLI taban oranlarıdır. Karar insanındır.
 > (`0471d2a`) box'a `git pull` ile alınmalı — M5 sayılarını değiştirmez
 > (replay zaten bağlam-başına kapsamlıydı) ama aynı ağaçta koşulsun.
 
-### 9.1 Gerçek-embedder M5 (GPU1, ≈0.3-0.4 GPU-saat, ~15-25 dk duvar)
+### 9.1 Gerçek-embedder M5 (GPU1, ≈0,6-1,0 GPU-saat, ~35-60 dk duvar)
 
 Ön kontrol (sırayla; herhangi biri düşerse DUR):
 
 ```bash
 ssh egekutlu@ozonderlab2.bogazici.edu.tr
 cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench
-git pull --ff-only && git log --oneline -1        # >= 0471d2a beklenir
+git pull --ff-only && git log --oneline -1        # >= 5240774 beklenir (T12 truncation fix)
 source hnav/deploy/_activate.sh
 python -m pytest hnav/tests/ -q                    # tümü yeşil
 nvidia-smi --query-gpu=index,memory.used --format=csv,noheader
@@ -209,22 +221,57 @@ grep -E "^HNAV_" .env                              # DEPO KÖKÜ .env — M5'in 
 #     HNAV_EMBED_MODEL=Qwen/Qwen3-Embedding-4B
 #     HNAV_EMBED_DEVICE=1
 #     HNAV_EMBED_DTYPE=float32                   # fp32 pinli — dtype kayması tüm kosinüsleri oynatır
+#     HNAV_EMBED_MAX_LENGTH=8192                 # T12 PİNİ — aşağıya bak; .env.template'te YOK,
+#                                                #   satır yoksa config varsayılanı 8192 uygulanır
 #     HNAV_CACHE_DIR=hnav/_cache
 #     HNAV_MODE: off VEYA shadow fark etmez (aşağıdaki nota bak); live ise M5 durur.
-ls hnav/_cache/emb | wc -l                         # ~24k mevcut girdi görünmeli
+ls hnav/_cache/emb | wc -l                         # eski ad alanından ~24k girdi (BU KOŞU OKUMAYACAK)
 ```
 
-**Cache anahtarı (Supervisor Not-2 düzeltmesi).** `embedding.cache_key` ad
-alanına `.replace("/", "_")` uygular, yani gerçek anahtar:
+**Cache anahtarı — T12'den sonra DEĞİŞTİ (önceki metin artık geçersiz).**
+Thrust 1 (`5240774`) `HFEmbedder`'ın her metni 512 token'da kesen kusurunu
+düzeltti (`DEFAULT_MAX_LENGTH = 8192`) ve **ad alanına uzunluğu ekledi** —
+aksi halde 24k kesilmiş vektör geri okunur ve düzeltme "etkisiz" ölçülürdü.
+`cache_key` ayrıca `.replace("/", "_")` uygular. Gerçek anahtar artık:
 
 ```
-sha256("Qwen_Qwen3-Embedding-4B|float32" + "||" + <text>)     # Qwen_… , Qwen/… DEĞİL
+sha256("Qwen_Qwen3-Embedding-4B|float32|L8192" + "||" + <text>)
+#       ^ Qwen_… (Qwen/… DEĞİL)          ^ L<max_length> — T12'de eklendi
 ```
 
-dosya adı `<hexdigest>.npy`, dizin `hnav/_cache/emb/`. Elle anahtar hesaplayan
-biri eğik çizgiyi bırakırsa TÜM cache'i ıskalar ve sessizce yeniden gömer.
-T1'in 24k MAB girdisi aynen geçerli kalır (çakışan metin yok); CrossEp ~20k
-yeni girdi (~230MB) ekler. **Cache SİLİNMEZ, makineler arası KOPYALANMAZ.**
+dosya adı `<hexdigest>.npy`, dizin `hnav/_cache/emb/`.
+
+**Sonuçları dürüstçe:**
+
+1. **"24k MAB girdisi yeniden kullanılır" iddiam ARTIK YANLIŞ.** O girdiler
+   eski `…|float32` ad alanında duruyor; bu koşu `…|float32|L8192` altında
+   çalışacağı için onları OKUMAZ. Pratik etkisi yine de küçük: CrossEp
+   metinleri zaten cache'te hiç yoktu (farklı korpus), yani bu koşu her
+   hâlükârda temiz miss alacaktı. Eski girdiler **silinmez** (Thrust 1'in
+   yeniden-fit işine ve denetime ait); disk maliyeti geçici olarak ikiye
+   katlanır.
+2. **GPU süresi tahmini YUKARI revize edildi: ≈0,6-1,0 GPU-saat** (önceki
+   0,3-0,4 örtük olarak 512-token kesmeyi varsayıyordu). Neden: ~7,9k chunk
+   metni artık ~1.100-1.400 model token'ıyla işleniyor (1024 tiktoken chunk),
+   512 yerine — uzun-metin token hacmi ~2,5x. Diff'in kısa span metinleri
+   (~15,8k) etkilenmez, ve diff'in `old`/`new` tam metinleri koşu içinde
+   cache'e düşer (aynı stringler), yani ekstra maliyet getirmez.
+   `--no-diff` ile ≈0,3-0,5 GPU-saat. İlk 20-bağlam ilerleme satırından
+   gerçek hız ölçülüp tahmin doğrulanmalı.
+3. Vektör boyutu (2560 float32 ≈ 10KB/girdi) değişmedi → CrossEp yine
+   **~240MB** ekler.
+
+**Cache SİLİNMEZ, makineler arası KOPYALANMAZ** (kural aynen geçerli; T12
+sonrası ad alanı eşleşmesi artık `model|dtype|L<max_length>` üçlüsüdür).
+
+**`max_length` kararı (CrossEp için açık pin).** CrossEp chunker'ı 1024
+*tiktoken* token üretir (`cl_bench_memory/chunking.py`, M5'te transkript);
+Qwen tokenizer'ında bu ~1.100-1.400 token, yani **8192 fazlasıyla yeterli —
+hiçbir CrossEp metni kesilmez.** Pin olarak repo varsayılanı `8192` seçildi
+(Thrust 1'in MAB tarafıyla aynı ad alanında kalmak için: farklı bir değer
+ad alanını böler ve iki arena bir daha aynı cache'i paylaşamaz).
+**M5 başka bir `HNAV_EMBED_MAX_LENGTH` ile koşulmamalıdır**; koşulursa çıktı
+JSON'una not düşülmeli, çünkü sayılar önceki koşuyla karşılaştırılamaz.
 
 **`.env` önceliği — §9.2'deki tuzağın buradaki karşılığı (yön TERS).**
 `hnav/config.load_env` **depo kökündeki** `.env`'i okur ve `setdefault`
@@ -257,7 +304,15 @@ Beklenen çıktı + kayıt:
 python - <<'EOF'
 import json; d=json.load(open("hnav/_out/m5_crossep_write_headroom_qwen3_embedding.json"))
 assert d["smoke"] is False and d["fallback_chunker"] is False
-print(d["embed_accounting"], d["n_write_events"])   # ~7.879 olay; ilk koşuda ~20k cache miss
+print(d["embed_accounting"], d["n_write_events"])
+#   ~7.879 yazı olayı beklenir.
+#   embed_accounting (T12 ad alanı değişikliğinden SONRA, ilk koşu):
+#     cache_misses ~23-24k  (≈7,9k chunk metni + ≈15,8k diff span'i) — MAB'ın eski
+#       24k girdisi farklı ad alanında olduğu için HİÇBİRİ hit vermez;
+#     cache_hits    koşu-içi tekrarlar (diff'in old/new tam metinleri + bağlam-içi
+#       exact-dup'lar) — birkaç bin mertebesi. hits≈0 ise cache dizini yazılamıyor
+#       demektir: DUR ve HNAV_CACHE_DIR izinlerini kontrol et.
+#   İKİNCİ bir koşu (aynı pinlerle) neredeyse tamamen hit olmalıdır.
 EOF
 cp hnav/_out/m5_crossep_write_headroom_qwen3_embedding.json stage0_results/crossep/
 git add stage0_results/crossep/ && git commit -m "T10: M5 real-embedder measurement" && git push
