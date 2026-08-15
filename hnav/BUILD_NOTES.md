@@ -565,7 +565,14 @@ the same `GateDecision`:
 | action | ids | effect | tokens |
 | --- | --- | --- | --- |
 | `SUPPRESS` | `suppress_ids` = every stale member of every verified group | dropped from the page | **down** |
-| `DEMOTE_LATE` | `demote_ids` = each verified group's LATEST carrier | moved to the end of the page | **exactly neutral** |
+| `DEMOTE_LATE` | `demote_ids` = each verified group's LATEST carrier | moved to the end of the page | **neutral** * |
+
+\* A move always preserves the fact multiset exactly, and the character count
+too — except when the moved fact was ALONE in its chunk, where it takes no
+separator with it but acquires one on arrival (`+len(sep)`, source chunk left
+empty in place so the page count never changes). A chunk here carries 230-260
+facts, so that corner cannot arise; `page_edit` reports `delta_chars` either way
+and the sh_6k run measured exactly 0.00%.
 
 **The decision that mattered:** the benchmark hook returns a page of *chunk*
 texts, so a fact-level edit has to be expressed as a rewrite of chunk text. The

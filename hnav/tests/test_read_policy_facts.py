@@ -32,7 +32,8 @@ from hnav import config as _config
 from hnav.adapters import mab_adapter as mab
 from hnav.adapters.mab_adapter import (MABAdapter, explode_facts, fact_spans,
                                        page_edit)
-from hnav.core.read_gate import ConflictGroup, GateDecision, ReadGate, StubNLI
+from hnav.core.read_gate import (ConflictGroup, GateDecision, GateThresholds,
+                                 ReadGate, StubNLI)
 from hnav.core.read_policy import (FACT_MECHANISMS, ReadFactPolicy, demote_ids,
                                    suppress_ids)
 from hnav.core.types import Decision, MemoryRecord
@@ -418,3 +419,129 @@ def test_build_components_selects_the_configured_mechanism(monkeypatch):
     bad = _config.HNavConfig(mode=_config.MODE_SHADOW, read_mechanism="inject")
     assert mab._build_components(bad).get("read_policy") is None, \
         "an unknown mechanism must degrade to no policy, never to a guess"
+
+
+# ── the full live seam: memorize -> on_retrieve -> gate -> policy -> page ────
+# Same fixture shape as test_live_read_path.py, which pins the rerank seam:
+# chunk A carries the STALE fact (serial 1) plus an unrelated distractor, chunk B
+# carries the superseder (serial 3). HashEmbedder vectors are near-orthogonal, so
+# the geometric screens are disabled and verification rides on the NLI stage plus
+# the adapter's key-equality filter — each closed-form tested elsewhere.
+SEAM_A = ("1. Thomas Kyd was born in the city of London. "
+          "2. The chairperson of Fatah is Mahmoud Abbas.")
+SEAM_B = "3. Thomas Kyd was born in the city of Madrid."
+NLI_ONLY = GateThresholds(cos_pair=None, r_min=None, ambiguity_mode="none")
+
+
+def _seam_adapter(cfg, embedder, mechanism):
+    policy = ReadFactPolicy(
+        ReadGate(StubNLI(), NLI_ONLY, pair_filter=MABAdapter.same_key_pair),
+        mechanism=mechanism)
+    a = MABAdapter(cfg=cfg, embedder=embedder, read_policy=policy)
+    a.before_memorize(SEAM_A, context_id=0, chunk_index=0)
+    a.before_memorize(SEAM_B, context_id=0, chunk_index=1)
+    return a
+
+
+def _seam_retrieve(adapter, page):
+    return adapter.on_retrieve(query="Where was Thomas Kyd born?",
+                               ranked_texts=list(page), scores=[95.0, 90.0],
+                               top_k=2, score_kind="similarity")
+
+
+def test_live_seam_suppress_removes_the_stale_sentence(embedder):
+    page = [SEAM_A, SEAM_B]
+    a = _seam_adapter(LIVE, embedder, "suppress")
+    dec = _seam_retrieve(a, page)
+    assert dec.action == "SUPPRESS" and dec.shadow is False
+    assert dec.payload == {"drop_ids": ["fact:1"]}
+    g = dec.reasons["groups"][0]
+    assert g["latest_id"] == "fact:3" and g["stale_ids"] == ["fact:1"]
+
+    out = a.apply_read_decision(dec, _scored(page), top_k=2)
+    assert out == ["2. The chairperson of Fatah is Mahmoud Abbas.", SEAM_B]
+    assert a.n_facts_suppressed == 1 and a.n_rerank_fallbacks == 0
+    assert a.chars_removed == len("1. Thomas Kyd was born in the city of London. ")
+
+
+def test_live_seam_demote_moves_the_superseder_to_the_page_end(embedder):
+    """Retrieved as [B, A] — the superseder's chunk ranks first, which is
+    exactly the case chunk rerank cannot improve and the probe showed to be the
+    wrong direction anyway. The fact-level move puts serial 3 at the very end."""
+    page = [SEAM_B, SEAM_A]
+    a = _seam_adapter(LIVE, embedder, "demote_late")
+    dec = _seam_retrieve(a, page)
+    assert dec.action == "DEMOTE_LATE" and dec.payload == {"move_last_ids": ["fact:3"]}
+
+    out = a.apply_read_decision(dec, _scored(page), top_k=2)
+    assert out == ["", SEAM_A + " " + SEAM_B]
+    assert len(out) == 2, "the page keeps its length even when a chunk empties"
+    assert a.n_facts_demoted == 1
+    # The degenerate corner of token neutrality, stated rather than hidden:
+    # fact 3 was the ONLY fact in its chunk, so leaving it removed no separator,
+    # while arriving added one. Net +1 character. The fact multiset is still
+    # exactly preserved — which is the invariant that matters — and the measured
+    # delta is REPORTED, never assumed (page_edit's docstring says the same).
+    assert a.chars_removed == -1
+    # In the arena a chunk carries 230-260 facts, so neither an emptied chunk nor
+    # this +1 can occur; the sh_6k run measured DEMOTE_LATE at exactly 0.00%.
+    # The page shape is preserved regardless, because the off/shadow neutrality
+    # argument rests on the page count never changing.
+
+
+def test_live_seam_distractor_key_is_never_suppressed(embedder):
+    """The Fatah fact shares chunk A but not the key. With the identity screen
+    on it must not join the group, and therefore must survive."""
+    page = [SEAM_A, SEAM_B]
+    a = _seam_adapter(LIVE, embedder, "suppress")
+    dec = _seam_retrieve(a, page)
+    members = {m for g in dec.reasons["groups"] for m in g["member_ids"]}
+    assert members == {"fact:1", "fact:3"}
+    assert "fact:2" not in dec.payload["drop_ids"]
+
+
+def test_shadow_seam_decides_but_never_edits(embedder):
+    page = [SEAM_A, SEAM_B]
+    for mech in FACT_MECHANISMS:
+        a = _seam_adapter(SHADOW, embedder, mech)
+        dec = _seam_retrieve(a, page)
+        assert dec.action in ("SUPPRESS", "DEMOTE_LATE")
+        assert dec.shadow is True, "only live may arm a decision"
+        assert a.apply_read_decision(dec, _scored(page), top_k=2) == page
+        assert a.n_fact_edits_applied == 0
+
+
+def test_off_seam_makes_no_decision_at_all(embedder):
+    page = [SEAM_A, SEAM_B]
+    for mech in FACT_MECHANISMS:
+        a = _seam_adapter(OFF, embedder, mech)
+        dec = _seam_retrieve(a, page)
+        assert dec.action == "PASS" and dec.shadow is True
+        assert a.apply_read_decision(dec, _scored(page), top_k=2) == page
+
+
+def test_demote_token_neutrality_holds_except_for_separator_bookkeeping():
+    """State the exact claim, and pin both halves of it.
+
+    A move is a permutation of the fact multiset in every case. Character count
+    is additionally unchanged whenever the fact leaves a chunk that still has
+    another fact, because it takes one separator with it and acquires one on
+    arrival. The one exception is a fact that was ALONE in its chunk: nothing
+    was there to separate it, so the arrival separator is a net addition."""
+    # within one chunk: exactly neutral
+    _, rep = page_edit([JOINED], move_last_ids=["fact:0"])
+    assert rep["delta_chars"] == 0
+    # across chunks, source keeps a fact: exactly neutral
+    _, rep = page_edit([CH_A, CH_B], move_last_ids=["fact:0"])
+    assert rep["delta_chars"] == 0
+    # across chunks, source empties: +len(separator), reported not hidden
+    out, rep = page_edit(["0. Alpha is one.", CH_B], move_last_ids=["fact:0"])
+    assert out == ["", "2. Gamma is three. 3. Delta is four. 0. Alpha is one."]
+    assert rep["delta_chars"] == len(rep["separator"]) == 1
+    # the invariant that never bends, in all three cases
+    for page, ids in (([JOINED], ["fact:0"]), ([CH_A, CH_B], ["fact:0"]),
+                      (["0. Alpha is one.", CH_B], ["fact:0"])):
+        edited, _ = page_edit(page, move_last_ids=ids)
+        before = sorted(f for t in page for f in explode_facts(t))
+        after = sorted(f for t in edited for f in explode_facts(t))
+        assert after == before, "a move must preserve the fact multiset exactly"

@@ -233,6 +233,15 @@ def page_edit(page_texts: Sequence[str], drop_ids: Sequence[str] = (),
     not on the page and ``ValueError`` when the two id sets overlap — the caller
     (``MABAdapter.apply_read_decision``) turns either into a fall-back to the
     native page rather than a guess.
+
+    Token accounting, stated exactly. A move always preserves the fact multiset;
+    ``report["delta_chars"]`` is additionally **0** whenever the moved fact
+    leaves a chunk that still holds another fact, because it takes one separator
+    with it and acquires one on arrival. The single exception is a fact that was
+    ALONE in its chunk: there was no separator to take, so the arrival separator
+    is a net ``+len(sep)`` and the source chunk becomes empty (kept in place —
+    the page count must never change). In this arena a chunk carries 230-260
+    facts, so that corner cannot arise; it is reported rather than assumed away.
     """
     texts = list(page_texts)
     spans = [fact_spans(t) for t in texts]

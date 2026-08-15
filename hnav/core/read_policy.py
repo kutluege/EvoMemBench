@@ -24,7 +24,9 @@ decision and all born ``shadow=True``:
 
 ``DEMOTE_LATE`` (T13, :func:`demote_ids`, ``ReadFactPolicy("demote_late")``)
     Name each verified group's LATEST carrier so the caller can move it to the
-    END of the assembled page, deleting nothing. Token-neutral.
+    END of the assembled page, deleting nothing. The fact multiset is preserved
+    exactly; character count too, except for the separator bookkeeping described
+    in ``mab_adapter.page_edit`` (which the adapter reports rather than assumes).
 
 Why FACT granularity, and why that is a contract and not a detail
 -----------------------------------------------------------------
