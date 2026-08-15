@@ -461,7 +461,7 @@ Saatlerce GPU harcamadan önce, **tam olarak düşen vaka** tek başına sınand
 | `gqa_expansion_applied` | — | `True` |
 | Koşu sırasında GPU1 | OOM @ ~22,7 GiB | **18,7 GiB sabit** |
 | `max_length` / `dtype` | 8192 / float32 | **değişmedi** |
-| Cache ad alanı | `…|float32|L8192` | **değişmedi** |
+| Cache ad alanı | `…\|float32\|L8192` | **değişmedi** |
 
 Yani düzeltme hiçbir **pinlenmiş bilimsel parametreye** dokunmadı: ne
 `max_length`, ne dtype, ne model, ne cihaz, ne de cache ad alanı değişti —
