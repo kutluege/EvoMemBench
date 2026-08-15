@@ -177,10 +177,121 @@ koşu + NLI taban oranlarıdır. Karar insanındır.
 
 ## 8. Sıradaki adımlar (orkestratör onayı gerektirenler işaretli)
 
-1. **[GPU-onay]** Gerçek-embedder M5: `python hnav/stage0/crossep_m5_write_headroom.py`
-   (+ `--nli cpu`, kalibrasyon kümeleri) — ≈0.3-0.4 GPU-saat, GPU1 boşken.
-2. **[Bütçe-onay]** Bir kez mem0 CrossEp koşusu (DeepSeek API) →
-   `iter_mem0_history` ile M5-mem0; A-mem için koşu-anı capture →
-   `generic_jsonl`.
+1. **[GPU-onay → VERİLDİ, box bekleniyor]** Gerçek-embedder M5 — §9.1 runbook.
+2. **[Bütçe-onay → VERİLDİ, box bekleniyor]** mem0 CrossEp koşusu (DeepSeek
+   API) + ardından M5-mem0 — §9.2 runbook. A-mem için koşu-anı capture →
+   `generic_jsonl` (ayrıca yetkilendirilmedi).
 3. [GATE] değerlendirmesi: 1-2'nin çıktılarıyla bu rapor güncellenir; yazı-
    kaskadı kararı (VISION_GAP §4 adım 5) İNSANA sunulur.
+
+## 9. RUNBOOK — box geri gelince koşulacak iki tarif
+
+> **HİÇBİR ŞEY orkestratör "box geri" onayı vermeden başlatılmaz.** Box şu an
+> erişilemez (ağ kesintisi); watcher kurulu. İki koşu da supervisor/kullanıcı
+> onaylı; aşağıdaki tarifler kopyala-yapıştır hazırlığıdır. Not-1 düzeltmesi
+> (`0471d2a`) box'a `git pull` ile alınmalı — M5 sayılarını değiştirmez
+> (replay zaten bağlam-başına kapsamlıydı) ama aynı ağaçta koşulsun.
+
+### 9.1 Gerçek-embedder M5 (GPU1, ≈0.3-0.4 GPU-saat, ~15-25 dk duvar)
+
+Ön kontrol (sırayla; herhangi biri düşerse DUR):
+
+```bash
+ssh egekutlu@ozonderlab2.bogazici.edu.tr
+cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench
+git pull --ff-only && git log --oneline -1        # >= 0471d2a beklenir
+source hnav/deploy/_activate.sh
+python -m pytest hnav/tests/ -q                    # tümü yeşil
+nvidia-smi --query-gpu=index,memory.used --format=csv,noheader
+#   GPU1 boş olmalı (Thrust 1 sh_64k kampanyasıyla ÇAKIŞMA yasak — orkestratör onayı şart)
+grep -E "HNAV_(MODE|EMBED_MODEL|EMBED_DEVICE|EMBED_DTYPE|CACHE_DIR)" .env
+#   beklenen pinler (Supervisor Not-2):
+#     HNAV_MODE=off                              (M5 offline sürücüdür; live zaten reddedilir)
+#     HNAV_EMBED_MODEL=Qwen/Qwen3-Embedding-4B
+#     HNAV_EMBED_DEVICE=1
+#     HNAV_EMBED_DTYPE=float32                   # fp32 pinli — dtype kayması tüm kosinüsleri oynatır
+#     HNAV_CACHE_DIR=hnav/_cache                 # cache OTOMATİK yeniden kullanılır:
+#   anahtar = sha256("Qwen/Qwen3-Embedding-4B|float32||<text>") — T1'in 24k MAB girdisi
+#   aynen kalır (çakışan metin yok), CrossEp ~20k yeni girdi (~230MB) ekler. Cache SİLİNMEZ.
+ls hnav/_cache/emb | wc -l                         # ~24k mevcut girdi görünmeli
+```
+
+Koşu (tmux altında):
+
+```bash
+tmux new -s m5real
+python hnav/stage0/crossep_m5_write_headroom.py --nli cpu --nli-max-pairs 400
+#   --nli cpu: DeBERTa-v3-large CPU'da ~10-15 dk (GPU1'i embedder'dan sonra da meşgul
+#   etmemek için varsayılan tercih). GPU1 uygunsa alternatif: --nli cuda:1 (~1 dk).
+#   NLI çiftleri ön-tanımlı olarak YALNIZ kalibrasyon kümelerinden (--nli-splits).
+#   Ağırlıklar box'ta hazır: cross-encoder/nli-deberta-v3-large (Faz A indirdi).
+```
+
+Beklenen çıktı + kayıt:
+
+```bash
+# hnav/_out/m5_crossep_write_headroom_qwen3_embedding.json  (_SMOKE'suz)
+python - <<'EOF'
+import json; d=json.load(open("hnav/_out/m5_crossep_write_headroom_qwen3_embedding.json"))
+assert d["smoke"] is False and d["fallback_chunker"] is False
+print(d["embed_accounting"], d["n_write_events"])   # ~7.879 olay; ilk koşuda ~20k cache miss
+EOF
+cp hnav/_out/m5_crossep_write_headroom_qwen3_embedding.json stage0_results/crossep/
+git add stage0_results/crossep/ && git commit -m "T10: M5 real-embedder measurement" && git push
+```
+
+### 9.2 mem0 CrossEp koşusu (DeepSeek API — kullanıcı onaylı) + M5-mem0
+
+Anahtarların okunuşu (koddan doğrulandı): `infer_context_memory.py`
+`load_dotenv(override=True)` ile **çalışma dizinindeki** `.env`'i yükler;
+model adı "deepseek" ile başladığında `DEEPSEEK_API_KEY` + `DEEPSEEK_BASE_URL`
+kullanılır (`get_api_credentials`); mem0 backend'i `--embed-provider dashscope`
+zorunlu kılar → `DASHSCOPE_API_KEY` + `DASHSCOPE_BASE_URL`. `BATCH_MODEL` env
+değişkeni set ise Volcengine Ark batch istemcisine geçer — nomemory koşusunda
+kullanılmadıysa UNSET bırakılır.
+
+Ön kontrol:
+
+```bash
+cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench/Cross-Episode-Knowledge/CROSSEP-KNOW
+grep -c "DEEPSEEK_API_KEY\|DEEPSEEK_BASE_URL\|DASHSCOPE_API_KEY\|DASHSCOPE_BASE_URL" .env
+#   4 beklenir (nomemory koşusu bu anahtarlarla yapılmıştı; süresi dolmuşsa kullanıcıdan iste)
+python -c "import mem0, chromadb" 2>&1               # mem0 kurulu olmalı (registry importu)
+echo "HNAV_MODE=$HNAV_MODE"                          # BOŞ/off olmalı: akış NATIVE üretilmeli;
+#   ölçüm sonradan history.db'den yapılır. (Shadow bayt-nötr kanıtlı ama disiplin: off.)
+```
+
+Koşu (tmux; süre kabaca nomemory koşusunun 2-3 katı — ekstraksiyon örneklem
+başına ~1-2 ek LLM çağrısı ekler; 884 örneklem, 8 worker):
+
+```bash
+tmux new -s mem0run
+python infer_context_memory.py --model deepseek-v3-2-251201 \
+  --memory-type mem0 --input CL-bench_context_ge5.jsonl \
+  --embed-provider dashscope --embed-model text-embedding-v4 \
+  --workers 8 --top-k 10
+```
+
+Beklenen artefaktlar:
+
+```
+outputs/context_mem0/CL-bench_context_ge5_deepseek-v3-2-251201_ctx_memory_topk10_<ts>.jsonl
+memories/context_memory/CL-bench_context_ge5_deepseek-v3-2-251201_mem0_topk10_<ts>/<context_id>/history.db   # M5'in okuduğu
+memories/.../<context_id>/qdrant/                                                                            # vektör deposu
+```
+
+Ardından M5-mem0 (önce yapı kontrolü smoke, sonra gerçek — mem0 notları kısa,
+gömme maliyeti dakikalar mertebesinde):
+
+```bash
+cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench
+RUN=Cross-Episode-Knowledge/CROSSEP-KNOW/memories/context_memory/<run_dir>
+python hnav/stage0/crossep_m5_write_headroom.py --backend mem0_history --source "$RUN" --smoke-embedder
+python hnav/stage0/crossep_m5_write_headroom.py --backend mem0_history --source "$RUN" --nli cpu
+cp hnav/_out/m5_crossep_write_headroom_mem0_history.json stage0_results/crossep/
+git add stage0_results/crossep/ && git commit -m "T10: M5 mem0_history measurement" && git push
+```
+
+Yorum notu (şimdiden): mem0 kendi LLM-süzgecini ve dedup'ını koşar — ham
+exact-dup oranının qwen3_embedding'dekinden DÜŞÜK çıkması beklenir; sonuç ne
+çıkarsa [GATE] raporuna o girer.
