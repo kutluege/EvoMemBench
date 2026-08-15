@@ -65,6 +65,44 @@ herhangi bir okuma-yolu müdahalesinin işe yarayıp yaramayacağını belirler.
 
 ---
 
+## A2. TAVAN ÖLÇÜLDÜ — bayat kaydı bastırmak çakışan soru doğruluğunu 5–10× artırıyor
+
+**İddia.** A'daki hata kipi **düzeltilebilirdir**: bağlamdan bayat kayıt
+çıkarıldığında model doğru cevabı veriyor. Yani başarısızlık "modelin dünya
+bilgisini bağlama tercih etmesi" (parametrik öncelik) DEĞİL, **bağlamdaki bayat
+kaydın varlığına/konumuna tutunmadır**.
+
+Oracle probe, gerçek model + benchmark'ın kendi istemi + dondurulmuş `:8003`
+substratı, yalnız kalibrasyon split'i (938 çağrı):
+
+| kol | sh_6k genel | sh_6k çakışan | sh_32k genel | sh_32k çakışan | McNemar |
+|---|---|---|---|---|---|
+| native | 0.290 | 4/74 (%5.4) | 0.420 | 7/65 (%10.8) | — |
+| A/A tabanı (native_repeat) | 0.290 | 4/74 | 0.420 | 7/65 | **0/0 uyuşmazlık, iki subset'te de** |
+| **oracle_suppress** (bayatı sil) | **0.910** | **66/74 (%89.2)** | **0.880** | **53/65 (%81.5)** | +62 (p=4e-19) · +46 (p=3e-14) |
+| **oracle_recency** (LATEST'i sona al) | 0.460 | 20/74 (%27.0) | 0.680 | 33/65 (%50.8) | +17 (p=8e-05) · +26 (p=9e-07) |
+| anti (LATEST'i başa al) | 0.260 | 1/74 (%1.4) | 0.380 | 4/65 (%6.2) | −3 · −4, anlamsız |
+
+- **Kanıt:** `stage0_results/stage1/stale_suppression_probe_{sh6k,sh32k}.json`,
+  `hnav/stage1/stale_suppression_probe.py` (34 test).
+- **Koruyucu koşul sağlanıyor:** çakışmayan katman iki yardım kolunda da
+  **bozulmuyor** (25/26 ve 35/35 korunuyor) → bu katmanda zarar sıfır.
+- **`oracle_recency` token-nötrdür** — hiçbir bilgi silinmez, yalnız konum
+  değişir; yine de çakışan doğruluğu 5× (sh_6k) ve 4.7× (sh_32k) artırır.
+- **Mekanizma:** çapa **geç konumdur**. LATEST'i sona almak yardım ediyor, başa
+  almak (anti) zarar veriyor. Bu, T11'de chunk düzeyi **yukarı** rerank'in neden
+  sistematik zararlı olduğunu da açıklar (bkz. `STAGE1_NULL_ANALIZI.md`):
+  superseder'ı yardım eden konumdan **uzaklaştırıyordu**, üstelik ~250 olgu
+  taşıyan bir chunk granülerliğinde.
+- **Sınırlılık (kritik):** bu kollar **oracle**'dır — sorunun anahtarını gold ile
+  belirler. Sevk edilebilir politika yalnız dedektör çıktısını kullanabilir;
+  **oracle→dedektör boşluğu** ayrıca ölçülmelidir (T13, koşuyor). Tavan budur,
+  elde edilen değil.
+- **Durum: KESİN (tavan olarak).** Kalibrasyon split'inde iki kez replike;
+  sh_64k/sh_262k'ya dokunulmadı.
+
+---
+
 ## B. Metodolojik katkı — NLI tek başına bellek çakışmasını doğrulayamaz
 
 **İddia.** Çift yönlü NLI çelişki skoru, bellek çakışması doğrulaması için
@@ -186,7 +224,13 @@ yeniden chunk'lıyor.
 
 ## G. Bugün iddia EDİLEMEYENLER
 
-- ❌ **"H-Nav doğruluğu artırır."** Depoda hiçbir pozitif müdahale sonucu yok.
+- ❌ **"H-Nav doğruluğu artırır."** — *nitelikli:* müdahale **tavanı** artık
+  ölçülmüştür (A2: bastırma ile çakışan doğruluk %5.4→%89.2 / %10.8→%81.5,
+  yerleşimle token-nötr olarak %27 / %50.8). Ancak bunlar **oracle** kollardır;
+  dedektör-tahrikli politikanın bu tavanın ne kadarını yakaladığı ölçülene ve
+  ön-kayıtlı doğrulama koşulana kadar "H-Nav doğruluğu artırır" denemez.
+  Bugün denilebilecek olan: **"arenanın hata kipi düzeltilebilirdir ve tavanı
+  büyüktür."**
 - ❌ "H-Nav'ın okuma-yolu müdahalesi işe yaramaz." Test edilen tek mekanizma
   (tek yönlü chunk rerank) kaldıracın olmadığı bir split'te, güçsüz bir hedefle
   denendi. Bunu H-Nav hakkında olumsuz sonuç diye yazmak yanlış-olumsuz olur.
