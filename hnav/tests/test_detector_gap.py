@@ -584,3 +584,77 @@ def test_whole_context_harness_needs_no_page_source():
     plan = D.plan_subset(ITEM, "sh_6k", {"questions": []}, {}, 0,
                          D.fact_table(ITEM), harness="whole_context")
     assert plan["page_source"] is None and plan["harness"] == "whole_context"
+
+
+# ── the registered harm taxonomy (pre-registration v2, Amendment 2) ──────────
+def test_harm_classes_are_tested_in_the_registered_order():
+    # gold_cut wins even when the output would also look like a refusal
+    assert D.classify_harm("Rome", "The pool does not contain any fact", True) \
+        == "gold_cut"
+    # the measured "Shinzo Abe" -> "Sinzo Abe" shape
+    assert D.classify_harm("Shinz\u014d Abe", "Sinz\u014d Abe", False) \
+        == "malformed_generation"
+    # the measured sh_32k retrieval q14 shape
+    assert D.classify_harm(
+        "Beirut", "The provided knowledge pool does not contain any fact about",
+        False) == "refusal_after_edit"
+    # a different, confidently wrong fact
+    assert D.classify_harm("Rome", "Watertown", False) == "information_loss"
+    # an empty answer is a refusal, not information loss
+    assert D.classify_harm("Rome", "   ", False) == "refusal_after_edit"
+
+
+def test_every_harm_class_still_counts_as_harm():
+    """Amendment 2 is diagnostic, not permissive: naming a class must not
+    remove it from the harm count."""
+    per_q = [
+        _harm_q(0, "conflicted", "Rome", "Watertown", target=5, cut=True),
+        _harm_q(1, "unique", "Beirut", "does not contain any fact", target=9),
+        _harm_q(2, "unique", "Shinz\u014d Abe", "Sinz\u014d Abe", target=11),
+        _harm_q(3, "conflicted", "Paris", "Lyon", target=13),
+    ]
+    h = D.harm_report(per_q, "detector_suppress")
+    assert h["n_harmed"] == 4, "naming a class must never drop it from the count"
+    assert h["counts"] == {"gold_cut": 1, "malformed_generation": 1,
+                           "refusal_after_edit": 1, "information_loss": 1}
+
+
+def test_a_unique_refusal_voids_the_protective_claim():
+    """The registered §5b verdict, restated: only a malformed generation is
+    survivable on the protected stratum."""
+    h = D.harm_report(
+        [_harm_q(1, "unique", "Beirut", "does not contain any fact", target=9)],
+        "detector_suppress")
+    assert h["protective_claim_void"] is True and h["voiding_questions"] == [1]
+
+
+def test_a_unique_malformed_generation_does_not_void():
+    h = D.harm_report(
+        [_harm_q(2, "unique", "Shinz\u014d Abe", "Sinz\u014d Abe", target=11)],
+        "detector_suppress")
+    assert h["protective_claim_void"] is False
+
+
+def test_conflicted_harms_never_void_the_protective_claim():
+    """The protective criterion is about the non-conflicted stratum; a gold_cut
+    on a conflicted question is the PREDICTED mode, not a protective failure."""
+    h = D.harm_report(
+        [_harm_q(0, "conflicted", "Rome", "Watertown", target=5, cut=True)],
+        "detector_suppress")
+    assert h["counts"]["gold_cut"] == 1 and h["protective_claim_void"] is False
+
+
+def test_an_arm_that_harms_nothing_reports_zeros():
+    q = _harm_q(0, "unique", "Rome", "Rome", target=5)
+    q["arms"]["detector_suppress"]["correct"] = True
+    h = D.harm_report([q], "detector_suppress")
+    assert h["n_harmed"] == 0 and h["protective_claim_void"] is False
+    assert set(h["counts"]) == set(D.HARM_CLASSES)
+
+
+def _harm_q(idx, stratum, native, arm, target=None, cut=False):
+    return {"index": idx, "stratum": stratum, "target_serial": target,
+            "plan": {"suppress_serials": [target] if cut else [],
+                     "demote_serials": []},
+            "arms": {"native": {"output": native, "correct": True},
+                     "detector_suppress": {"output": arm, "correct": False}}}

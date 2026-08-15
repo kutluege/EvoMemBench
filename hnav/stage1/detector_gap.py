@@ -131,7 +131,8 @@ from hnav.core import read_gate as _rg  # noqa: E402
 from hnav.core.read_gate import GateThresholds, ReadGate  # noqa: E402
 from hnav.core.read_policy import demote_ids, suppress_ids  # noqa: E402
 from hnav.core.types import MemoryRecord  # noqa: E402
-from hnav.labeling.counterfactual import substring_exact_match  # noqa: E402
+from hnav.labeling.counterfactual import (normalize_answer,  # noqa: E402
+                                          substring_exact_match)
 from hnav.stage0.m2_retrieval_calibration import build_chunks  # noqa: E402
 from hnav.labeling.question_strata import (STRATA, classify_questions,  # noqa: E402
                                            key_members)
@@ -180,6 +181,18 @@ CHUNK_SIZE = 4096                       # the benchmark's own chunk_text_into_se
 BENCHMARK_PAGES = REPO / "stage0_results/stage1/chunk_embedding_refit.json"
 # r_min_label ordering, tightest first — used only as a deterministic tie-break.
 R_RANK = {"frozen": 0, "loose": 1, "off": 2}
+# Harm taxonomy, registered in pre-registration v2 Amendment 2. Tested in the
+# order listed; EVERY class counts as harm and every class enters the McNemar
+# b-cell exactly as before. The taxonomy is diagnostic, not permissive: the
+# protective claim is voided by any unique-stratum harm that is not
+# `malformed_generation`, which is the registered rule restated unchanged.
+HARM_CLASSES = ("gold_cut", "malformed_generation", "refusal_after_edit",
+                "information_loss")
+MALFORMED_RATIO = 0.8
+# Shapes the evaluator scores as a non-answer. "does not contain" is the exact
+# phrasing observed on sh_32k retrieval q14, the case that named this class.
+REFUSAL_MARKERS = ("does not contain", "not contain any", "no fact",
+                   "cannot find", "no information", "not provided")
 AMB_RANK = {"all": 0, "any": 1, "none": 2}
 
 
@@ -808,6 +821,7 @@ def plan_subset(item, name, prepass, decisions, cell_i, table,
             "index": q["index"], "question": rec["question"],
             "truths": rec["truths"], "stratum": rec["stratum"],
             "key": list(rec["key"]) if rec["key"] else None,
+            "target_serial": rec.get("target_serial"),
             "plan": plan, "arms": arms,
             "identical_to_native": {a: arms[a]["prompt"] == native_prompt
                                     for a in ARMS},
@@ -873,7 +887,8 @@ def run_subset(plan, answer_fn) -> dict:
     cache, per_question, n_calls = {}, [], 0
     for q in plan["questions"]:
         row = {"index": q["index"], "stratum": q["stratum"], "key": q["key"],
-               "truths": q["truths"], "plan": q["plan"], "arms": {}}
+               "truths": q["truths"], "target_serial": q.get("target_serial"),
+               "plan": q["plan"], "arms": {}}
         for arm in ARMS:
             prompt = q["arms"][arm]["prompt"]
             if arm == "native_repeat":
@@ -929,7 +944,63 @@ def run_subset(plan, answer_fn) -> dict:
                                  for a in ARMS if a != "native"},
             "aa_floor": paired_cells(flags["native"], flags["native_repeat"]),
             "by_stratum": by_stratum, "tokens": tokens,
+            "harm": {a: harm_report(per_question, a) for a in ARMS
+                     if a != "native"},
             "per_question": per_question}
+
+
+# ── harm taxonomy (pre-registration v2, Amendment 2) ─────────────────────────
+def classify_harm(native_out: str, arm_out: str, gold_cut: bool) -> str:
+    """Name one harmed question, by the rule registered before the run.
+
+    ``gold_cut`` first, because a deleted gold fact explains everything after it.
+    Then ``malformed_generation`` — the measured "Shinzo Abe" -> "Sinzo Abe"
+    shape, where the answer is right and the string is not. Then
+    ``refusal_after_edit`` — the model declines although nothing it needed was
+    removed (sh_32k retrieval q14). Anything else is ``information_loss``.
+    """
+    from difflib import SequenceMatcher  # stdlib; local to keep import cost nil
+    if gold_cut:
+        return "gold_cut"
+    native_out, arm_out = native_out or "", arm_out or ""
+    if SequenceMatcher(a=native_out, b=arm_out).ratio() >= MALFORMED_RATIO:
+        return "malformed_generation"
+    low = arm_out.lower()
+    if not normalize_answer(arm_out).strip() or any(m in low for m in REFUSAL_MARKERS):
+        return "refusal_after_edit"
+    return "information_loss"
+
+
+def harm_report(per_question, arm: str) -> dict:
+    """Every question this arm lost, classified and counted.
+
+    ``protective_claim_void`` restates §5b unchanged: a unique-stratum harm that
+    is not a malformed generation voids the protective claim regardless of net.
+    """
+    rows = []
+    for q in per_question:
+        if not (q["arms"]["native"]["correct"] and not q["arms"][arm]["correct"]):
+            continue
+        target = q.get("target_serial")
+        gold_cut = bool(target is not None
+                        and target in set(q["plan"]["suppress_serials"]))
+        cls = classify_harm(q["arms"]["native"]["output"],
+                            q["arms"][arm]["output"], gold_cut)
+        rows.append({"index": q["index"], "stratum": q["stratum"], "class": cls,
+                     "native_output": q["arms"]["native"]["output"],
+                     "arm_output": q["arms"][arm]["output"],
+                     "target_serial": target, "gold_cut": gold_cut})
+    counts = {c: sum(1 for r in rows if r["class"] == c) for c in HARM_CLASSES}
+    voiding = [r for r in rows if r["stratum"] == "unique"
+               and r["class"] != "malformed_generation"]
+    return {"n_harmed": len(rows), "counts": counts,
+            "by_stratum": {s: {c: sum(1 for r in rows if r["stratum"] == s
+                                      and r["class"] == c)
+                               for c in HARM_CLASSES}
+                           for s in sorted({r["stratum"] for r in rows})},
+            "protective_claim_void": bool(voiding),
+            "voiding_questions": [r["index"] for r in voiding],
+            "harms": rows}
 
 
 # ── the headline: detector vs oracle ─────────────────────────────────────────
@@ -1093,6 +1164,12 @@ def format_run(results, comparisons) -> str:
                      f"discordant of {aa['n']} (p={aa['p_exact']:.3f})")
         lines.append(f"  page-edit mismatches vs the shipped contract: "
                      f"{res['n_page_edit_mismatch']} (must be 0)")
+        for arm, h in res.get("harm", {}).items():
+            if not h["n_harmed"]:
+                continue
+            named = ", ".join(f"{c}={n}" for c, n in h["counts"].items() if n)
+            void = "  PROTECTIVE CLAIM VOID" if h["protective_claim_void"] else ""
+            lines.append(f"  harm {arm:<22} {h['n_harmed']}: {named}{void}")
         for arm in ARMS:
             if arm in ("native", "native_repeat"):
                 continue

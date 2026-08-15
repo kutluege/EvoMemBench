@@ -13,15 +13,19 @@
 > 1.000000 re-derived from parse truth over all 2,673 deletions. The user
 > separately accepted `ambiguity_mode="none"` as a declared deviation.
 >
-> ## ⛔ ONE OPEN DECISION — §0. Do not start the confirmatory run until it is made.
+> ## ✅ RESOLVED — **Branch A**, by user decision 2026-08-15 (Amendment 2)
 >
-> The harness this document was ordered to scope the claim to — the whole
-> context as a single `Memory 1:` block — **cannot be executed on `sh_64k` at
-> all.** It is 75,886 tokens against a 65,536-token server window. §0 states the
-> measurement, the two available branches and their costs. Both branches are
-> fully specified below **in advance**, so whichever is chosen, no analysis
-> choice is made after seeing data. Everything else in this document is
-> registered and fixed.
+> The harness this document was originally ordered to scope the claim to — the
+> whole context as a single `Memory 1:` block — **cannot be executed on `sh_64k`
+> at all** (75,886 tokens against a 65,536-token window; §0). The user selected
+> **Branch A**: the confirmatory run uses the **retrieval path**. Branch B is
+> dropped, not deferred. §0 is retained unedited as the record of the
+> measurement that forced the choice.
+>
+> Three amendments follow the main text, each adding constraints and none
+> relaxing any: **Amendment 1** (chunk vectors must be valid), **Amendment 2**
+> (Branch A adopted; a third harm class named and counted), **Amendment 3** (the
+> page must be the benchmark's own, not one we computed).
 
 ---
 
@@ -405,3 +409,167 @@ the `L8192` one for chunks.
 **Note for Branch B.** Branch B does not need this — a whole-context prompt has
 no retrieval step — but Branch B remains blocked by §0's window arithmetic, so
 this does not revive it.
+
+---
+
+## Amendment 2 — Branch A adopted, and a third harm class  ·  2026-08-15, post-registration
+
+**User decision, 2026-08-15.** Recorded before any `sh_64k` inference of any kind.
+
+### 2.1 Branch A is the design
+
+The confirmatory run uses the **retrieval-path harness**: the benchmark's own
+top-`k` chunks, `Memory i:` blocks in similarity-rank order, edited through the
+shipped `page_edit` / `apply_read_decision` seam. Reasons of record:
+
+- whole-context is physically impossible at `sh_64k` (75,886 > 65,536, §0);
+- it is not the deployed setting there either (17 chunks, 10 retrieved);
+- the retrieval page fits the **frozen** substrate untouched — and the frozen
+  server's own header says its window was sized for exactly this
+  ("sh_64k RAG prompts are ~53k tokens", `hnav/deploy/serve_stage1_chat.sh`), so
+  Branch A is what that substrate was built for;
+- on the calibration split the mechanism performed **equal or better** in this
+  harness (conflicted 68/74 vs 66/74 on `sh_6k`, 52/65 vs 51/65 on `sh_32k`),
+  with the `anti` control behaving consistently for the first time.
+
+Branch B is **dropped, not deferred**. §1's claim scoping now reads against the
+retrieval harness; every other criterion, threshold and prediction is unchanged.
+
+The companion arm of §10 has been **executed** (`sh_6k` and `sh_32k`, 1,000
+calls, committed as `detector_gap_retrieval_sh{6k,32k}.json`), so the bridge it
+was registered to provide exists before the confirmatory run rather than after.
+
+### 2.2 `refusal_after_edit` — a third harm class, added as a REPORTED class
+
+**Discovered 2026-08-15 in the calibration retrieval arm, BEFORE any `sh_64k`
+inference**, at commit `84e7d2c` (2026-08-15T21:00:42+03:00, "T13: retrieval bridge complete"). The case is `sh_32k` retrieval, question 14, unique stratum: native
+answered `"Beirut"`; the suppressed arm answered *"The provided knowledge pool
+does not contain any fact about"*. The gold fact was **still on the page** —
+nothing it needed had been deleted — and the model declined anyway.
+
+The registered §5b rule is binary (`malformed_generation` if the gold value is
+present AND `SequenceMatcher ≥ 0.8`; `information_loss` otherwise), so it
+classifies this as `information_loss`, and one of those voids the protective
+claim. **That verdict stands.** Three named classes replace the binary split,
+all counted and all reported separately:
+
+| class | test, applied in this order | counts as harm? |
+| --- | --- | --- |
+| `gold_cut` | the gold-valued fact of the queried key was deleted from the page | **yes** |
+| `malformed_generation` | gold present on the page AND `SequenceMatcher(native, arm) ≥ 0.8` | **yes** |
+| `refusal_after_edit` | gold present, arm output matches the evaluator's empty/refusal shape (`question_strata.error_class` → `empty`, or a refusal string containing "does not contain" / "no fact" / "not contain any") | **yes** |
+| `information_loss` | anything else | **yes** |
+
+**The rule does not get weaker.** Every class counts as harm; every class enters
+`b` in the McNemar cells exactly as before; and the §5b voiding condition is
+restated unchanged in its effect: **any unique-stratum harm that is not
+`malformed_generation` voids the protective claim.** `refusal_after_edit` is
+therefore voiding, precisely as `information_loss` was. The user explicitly
+rejected exempting refusals, on the grounds that loosening a harm rule
+immediately after seeing a case that would have failed it is what a hostile
+reviewer attacks first. This amendment **makes the criterion more diagnosable,
+not more permissive**: the same runs pass and fail as before, and the report can
+now say *which* failure occurred instead of collapsing three mechanisms into one
+label.
+
+### 2.3 A registered prediction for the new class — and its honest width
+
+Calibration evidence for `detector_suppress` in the retrieval harness:
+
+| subset | conflicted | unique | total harms (`b`) | `gold_cut` | `refusal_after_edit` | `malformed_generation` |
+| --- | --- | --- | --- | --- | --- | --- |
+| `sh_6k` retrieval | 74 | 26 | **0** | 0 | 0 | 0 |
+| `sh_32k` retrieval | 65 | 35 | **2** | 1 | 1 | 0 |
+
+**Registered prediction for `sh_64k`: `gold_cut` = 2** (unchanged from §6:
+exposure 2/66 × conflicted recall 0.957 = 1.91; only 0, 1 or 2 are
+arithmetically possible).
+
+**For `refusal_after_edit` I decline to register a point prediction, and say so
+rather than invent one.** The entire evidence base is *one* event in 200
+calibration questions. A rate estimated from a single occurrence has a 95%
+interval that spans roughly 0.03%–2.8% per question — on 100 questions that is
+"between 0 and 3", which is not a prediction, it is the absence of one. What is
+registered instead, and is falsifiable:
+
+- **`refusal_after_edit` will be counted and reported** for every arm, whether
+  or not any occur;
+- **0 is the modal expectation** (it did not occur at all on `sh_6k` retrieval,
+  74 conflicted + 26 unique questions);
+- **≥ 4 on `sh_64k` would be a qualitative departure** from calibration — more
+  than double the total harm rate observed there — and is registered here as the
+  threshold at which the class must be treated as a real scaling effect of the
+  mechanism rather than noise, and reported as such.
+
+---
+
+## Amendment 3 — the page must be the benchmark's own  ·  2026-08-15, post-registration
+
+**Adds a constraint and a void condition; relaxes nothing.** Recorded after
+Amendment 1's prerequisite was executed and turned out not to be sufficient.
+
+### 3.1 What was measured
+
+Amendment 1 required re-embedding the `sh_64k` chunks at the corrected length.
+Doing it (`hnav/deploy/refit_chunk_embeddings.py`,
+`stage0_results/stage1/chunk_embedding_refit.json`) surfaced two things:
+
+**(a) The benchmark's encoder is `bfloat16`, not `float32`.**
+`AutoModel.from_pretrained(model, device_map="auto")` with no dtype resolves to
+the checkpoint's `torch_dtype`. It also calls `tokenizer(text, truncation=True)`
+with **no `max_length`**, so it truncates at `model_max_length` = **131,072** —
+i.e. not at all, for chunks whose longest is 5,243 tokens. H-Nav pinned fp32 and
+was truncating at 512.
+
+**(b) Matching the benchmark on both axes is still not enough.** Corrected
+bf16/8192 chunk vectors reach min cosine **0.99997** of the benchmark's own —
+and the `sh_64k` top-10 page still agrees on only:
+
+| chunk vectors | page set agreement vs the benchmark | mean Jaccard |
+| --- | --- | --- |
+| H-Nav bf16 @8192 (corrected) | **26/100** | 0.846 |
+| H-Nav fp32 @512 (the stale cache) | **3/100** | 0.676 |
+
+Seventeen chunks with tightly clustered query similarities reshuffle at the
+top-10/11 boundary under a 3e-5 perturbation. So no encoder configuration
+reproduces the page; the premise "re-embed correctly and the page is right" is
+false.
+
+### 3.2 The resolution
+
+**The page is READ from the benchmark's own vectors, not recomputed from ours** —
+the M0 precedent that earned the 1.0000 replica-fidelity claim: reconstruct
+through the benchmark's own code path rather than approximate it. The refit
+artifact records the benchmark's top-10 page for all 100 questions of each
+subset, so this costs no further computation.
+
+`detector_gap.py --harness retrieval` now **requires** an explicit
+`--page-source`; there is no default, because the two sources differ on 74% of
+`sh_64k` questions and a silent choice would decide the confirmatory result.
+The confirmatory run uses `--page-source benchmark`.
+
+### 3.3 Void condition 7 (added)
+
+The `sh_64k` confirmatory run is **void** if its page was not taken from the
+benchmark's own chunk vectors. The artifact records `page_source`, and it must
+read `"benchmark"`.
+
+Void condition 6 (Amendment 1) is **superseded in mechanism but not in spirit**:
+what matters is no longer "were our chunk vectors re-embedded at 8192" but "was
+the page the benchmark's own". Condition 7 replaces it; condition 6 is retained
+in the record because it is how condition 7 was found.
+
+### 3.4 What this does NOT disturb
+
+- **Fact vectors are invariant to the length change** — max cosine deviation
+  7.9e-12 / 1.7e-11 / 1.7e-11 across the three subsets. Facts are one short
+  sentence, far under either budget. So the frozen operating point, the 1.000
+  pair precision and every committed detection number carry over untouched, and
+  **no re-fit of the gate is required**.
+- **Every committed calibration result stands.** On `sh_6k` and `sh_32k`,
+  retrieval is complete (2 and 9 chunks ≤ `top_k` 10), so the benchmark's page
+  is a permutation of *all* chunks and page MEMBERSHIP cannot differ under any
+  encoder. Only block order does. The exposure is specific to `sh_64k` — which
+  is precisely where the one shot would have been spent.
+- The 512-truncation defect remains un-refit for `nmargin`/`H_z`, which stay
+  inert (§1); nothing here changes that.
