@@ -20,20 +20,22 @@
 
 | ölçüm | sh_6k | sh_32k | sh_64k | sh_262k |
 |---|---|---|---|---|
-| çakışmayan soru (n) | 26 | 35 | 34 | 21 |
-| çakışan soru (n) | 74 | 65 | 66 | 77 (+2 eşleşmeyen) |
+| çakışmayan soru (n) | 26 | 35 | 34 | 22 |
+| çakışan soru (n) | 74 | 65 | 66 | 76 (+2 eşleşmeyen) |
 | **çakışmayan doğruluk** | **26/26 — 8 koşunun 8'inde** | — | — | — |
 | **çakışan doğruluk** | **0–5 / 74** | — | — | — |
 | manşet doğruluk (m3) | 0.330 | 0.470 | 0.440 | 0.200 |
-| **çakışan-only doğruluk** | **0.095** (ölçüm) | 0.185 (ima) | 0.152 (ima) | **[0, 0.26] sınır** |
+| **çakışan-only doğruluk** | **0.095** `estimate` | **[0.185, 0.723]** `bound` | **[0.152, 0.667]** `bound` | **[0.000, 0.263]** `bound` |
 
-> **sh_262k neden nokta tahmin DEĞİL:** ima etme, "çakışmayan soru hep doğru"
-> varsayımına dayanır; sh_262k'da bu varsayım **ihlal ediliyor** (ima edilen
-> değer negatif çıkıyor → varsayımın yanlış olduğunun kanıtı). Varsayımsız
-> savunulabilir ifade: 100 sorunun 20'si doğru → çakışan-only doğruluk
-> **[0, 0.26]** aralığında, çakışmayan doğruluk ≤ 20/21. Negatif bir olasılık
-> yayımlamak, tüm ekstrapolasyonu haklı olarak şüpheye açar.
-> Ayrıca: ima edilen satırlar m3 koşum harness'inin istemiyle ölçülmüştür
+> **Neden yalnız sh_6k nokta tahmin:** "çakışmayan soru hep doğru" öncülü
+> **yalnız sh_6k'da ölçüldü** (26/26, 8 koşu). Diğerlerinde öncül ölçülmedi,
+> sh_262k'da ise **çürütüldü** (`assumption_refuted: true`; öncül doğru olsaydı
+> ima edilen değer negatif çıkardı — yani öncülün yanlışlığının kanıtı).
+> Varsayımsız savunulabilir ifade **aralıktır**; sh_262k için çakışmayan
+> doğruluk üst sınırı 20/22 = 0.909. Negatif bir olasılık yayımlamak tüm
+> ekstrapolasyonu haklı olarak şüpheye açardı — bu yüzden `question_strata.json`
+> `kind: estimate|bound` alanını **yapısal** olarak taşır, negatif değer
+> üretilemez. Ayrıca ima/sınır satırları m3 harness istemiyle ölçülmüştür
 > (benchmark'ın şablonlu sorgusu değil); doğrudan ölçüm yalnız sh_6k'dadır.
 
 **Hata taksonomisi (8 koşu, 575 çakışan-soru hatası):** 572 `stale_value`,
