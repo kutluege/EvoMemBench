@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -55,9 +56,20 @@ if str(REPO) not in sys.path:
 
 from hnav import config as _config  # noqa: E402
 from hnav.core.audit import AuditLogger  # noqa: E402
+from hnav.core.geometry import ABTTWhitening, GeometryModule, TauPolicy  # noqa: E402
 from hnav.core.types import Candidate, Decision, MemoryRecord, StoreView  # noqa: E402
 
 __all__ = ["CLBenchAdapter", "HNavMemoryWrapper", "wrap_memory", "result_annotation"]
+
+
+def _context_key(memory: Any) -> str | None:
+    """The context a backend instance belongs to, from its per-context
+    ``memory_dir`` (the runner names that directory after the context_id).
+    ``None`` when the backend does not expose one."""
+    mdir = getattr(memory, "memory_dir", None)
+    if not mdir:
+        return None
+    return os.path.basename(os.path.normpath(str(mdir)))
 
 
 class CLBenchAdapter:
@@ -78,9 +90,56 @@ class CLBenchAdapter:
         self.write_counter = 0
         self.n_write_decisions = 0
         self.n_read_decisions = 0
-        # text -> H-Nav-space vector, so re-embedding a growing bank costs one
-        # encode per unique text over the adapter's lifetime, not per write.
-        self._vec_memo: dict[str, np.ndarray] = {}
+        # Per-context state. The LIVE path shares ONE adapter (the module
+        # singleton) across every context of a run, while the native banks are
+        # per-context isolated — so any cross-context state would contaminate
+        # the logged statistics: an MD5 dup-hash set spanning contexts flags a
+        # chunk in context B as a "duplicate" of one admitted in context A,
+        # which the native backend would never see. Geometry state (dup hashes
+        # + adaptive tau) and the text->vector memo are therefore keyed by
+        # context and LRU-bounded (a context, once finished, never returns;
+        # the cap only needs to exceed the runner's worker count).
+        self._memos: "OrderedDict[Any, dict[str, np.ndarray]]" = OrderedDict()
+        self._geo_states: "OrderedDict[Any, GeometryModule]" = OrderedDict()
+
+    MAX_CONTEXT_STATES = 64   # >> infer_context_memory's default 8 workers
+
+    def _lru_get(self, table: OrderedDict, key: Any, factory):
+        state = table.get(key)
+        if state is None:
+            state = factory()
+            table[key] = state
+        table.move_to_end(key)
+        while len(table) > self.MAX_CONTEXT_STATES:
+            table.popitem(last=False)
+        return state
+
+    def _memo_for(self, context_key: Any) -> dict[str, np.ndarray]:
+        return self._lru_get(self._memos, context_key, dict)
+
+    def _fresh_geometry(self) -> GeometryModule:
+        """A new GeometryModule with the injected prototype's parameters but
+        NONE of its accumulated state (dup hashes, tau history, whitening fit)."""
+        proto = self.geometry
+        whit = None
+        if proto.whitening is not None:
+            whit = ABTTWhitening(n_components=proto.whitening.n_components,
+                                 min_fit_n=proto.whitening.min_fit_n)
+        tp = proto.tau_policy
+        return GeometryModule(
+            whitening=whit,
+            tau_policy=TauPolicy(init_tau=tp.init_tau, z=tp.z, min_n=tp.min_n,
+                                 lo=tp.lo, hi=tp.hi),
+            max_basis=proto.max_basis)
+
+    def _geometry_for(self, context_key: Any) -> GeometryModule | None:
+        """The injected module for keyless (single-context/offline) use; a
+        per-context clone otherwise, so contexts never share dup/tau state."""
+        if self.geometry is None:
+            return None
+        if context_key is None:
+            return self.geometry
+        return self._lru_get(self._geo_states, context_key, self._fresh_geometry)
 
     # ── store views built from the backend's own persisted state ─────────────
     def store_view(self, memory: Any) -> StoreView:
@@ -112,12 +171,12 @@ class CLBenchAdapter:
         self.write_counter += 1
         vec = None
         if self.embedder is not None:
-            memo = self._vec_memo.get(content)
-            if memo is None:
-                memo = np.asarray(self.embedder.encode([content])[0],
-                                  dtype=np.float32)
-                self._vec_memo[content] = memo
-            vec = memo
+            memo = self._memo_for(kwargs.get("context_id"))
+            vec = memo.get(content)
+            if vec is None:
+                vec = np.asarray(self.embedder.encode([content])[0],
+                                 dtype=np.float32)
+                memo[content] = vec
         return Candidate(
             id=f"{kwargs.get('task_id', 'task')}_w{self.write_counter}",
             text=content, vector=vec, op="ADD", version=self.write_counter,
@@ -125,22 +184,27 @@ class CLBenchAdapter:
         )
 
     # ── signal-space plumbing ────────────────────────────────────────────────
-    def _signal_store(self, store: StoreView) -> StoreView | None:
+    def _signal_store(self, store: StoreView,
+                      context_key: Any = None) -> StoreView | None:
         """The store re-embedded into the adapter's own space, or ``None``.
 
         ``None`` means signals cannot be computed (no embedder, or empty
         store) — a different statement from "the signals were zero", and the
         two are never collapsed: ``on_extract`` records which case occurred.
+        The memo is per-context (see ``__init__``): banks are per-context
+        isolated natively, and a shared memo would grow without bound across
+        a live multi-context run.
         """
         if self.embedder is None or len(store) == 0:
             return None
-        missing = [r.text for r in store.records if r.text not in self._vec_memo]
+        memo = self._memo_for(context_key)
+        missing = [r.text for r in store.records if r.text not in memo]
         if missing:
             fresh = self.embedder.encode(missing)
             for t, v in zip(missing, fresh):
-                self._vec_memo[t] = np.asarray(v, dtype=np.float32)
+                memo[t] = np.asarray(v, dtype=np.float32)
         return StoreView.from_records([
-            MemoryRecord(id=r.id, text=r.text, vector=self._vec_memo[r.text],
+            MemoryRecord(id=r.id, text=r.text, vector=memo[r.text],
                          version=r.version, metadata=r.metadata)
             for r in store.records
         ])
@@ -158,20 +222,22 @@ class CLBenchAdapter:
         decision = Decision(action="PASS", shadow=True,
                             reasons={"native_action": "ADD"})
 
-        sig_store = self._signal_store(store)
+        ctx_key = cand.metadata.get("context_id")
+        sig_store = self._signal_store(store, ctx_key)
         bank_space = "hnav" if sig_store is not None else (
             "empty_store" if len(store) == 0 else "unavailable_no_embedder")
         target = sig_store if sig_store is not None else store
 
         geo = None
-        if self.geometry is not None:
-            geo = self.geometry.compute(cand, target)
+        geometry = self._geometry_for(ctx_key)   # per-context dup/tau state
+        if geometry is not None:
+            geo = geometry.compute(cand, target)
             # Nearest-neighbour predecessor: no keys/serials in this arena, so
             # the closest already-admitted record stands in as the prior. Only
             # records admitted before this write are visible — no look-ahead.
             if cand.prior_id is None and geo.argmax_id is not None:
                 cand = cand.with_prior(target.get(geo.argmax_id))
-            self.geometry.observe(cand.text)   # the native path always admits
+            geometry.observe(cand.text)        # the native path always admits
 
         diff = None
         if self.diff is not None:
@@ -200,7 +266,7 @@ class CLBenchAdapter:
         return decision
 
     def on_retrieve(self, query: str, store: StoreView,
-                    native_text: str = "") -> Decision:
+                    native_text: str = "", context_id: Any = None) -> Decision:
         self.n_read_decisions += 1
         decision = Decision(action="PASS", shadow=True)
         if self.replica is None or len(store) == 0:
@@ -208,7 +274,7 @@ class CLBenchAdapter:
         # Rank in the adapter's own embedding space: the native bank vectors
         # come from the benchmark's embedding API and are not comparable with
         # the H-Nav query vector the replica produces.
-        sig_store = self._signal_store(store)
+        sig_store = self._signal_store(store, context_id)
         if sig_store is None:
             return decision
         view = self.replica.rank(sig_store, query)
@@ -250,7 +316,8 @@ class HNavMemoryWrapper:
             try:
                 text = result[0] if isinstance(result, tuple) and result else ""
                 self._adapter.on_retrieve(query, self._adapter.store_view(self._inner),
-                                          native_text=text)
+                                          native_text=text,
+                                          context_id=_context_key(self._inner))
             except Exception:  # noqa: BLE001 — instrumentation must never break a run
                 pass
         return result   # the inner backend's own object, unchanged
@@ -265,10 +332,9 @@ class HNavMemoryWrapper:
                 # caller's kwargs untouched.
                 cand_kwargs = dict(kwargs)
                 if "context_id" not in cand_kwargs:
-                    mdir = getattr(self._inner, "memory_dir", None)
-                    if mdir:
-                        cand_kwargs["context_id"] = os.path.basename(
-                            os.path.normpath(str(mdir)))
+                    ctx = _context_key(self._inner)
+                    if ctx is not None:
+                        cand_kwargs["context_id"] = ctx
                 cand = self._adapter.to_candidate(content, **cand_kwargs)
                 decision = self._adapter.on_extract(cand, store)
                 assert decision.shadow, "shadow mode produced an actionable decision"

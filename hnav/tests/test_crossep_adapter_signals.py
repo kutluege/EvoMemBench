@@ -236,6 +236,53 @@ def test_wrapper_with_full_modules_stays_byte_neutral():
     assert rec["hnav_action"] == "PASS" and rec["shadow"] is True
 
 
+def test_live_singleton_does_not_cross_contaminate_contexts():
+    """One adapter (the live path's module singleton) serving two wrapped
+    backends must keep their dup/tau state apart: native banks are
+    per-context isolated, so an identical chunk in two different contexts is
+    NOT a duplicate anywhere the benchmark can see."""
+    adapter = full_adapter()
+    mem_a, mem_b = _RecordingMemory(), _RecordingMemory()
+    mem_a.memory_dir = "memories/run_1/ctxA"
+    mem_b.memory_dir = "memories/run_1/ctxB"
+    wrap_a = cl.HNavMemoryWrapper(mem_a, adapter, mode=_config.MODE_SHADOW)
+    wrap_b = cl.HNavMemoryWrapper(mem_b, adapter, mode=_config.MODE_SHADOW)
+
+    shared = "an identical chunk of trajectory text"
+    wrap_a.extract(shared, task_id="a1")
+    wrap_b.extract(shared, task_id="b1")
+
+    recs = adapter.audit.records
+    assert recs[0]["hnav_reasons"]["is_exact_dup"] is False
+    assert recs[1]["hnav_reasons"]["is_exact_dup"] is False, \
+        "context B must not see context A's MD5 observe set"
+    assert recs[1]["context_id"] == "ctxB"
+
+    # ...while a genuine within-context repeat IS still flagged
+    wrap_a.extract(shared, task_id="a2")
+    assert recs[2]["hnav_reasons"]["is_exact_dup"] is True
+    assert recs[2]["context_id"] == "ctxA"
+
+    # the injected prototype module was never polluted by keyed contexts
+    assert adapter.geometry._dup_hashes == set()
+
+
+def test_per_context_state_is_lru_bounded():
+    """A long multi-context run must not grow adapter state without bound."""
+    from hnav.core.types import StoreView
+    adapter = full_adapter()
+    empty = StoreView.from_records([])
+    for i in range(adapter.MAX_CONTEXT_STATES + 10):
+        cand = adapter.to_candidate(f"text {i}", task_id=f"t{i}",
+                                    context_id=f"ctx{i}")
+        adapter.on_extract(cand, empty)
+    assert len(adapter._memos) <= adapter.MAX_CONTEXT_STATES
+    assert len(adapter._geo_states) <= adapter.MAX_CONTEXT_STATES
+    # the most recent contexts survive; the oldest were evicted
+    assert f"ctx{adapter.MAX_CONTEXT_STATES + 9}" in adapter._geo_states
+    assert "ctx0" not in adapter._geo_states
+
+
 def test_wrapper_off_mode_is_identity(monkeypatch):
     monkeypatch.setenv("HNAV_MODE", "off")
     _config.get_config(refresh=True)
