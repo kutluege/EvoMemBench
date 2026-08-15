@@ -684,6 +684,46 @@ answered "Shinzō Abe" and the suppressed arm answered "Sinzō Abe". A dropped
 letter, not a wrong fact; the substring-exact evaluator scores it wrong. That is
 the entire measured cost of replacing the oracle with the detector.
 
+### 11.4b `sh_32k`: the same run on the other half of the calibration split
+
+500 calls, ~17.2M prompt tokens, same substrate, same frozen operating point.
+Cross-run native check identical again (42/100 in both runs).
+
+| arm | overall | unique | conflicted | b/c | net | exact p | tok |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| native | 0.420 | 35/35 | 7/65 (10.8%) | - | - | - | 0 |
+| native_repeat | 0.420 | 35/35 | 7/65 | 0/0 | 0 | 1.0 | 0 |
+| **detector_suppress** | **0.860** | 35/35 | **51/65 (78.5%)** | 1/45 | **+44** | 1.3e-12 | -0.63% |
+| detector_demote_late | 0.510 | 35/35 | 16/65 (24.6%) | 1/10 | +9 | 0.012 | 0.00% |
+| detector_anti | 0.480 | 35/35 | 13/65 (20.0%) | 5/11 | +6 | 0.21 | 0.00% |
+
+| mechanism | oracle arm | net ratio | conflicted-gain ratio |
+| --- | --- | --- | --- |
+| suppress | oracle_suppress | 44/46 = **0.957** | 44/46 = **0.957** |
+| demote_late | oracle_recency | 9/26 = 0.346 | 9/26 = 0.346 |
+| anti | anti | +6 vs -4 — **sign disagreement, see below** |  |
+
+**The unique stratum is untouched: 35/35 under every arm, 0/0 discordant under
+every arm.** The protective condition holds exactly here, and the whole harm of
+the run is one conflicted question (index 8): native answered "London", the
+suppressed arm "Washington, D.C.". That is the `n_conflicted_gold_cut` case the
+frozen artifact predicted — the detector applies the benchmark's own serial rule,
+so on the ~3% of questions where the gold value is *not* the newest fact it
+deletes the gold. A bounded, countable property of the arena's rule rather than
+a detector defect, and it must be declared in the sh_64k pre-registration.
+
+**The complication worth stating plainly.** `detector_anti` HELPED at `sh_32k`
+(+6, n.s.) where the oracle's `anti` hurt (-4). Two differences explain it and
+neither rescues placement: the oracle arm also moved the most recent STALE fact
+to the END (a deliberately adversarial second edit this mirror does not make),
+and the detector aggregates ~13 latest carriers at one edge of a 2,310-fact
+context instead of moving one fact. At that length both edges look privileged —
+`demote_late` (+9) and `anti` (+6) both help — so at 32k the honest description
+of the detector's placement mechanism is "collect the newest facts at *an* edge",
+not "put the newest fact last". The clean directional result belongs to the
+oracle's single-fact arms; the detector's multi-group version does not reproduce
+it. Suppression is untouched by any of this.
+
 ### 11.5 Where the residual gap lives
 
 Both `sh_6k` misses have **both** key members inside the 50-fact pool, so the
