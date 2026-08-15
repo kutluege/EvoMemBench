@@ -33,7 +33,8 @@ import numpy as np
 
 __all__ = ["EmbedderProtocol", "HashEmbedder", "HFEmbedder", "OpenAIEmbedder",
            "DiskCachedEmbedder", "cache_key", "l2_normalize",
-           "DEFAULT_MAX_LENGTH", "expanded_gqa_attention"]
+           "DEFAULT_MAX_LENGTH", "DEFAULT_MAX_BATCH_TOKENS",
+           "expanded_gqa_attention"]
 
 # Tokenizer truncation length for the real embedders.  [T12]
 #
@@ -48,6 +49,14 @@ __all__ = ["EmbedderProtocol", "HashEmbedder", "HFEmbedder", "OpenAIEmbedder",
 # The previous value was 512, which captured ~12% of the largest chunk. See
 # hnav/BUILD_NOTES.md §10 for the full correction record.
 DEFAULT_MAX_LENGTH = 8192
+
+# Memory bound for one padded forward, in tokens (count x longest).  [T13b]
+# A batch of 9 real benchmark chunks is ~45k tokens, whose fp32 MLP activations
+# ([tokens, 9728]) OOM a 24 GB card even with memory-efficient attention. 8192
+# lets short facts batch freely (32 x ~16 = 512) while long chunks go one at a
+# time (5,008 <= 8192 < 2 x 5,008). Purely a memory knob: it changes how texts
+# share a padded forward, never a text's own vector.
+DEFAULT_MAX_BATCH_TOKENS = 8192
 
 
 @runtime_checkable
@@ -248,7 +257,8 @@ class HFEmbedder:
     """
 
     def __init__(self, model_name: str, device: int = 1, dtype: str = "float32",
-                 batch: int = 32, max_length: int = DEFAULT_MAX_LENGTH) -> None:
+                 batch: int = 32, max_length: int = DEFAULT_MAX_LENGTH,
+                 max_batch_tokens: int = DEFAULT_MAX_BATCH_TOKENS) -> None:
         import torch  # noqa: PLC0415 — deliberate: keeps module import torch-free
         from transformers import AutoModel, AutoTokenizer  # noqa: PLC0415
 
@@ -256,6 +266,7 @@ class HFEmbedder:
         self.model_name = model_name
         self.batch = batch
         self.max_length = max_length
+        self.max_batch_tokens = int(max_batch_tokens)
         self.device = f"cuda:{device}" if torch.cuda.is_available() else "cpu"
         self.dtype_name = dtype
         torch_dtype = {"float32": torch.float32, "float16": torch.float16,
@@ -270,12 +281,47 @@ class HFEmbedder:
         # :func:`expanded_gqa_attention`.
         self.gqa_expansion_applied: bool | None = None
 
+    def _batches(self, texts: Sequence[str]) -> list[list[int]]:
+        """Group indices into batches bounded by BOTH count and total tokens.
+
+        A fixed count is the wrong unit when texts differ in length by two
+        orders of magnitude (a fact is ~15 tokens, a benchmark chunk ~5,000).
+        Padding makes a batch cost ``len(batch) × longest``, so 9 chunks in one
+        batch is ~45k tokens and the MLP's [tokens, 9728] fp32 activations
+        (~1.75 GiB each) exhaust the card even though attention is now
+        memory-efficient (T13). This bounds that product.
+
+        Order is preserved and every group is contiguous, so the returned
+        vectors are in input order. Grouping changes only how many texts share
+        a padded forward — never a text's own vector, because attention and
+        mean-pooling are both masked. Verified against vectors cached from a
+        different grouping (BUILD_NOTES §11b).
+        """
+        lengths = [len(self.tok(t, truncation=True,
+                                max_length=self.max_length)["input_ids"])
+                   for t in texts]
+        groups: list[list[int]] = []
+        cur: list[int] = []
+        cur_max = 0
+        for i, n in enumerate(lengths):
+            new_max = max(cur_max, n)
+            if cur and ((len(cur) + 1) * new_max > self.max_batch_tokens
+                        or len(cur) >= self.batch):
+                groups.append(cur)
+                cur, cur_max = [i], n
+            else:
+                cur.append(i)
+                cur_max = new_max
+        if cur:
+            groups.append(cur)
+        return groups
+
     def encode(self, texts: Sequence[str]) -> np.ndarray:
         if not len(texts):
             return np.zeros((0, self.dim), dtype=np.float32)
         chunks = []
-        for s in range(0, len(texts), self.batch):
-            batch_texts = list(texts[s: s + self.batch])
+        for group in self._batches(texts):
+            batch_texts = [texts[i] for i in group]
             enc = self.tok(batch_texts, padding=True, truncation=True,
                            max_length=self.max_length, return_tensors="pt").to(self.device)
             # K/V expanded so the fused SDPA kernel is eligible: without this a
@@ -335,7 +381,8 @@ def build_embedder(cfg, cached: bool = True) -> EmbedderProtocol:
     """
     inner = HFEmbedder(model_name=cfg.embed_model, device=cfg.embed_device,
                        dtype=cfg.embed_dtype, batch=cfg.embed_batch,
-                       max_length=cfg.embed_max_length)
+                       max_length=cfg.embed_max_length,
+                       max_batch_tokens=cfg.embed_max_batch_tokens)
     if not cached:
         return inner
     return DiskCachedEmbedder(
