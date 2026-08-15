@@ -471,6 +471,16 @@ class MABAdapter:
             decision = Decision(action="PASS", shadow=True,
                                 reasons={"n_stale_in_topk": len(stale_hits)})
 
+        # Campaign tripwire: fact vectors must come from the fp32 cache, so a
+        # nonzero miss count in a live arm's audit trail flags dtype-mixed
+        # geometry (see _build_components / serve_stage1_embed.sh).
+        if self.embedder is not None and hasattr(self.embedder, "n_misses"):
+            decision.reasons["embed_cache"] = {
+                "hits": getattr(self.embedder, "n_hits", None),
+                "misses": self.embedder.n_misses,
+                "embed_errors": self.n_embed_errors,
+            }
+
         self.n_read_decisions += 1
         if self.audit is not None:
             self.audit.log_read(view, decision, signals=sig, conflict=conflict,
