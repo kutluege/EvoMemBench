@@ -204,16 +204,39 @@ source hnav/deploy/_activate.sh
 python -m pytest hnav/tests/ -q                    # tümü yeşil
 nvidia-smi --query-gpu=index,memory.used --format=csv,noheader
 #   GPU1 boş olmalı (Thrust 1 sh_64k kampanyasıyla ÇAKIŞMA yasak — orkestratör onayı şart)
-grep -E "HNAV_(MODE|EMBED_MODEL|EMBED_DEVICE|EMBED_DTYPE|CACHE_DIR)" .env
+grep -E "^HNAV_" .env                              # DEPO KÖKÜ .env — M5'in okuduğu dosya
 #   beklenen pinler (Supervisor Not-2):
-#     HNAV_MODE=off                              (M5 offline sürücüdür; live zaten reddedilir)
 #     HNAV_EMBED_MODEL=Qwen/Qwen3-Embedding-4B
 #     HNAV_EMBED_DEVICE=1
 #     HNAV_EMBED_DTYPE=float32                   # fp32 pinli — dtype kayması tüm kosinüsleri oynatır
-#     HNAV_CACHE_DIR=hnav/_cache                 # cache OTOMATİK yeniden kullanılır:
-#   anahtar = sha256("Qwen/Qwen3-Embedding-4B|float32||<text>") — T1'in 24k MAB girdisi
-#   aynen kalır (çakışan metin yok), CrossEp ~20k yeni girdi (~230MB) ekler. Cache SİLİNMEZ.
+#     HNAV_CACHE_DIR=hnav/_cache
+#     HNAV_MODE: off VEYA shadow fark etmez (aşağıdaki nota bak); live ise M5 durur.
 ls hnav/_cache/emb | wc -l                         # ~24k mevcut girdi görünmeli
+```
+
+**Cache anahtarı (Supervisor Not-2 düzeltmesi).** `embedding.cache_key` ad
+alanına `.replace("/", "_")` uygular, yani gerçek anahtar:
+
+```
+sha256("Qwen_Qwen3-Embedding-4B|float32" + "||" + <text>)     # Qwen_… , Qwen/… DEĞİL
+```
+
+dosya adı `<hexdigest>.npy`, dizin `hnav/_cache/emb/`. Elle anahtar hesaplayan
+biri eğik çizgiyi bırakırsa TÜM cache'i ıskalar ve sessizce yeniden gömer.
+T1'in 24k MAB girdisi aynen geçerli kalır (çakışan metin yok); CrossEp ~20k
+yeni girdi (~230MB) ekler. **Cache SİLİNMEZ, makineler arası KOPYALANMAZ.**
+
+**`.env` önceliği — §9.2'deki tuzağın buradaki karşılığı (yön TERS).**
+`hnav/config.load_env` **depo kökündeki** `.env`'i okur ve `setdefault`
+kullanır: **`os.environ` KAZANIR**, yani kabuktan `export HNAV_EMBED_DTYPE=…`
+`.env`'i ezer. (§9.2'deki `load_dotenv(override=True)` bunun tersini yapar.)
+M5 benchmark kodu import etmez, dolayısıyla `CROSSEP-KNOW/.env` bu koşuyu
+ETKİLEMEZ. Mod duyarlılığı: M5 adapter'ı doğrudan sürer ve `on_extract` moda
+bakmaz — `off` ile `shadow` ÖZDEŞ sonuç verir; yalnız `live` `require_not_live()`
+ile koşuyu durdurur. Yine de kabuğu temiz tutun:
+
+```bash
+env | grep -E "^HNAV_" || echo "(kabukta HNAV_ override yok — temiz)"
 ```
 
 Koşu (tmux altında):
@@ -243,7 +266,9 @@ git add stage0_results/crossep/ && git commit -m "T10: M5 real-embedder measurem
 ### 9.2 mem0 CrossEp koşusu (DeepSeek API — kullanıcı onaylı) + M5-mem0
 
 Anahtarların okunuşu (koddan doğrulandı): `infer_context_memory.py`
-`load_dotenv(override=True)` ile **çalışma dizinindeki** `.env`'i yükler;
+`load_dotenv(override=True)` çağırır; yol verilmediğinden `find_dotenv()`
+çağıran dosyanın dizininden yukarı yürür — **`CROSSEP-KNOW/.env`, yoksa depo
+kökündeki `.env`** (aşağıdaki bloklayıcı ön koşula bak);
 model adı "deepseek" ile başladığında `DEEPSEEK_API_KEY` + `DEEPSEEK_BASE_URL`
 kullanılır (`get_api_credentials`); mem0 backend'i `--embed-provider dashscope`
 zorunlu kılar → `DASHSCOPE_API_KEY` + `DASHSCOPE_BASE_URL`. `BATCH_MODEL` env
@@ -257,8 +282,41 @@ cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench/Cross-Episode-Knowledge/CROSSEP-KNOW
 grep -c "DEEPSEEK_API_KEY\|DEEPSEEK_BASE_URL\|DASHSCOPE_API_KEY\|DASHSCOPE_BASE_URL" .env
 #   4 beklenir (nomemory koşusu bu anahtarlarla yapılmıştı; süresi dolmuşsa kullanıcıdan iste)
 python -c "import mem0, chromadb" 2>&1               # mem0 kurulu olmalı (registry importu)
-echo "HNAV_MODE=$HNAV_MODE"                          # BOŞ/off olmalı: akış NATIVE üretilmeli;
-#   ölçüm sonradan history.db'den yapılır. (Shadow bayt-nötr kanıtlı ama disiplin: off.)
+```
+
+> **BLOKLAYICI ÖN KOŞUL — t4 §2b tuzağının CrossEp sürümü.** Kabuğu
+> denetlemek YETMEZ. `infer_context_memory.py:317` **koşulsuz**
+> `load_dotenv(override=True)` çağırır — MAB'ın `main.py:39`'daki
+> `override=os.environ.get("HNAV_DOTENV_NO_OVERRIDE") != "1"` koruması bu
+> arenada **YOKTUR**. `override=True` kabuktaki değeri EZER, ve yol
+> verilmediği için `find_dotenv()` çağıran dosyanın dizininden **yukarı
+> doğru yürür**: önce `Cross-Episode-Knowledge/CROSSEP-KNOW/.env`, o yoksa
+> (depoda yok, `.gitignore`'lu) **depo kökündeki `.env`** — yani
+> `HNAV_MODE`'u tutan dosyanın ta kendisi. Sonuç: tertemiz bir kabukla bile,
+> depo kökü `.env` `HNAV_MODE=shadow` diyorsa **API-faturalı mem0 koşusu
+> sessizce enstrümanlı gider.** Her İKİ dosya da denetlenmelidir:
+
+```bash
+cd /mnt/nvmes/nvme1/egekutlu/EvoMemBench
+grep -E "^HNAV_" Cross-Episode-Knowledge/CROSSEP-KNOW/.env 2>/dev/null \
+  || echo "(CROSSEP-KNOW/.env yok — find_dotenv depo köküne yürüyecek)"
+grep -E "^HNAV_MODE" .env                            # DEPO KÖKÜ — asıl belirleyici
+env | grep -E "^HNAV_MODE"                           # kabuk (override=True bunu EZER)
+```
+
+**Gerekli durum:** `find_dotenv`'in bulacağı dosyada `HNAV_MODE=off`
+(veya satır hiç yok → `config` varsayılanı `off`). `shadow`/`live` görülürse
+**koşuyu başlatma**; dosyayı `off`'a çek, commit etme (`.env` gitignore'lu),
+koşudan sonra istersen geri al. Gerekçe: akış NATIVE üretilmeli — ölçüm
+sonradan `history.db`'den yapılır. (Shadow bayt-nötrlüğü t4/S2'de kanıtlandı;
+yine de para harcayan tek-atışlık koşuda enstrümantasyon çalıştırmayız.)
+
+Doğrulama (koşu başladıktan sonra, ilk kayıtlar düşer düşmez): sonuç
+kayıtlarında `hnav` alanı **olmamalı** —
+
+```bash
+head -1 outputs/context_mem0/*.jsonl | python -c "import json,sys; r=json.load(sys.stdin); print('hnav field:', 'hnav' in r)"
+#   False beklenir. True ise koşu enstrümanlı gidiyor: DURDUR, .env'i düzelt, baştan başlat.
 ```
 
 Koşu (tmux; süre kabaca nomemory koşusunun 2-3 katı — ekstraksiyon örneklem
