@@ -103,6 +103,54 @@ substratı, yalnız kalibrasyon split'i (938 çağrı):
 
 ---
 
+## A3. TAVANIN ~%96–98'i DEDEKTÖRLE, GOLD OLMADAN YAKALANDI
+
+**İddia.** A2'deki tavan oracle'dı (anahtar gold ile belirleniyordu). Aynı
+müdahale, **yalnız dedektör çıktısıyla** (gold yok, cevap yok, gelecek olgu yok)
+sürüldüğünde tavanın neredeyse tamamı korunuyor — üstelik **daha az token**
+harcayarak.
+
+| subset | native | **detector_suppress** | çakışan katman | McNemar | token | dedektör/oracle |
+|---|---|---|---|---|---|---|
+| sh_6k | 0.290 | **0.900** | 4/74 → **66/74 (%89.2)** | +61, p=1.4e-17 | **−%3.48** | net 61/62 = **0.984**, çakışan kazanç **1.000** |
+| sh_32k | 0.420 | **0.860** | 7/65 → **51/65 (%78.5)** | +44, p=1.3e-12 | **−%0.63** | net 44/46 = **0.957** |
+
+- **A/A tabanı yine 0/0 uyuşmazlık** (iki subset), native kolu bağımsız probe
+  koşusuyla ve 8 tarihsel koşuyla tutarlı.
+- **Koruyucu koşul:** sh_32k'da çakışmayan katman **35/35 korunuyor, 0/0
+  uyuşmazlık**; sh_6k'daki tek `unique` çevirmesi bir yazım kayması
+  ("Shinzō Abe" → "Sinzō Abe"), yanlış olgu değil.
+- **Gold'u dedektörle değiştirmenin toplam bedeli 1.000 çağrıda iki çevirmedir.**
+- **Dedektör kalitesi (işletim noktası: cos_pair 0.90 · r_min 0.44 ·
+  ambiguity none · nli 0.90 · pair_filter True; LLM/gold/doğruluk görmeden
+  dondurulmuştur):** çift precision **1.0000** (2.673 doğrulanmış çift, 0 yanlış),
+  çakışan-soru recall **133/139 = 0.957**, **bir anahtarın güncel değerini taşıyan
+  0 olgu silindi**. `pair_filter=False` yarısında medyan precision 0.137 ve
+  medyan hücre 769 güncel-değer olgusunu silerdi — eleme tercih değil,
+  zorunluluktur.
+- **Beyan edilen sapma:** `ambiguity_mode="none"`, dondurulmuş Stage-0
+  `nmargin`/`H_z` ekranını devre dışı bırakır; gerekçe, bunların **512-token
+  kesme kusurundan etkilenen tek kapı girdisi** olması ve recall'u 0.957 → 0.403
+  → 0.144 boğmasıdır. Politika bu durumda **her soruda** ateşler; kalibrasyonda
+  precision 1.00 ile güvenli, ama held-out'ta ayrıca gerekçelendirilmelidir.
+- **Bilinen, sayılabilir hata kipi:** gold en yüksek seri değilse dedektör
+  gold'lu olguyu siler (kalibrasyonda 2/200; `gold_rule`'a göre sh_262k'da
+  73/77 gold-LATEST olduğundan oran orada daha yüksek). Ön-kayda **sayıyla**
+  girecek.
+- **Kanıt:** `stage0_results/stage1/detector_gap_{sh6k,sh32k}.json`,
+  `stage0_results/stage1_operating_point.json`, `hnav/BUILD_NOTES.md` §11,
+  409 test.
+- **Durum: SAĞLAM (kalibrasyon split'i).** Held-out (sh_64k) tek-atışlık
+  doğrulama ön-kayıtla ve denetim sonrası yapılacak.
+
+**Bu ne demek:** kalibrasyon split'inde H-Nav, gold'suz bir dedektörle,
+doğruluğu **+61 ve +44 puan** artırıyor, **token harcamasını düşürüyor** ve
+korunması gereken katmanda **zarar vermiyor** — tezin üç başarı ölçütü
+(doğruluk ↑, token verimliliği ↑, harm ≈ 0) aynı anda sağlanmış durumda.
+Eksik olan tek şey held-out doğrulamadır.
+
+---
+
 ## B. Metodolojik katkı — NLI tek başına bellek çakışmasını doğrulayamaz
 
 **İddia.** Çift yönlü NLI çelişki skoru, bellek çakışması doğrulaması için
