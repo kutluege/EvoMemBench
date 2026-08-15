@@ -217,11 +217,11 @@ The detector applies the benchmark's own stated rule — the highest serial is
 newest — so on questions where the gold value is **not** carried by the highest
 serial, it deletes the gold. This is countable from the parse in advance.
 
-| subset | conflicted | gold NOT latest | exposure | conflicted-question recall | **predicted gold-cuts** |
+| subset | conflicted | gold NOT latest | exposure | conflicted-question DETECTION recall | **predicted gold-cuts** |
 | --- | --- | --- | --- | --- | --- |
 | sh_6k | 74 | 0 | 0.0% | 0.973 | 0 — **observed 0** |
 | sh_32k | 65 | 2 | 3.1% | 0.938 | 1.88 → 2 — **observed 2** (1 became an accuracy flip) |
-| **sh_64k** | 66 | **2** | **3.0%** | 0.957 (pooled) | **1.91 → 2** |
+| **sh_64k** | 66 | **2** | **3.0%** | 0.957 (pooled detection recall) | **1.91 → 2** |
 
 **Registered prediction: `n_conflicted_gold_cut` on `sh_64k` = 2, and the only
 arithmetically possible outcomes are 0, 1 or 2.** Of those, at most 2 can appear
@@ -505,8 +505,10 @@ Calibration evidence for `detector_suppress` in the retrieval harness:
 | `sh_32k` retrieval | 65 | 35 | **2** | 1 | 1 | 0 |
 
 **Registered prediction for `sh_64k`: `gold_cut` = 2** (unchanged from §6:
-exposure 2/66 × conflicted recall 0.957 = 1.91; only 0, 1 or 2 are
-arithmetically possible).
+exposure 2/66 × conflicted-question DETECTION recall 0.957 = 1.91; only 0, 1
+or 2 are arithmetically possible. Note the numeric coincidence: this 0.957 is a
+DETECTION recall, 133/139, and is unrelated to the calibration-only
+detector/oracle ratio that happens to share the digits — see §9b).
 
 **For `refusal_after_edit` I decline to register a point prediction, and say so
 rather than invent one.** The entire evidence base is *one* event in 200
