@@ -38,7 +38,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, NamedTuple, Sequence
 
 import numpy as np
 
@@ -54,8 +54,8 @@ from hnav.labeling.conflict_analysis import parse as parse_fact  # noqa: E402
 from hnav.labeling.conflict_index import (Entry, ReadConflictIndex,  # noqa: E402
                                           WriteConflictIndex, to_probe)
 
-__all__ = ["FACT_RE", "MABAdapter", "explode_facts", "fact_key",
-           "native_page_from_scored", "select_pool"]
+__all__ = ["FACT_RE", "FactSpan", "MABAdapter", "explode_facts", "fact_key",
+           "fact_spans", "native_page_from_scored", "page_edit", "select_pool"]
 
 # The benchmark's own fact numbering. Identical to the regex already used by
 # conflict_analysis.analyze and by T1 — deliberately not a second dialect.
@@ -118,6 +118,173 @@ def explode_facts(message: str) -> list[tuple[int, str]]:
         if cleaned != text:
             facts[-1] = (serial, cleaned)
     return facts
+
+
+# ── fact-granular page surgery (T13) ─────────────────────────────────────────
+# The probe (hnav/stage1/stale_suppression_probe.py) measured that the arena's
+# conflicted-stratum failure is POSITIONAL and per-FACT: deleting the stale
+# sentence lifts conflicted accuracy 5.4% -> 89.2%, and the chunk-level version
+# of the same idea is harmful (STAGE1_NULL_ANALIZI.md). read_policy therefore
+# names FACTS; the page it must be applied to is a list of CHUNK texts. That
+# splice lives here, because it needs the benchmark's serial numbering and its
+# sentence-joining chunker — knowledge hard rule 2 keeps out of hnav/core/.
+#
+# Exactness contract, enforced by test_read_policy_facts.py against hand-built
+# pages whose expected output is written out in full:
+#   * surviving facts keep their ORIGINAL serials (no renumbering — the prompt
+#     states its rule in terms of serial order);
+#   * surviving text is spliced from the original bytes (no re-rendering, no
+#     reflow, no whitespace normalisation);
+#   * every byte outside the edited spans is unchanged.
+
+class FactSpan(NamedTuple):
+    """One fact's byte geometry inside a chunk.
+
+    ``start``/``own_end``   the fact's OWN bytes ("<serial>. <text>"), which is
+                            what a move re-inserts elsewhere.
+    ``del_start``/``del_end``  what a deletion removes: the fact plus exactly
+                            one adjacent separator, so the survivors stay
+                            joined the way the chunker joined them. A fact owns
+                            the separator that FOLLOWS it; the last fact of a
+                            chunk has none, so it owns the one BEFORE it
+                            instead (without that asymmetry, deleting the last
+                            fact of a newline-joined context would leave a
+                            blank line).
+    """
+
+    serial: int
+    start: int
+    own_end: int
+    del_start: int
+    del_end: int
+
+
+def fact_spans(message: str) -> list[FactSpan]:
+    """Byte spans of every fact in a chunk, in context order.
+
+    Regex selection mirrors :func:`explode_facts` exactly — line-anchored
+    ``FACT_RE`` first, ``FACT_RE_INLINE`` when it finds more, because a memorize
+    chunk has been through the benchmark's sentence joiner. The dangling
+    next-fact serial (``DANGLING_SERIAL_TAIL``) is excluded from the last fact's
+    span: those bytes belong to a fact whose text lives in the NEXT chunk, and
+    deleting them here would remove something this page never owned.
+    """
+    primary = list(FACT_RE.finditer(message))
+    inline = list(FACT_RE_INLINE.finditer(message))
+    ms = inline if len(inline) > len(primary) else primary
+    if not ms:
+        return []
+
+    # End of content: trailing whitespace belongs to the CHUNK, not to the last
+    # fact, so a move can re-insert before it and leave it in place.
+    end_content = len(message.rstrip())
+    last_end = min(ms[-1].end(), end_content)
+    dang = DANGLING_SERIAL_TAIL.search(message[ms[-1].start(): last_end])
+    if dang:
+        last_end = ms[-1].start() + dang.start()
+
+    out: list[FactSpan] = []
+    for i, m in enumerate(ms):
+        own_end = m.end() if i < len(ms) - 1 else last_end
+        del_start = m.start()
+        if i == len(ms) - 1:
+            del_end = own_end
+            if i > 0:                       # last fact owns the separator BEFORE it
+                del_start = out[i - 1].own_end
+        else:
+            del_end = ms[i + 1].start()
+        out.append(FactSpan(int(m.group(1)), m.start(), own_end, del_start, del_end))
+    return out
+
+
+def _fact_separator(spans_per_chunk: Sequence[Sequence[FactSpan]],
+                    texts: Sequence[str]) -> str:
+    """The bytes this page puts BETWEEN two consecutive facts.
+
+    Read off the page rather than assumed: the raw dataset context joins facts
+    with ``"\\n"``, a real memorize chunk joins most of them with ``" "``. The
+    last page chunk is consulted first (that is where a moved fact lands), then
+    any other chunk; a page with no consecutive pair at all falls back to the
+    newline/space its last chunk actually contains.
+    """
+    order = list(range(len(texts) - 1, -1, -1))
+    for ci in order:
+        sp = spans_per_chunk[ci]
+        if len(sp) >= 2:
+            return texts[ci][sp[-2].own_end: sp[-1].start]
+    tail = texts[-1] if texts else ""
+    return "\n" if "\n" in tail else " "
+
+
+def page_edit(page_texts: Sequence[str], drop_ids: Sequence[str] = (),
+              move_last_ids: Sequence[str] = ()) -> tuple[list[str], dict]:
+    """Apply a fact-level edit to a page of chunk texts.
+
+    ``drop_ids``       facts to delete (``SUPPRESS``).
+    ``move_last_ids``  facts to relocate to the very END of the assembled page
+                       (``DEMOTE_LATE``): removed from their own chunk and
+                       re-appended, in ascending serial order, to the end of the
+                       LAST chunk's content — so the highest serial ends up
+                       last, which is the position the probe measured as
+                       helpful.
+
+    Returns ``(new_page, report)``. The page keeps its length and its chunk
+    order; only chunk *contents* change. Raises ``LookupError`` when an id is
+    not on the page and ``ValueError`` when the two id sets overlap — the caller
+    (``MABAdapter.apply_read_decision``) turns either into a fall-back to the
+    native page rather than a guess.
+    """
+    texts = list(page_texts)
+    spans = [fact_spans(t) for t in texts]
+    where: dict[str, tuple[int, FactSpan]] = {}
+    for ci, sp in enumerate(spans):
+        for s in sp:
+            where.setdefault(f"fact:{s.serial}", (ci, s))
+
+    drop, move = list(drop_ids), list(move_last_ids)
+    both = sorted(set(drop) & set(move))
+    if both:
+        raise ValueError(f"ids in both drop and move sets: {both[:3]}")
+    missing = [i for i in drop + move if i not in where]
+    if missing:
+        raise LookupError(f"{len(missing)} id(s) not on this page, "
+                          f"first={missing[0]!r}")
+
+    sep = _fact_separator(spans, texts)
+    moved = sorted(((where[i][1].serial, i) for i in move))
+    moved_bytes = [texts[where[i][0]][where[i][1].start: where[i][1].own_end]
+                   for _, i in moved]
+
+    cuts: dict[int, list[FactSpan]] = {}
+    for i in drop + move:
+        ci, s = where[i]
+        cuts.setdefault(ci, []).append(s)
+
+    out = list(texts)
+    for ci, ss in cuts.items():
+        t = out[ci]
+        for s in sorted(ss, key=lambda x: x.del_start, reverse=True):
+            t = t[: s.del_start] + t[s.del_end:]
+        out[ci] = t
+
+    if moved_bytes:
+        body = out[-1]
+        core = body.rstrip()
+        trail = body[len(core):]
+        out[-1] = core + "".join(sep + m for m in moved_bytes) + trail
+
+    before = sum(len(t) for t in texts)
+    after = sum(len(t) for t in out)
+    report = {
+        "n_chunks": len(texts),
+        "n_dropped": len(drop), "n_moved": len(move),
+        "dropped_serials": sorted(where[i][1].serial for i in drop),
+        "moved_serials": [s for s, _ in moved],
+        "separator": sep,
+        "chars_before": before, "chars_after": after,
+        "delta_chars": after - before,
+    }
+    return out, report
 
 
 def select_pool(facts: Sequence[MemoryRecord], query_vector, cap: int) -> list[MemoryRecord]:
@@ -226,6 +393,12 @@ class MABAdapter:
         self.n_reranks_applied = 0
         self.n_rerank_fallbacks = 0
         self.n_embed_errors = 0
+        # T13 fact-level counters. chars_removed is the token-accounting
+        # tripwire: SUPPRESS must show it positive, DEMOTE_LATE exactly zero.
+        self.n_fact_edits_applied = 0
+        self.n_facts_suppressed = 0
+        self.n_facts_demoted = 0
+        self.chars_removed = 0
 
     # ── embedding ────────────────────────────────────────────────────────────
     def embed(self, texts: Sequence[str]) -> np.ndarray | None:
@@ -545,21 +718,34 @@ class MABAdapter:
         return result
 
     def apply_read_decision(self, decision: Decision, scored, top_k: int) -> list[str]:
-        """Live-mode execution seam (T11). Returns the page of texts the
-        retriever hands back — ALWAYS the same count and the same chunk set as
-        the native page; only the order may differ, and only when every guard
-        agrees:
+        """Live-mode execution seam (T11 rerank; T13 fact-level edits).
 
-        * mode is ``live`` and the decision is armed (``shadow=False``) and is
-          an actual ``RERANK`` with a payload — anything else returns the
+        Returns the page of texts the retriever hands back. Three armed actions,
+        one shared set of guards:
+
+        ``RERANK``       same chunk set, same count, order only.
+        ``SUPPRESS``     same chunk count and order; the named facts are spliced
+                         out of the chunk text they live in. Tokens go DOWN.
+        ``DEMOTE_LATE``  same chunk count and order; the named facts move to the
+                         end of the last chunk's content. Token-neutral.
+
+        Guards, in order — any of them failing returns the NATIVE page:
+
+        * mode is ``live`` and the decision is armed (``shadow=False``) and
+          carries a known action with a payload — anything else returns the
           native page byte-identically (off/shadow neutrality);
-        * the payload order is exactly a permutation of the native page's
-          chunk ids — otherwise fall back to native and count it, never guess.
+        * ``RERANK``'s order is exactly a permutation of the native page's chunk
+          ids; a fact-level edit's ids are all locatable on the page and its
+          drop/move sets are disjoint. Failures are counted in
+          ``n_rerank_fallbacks``, never guessed at.
         """
         native = native_page_from_scored(scored, top_k)
         if (self.mode != _config.MODE_LIVE or decision is None or decision.shadow
-                or decision.action != "RERANK" or not decision.payload):
+                or decision.action not in ("RERANK", "SUPPRESS", "DEMOTE_LATE")
+                or not decision.payload):
             return native
+        if decision.action in ("SUPPRESS", "DEMOTE_LATE"):
+            return self._apply_fact_edit(decision, native)
         order = list((decision.payload or {}).get("order") or [])
         text_of: dict[str, str] = {}
         for t in native:
@@ -573,6 +759,30 @@ class MABAdapter:
             return native
         self.n_reranks_applied += 1
         return [text_of[cid] for cid in order]
+
+    def _apply_fact_edit(self, decision: Decision, native: list[str]) -> list[str]:
+        """``SUPPRESS`` / ``DEMOTE_LATE`` execution. Fail-open by construction:
+        any irregularity — an id the page does not carry, overlapping id sets,
+        an unparseable chunk — returns the native page and increments
+        ``n_rerank_fallbacks``, so a broken edit degrades to "no intervention"
+        and is visible in the audit trail rather than silent."""
+        payload = decision.payload or {}
+        drop = list(payload.get("drop_ids") or ())
+        move = list(payload.get("move_last_ids") or ())
+        if not drop and not move:
+            return native
+        try:
+            page, report = page_edit(native, drop_ids=drop, move_last_ids=move)
+        except Exception as e:  # noqa: BLE001 — fail OPEN, but audibly
+            self.n_rerank_fallbacks += 1
+            decision.reasons["page_edit_error"] = repr(e)[:300]
+            return native
+        self.n_fact_edits_applied += 1
+        self.n_facts_suppressed += report["n_dropped"]
+        self.n_facts_demoted += report["n_moved"]
+        self.chars_removed += -report["delta_chars"]
+        decision.reasons["page_edit"] = report
+        return page
 
 
 _ADAPTER: MABAdapter | None = None
@@ -616,10 +826,19 @@ def _build_components(cfg) -> dict:
         pass
     try:
         from hnav.core.read_gate import ReadGate, build_nli
-        from hnav.core.read_policy import ReadRerankPolicy, stage1_thresholds
-        out["read_policy"] = ReadRerankPolicy(
-            ReadGate(build_nli(cfg), stage1_thresholds(),
-                     pair_filter=MABAdapter.same_key_pair))
+        from hnav.core.read_policy import (FACT_MECHANISMS, ReadFactPolicy,
+                                           ReadRerankPolicy, stage1_thresholds)
+        gate = ReadGate(build_nli(cfg), stage1_thresholds(),
+                        pair_filter=MABAdapter.same_key_pair)
+        mech = getattr(cfg, "read_mechanism", "rerank")
+        if mech in FACT_MECHANISMS:
+            out["read_policy"] = ReadFactPolicy(gate, mechanism=mech)
+        elif mech == "rerank":
+            out["read_policy"] = ReadRerankPolicy(gate)
+        else:
+            raise ValueError(
+                f"HNAV_READ_MECHANISM={mech!r} unknown; expected 'rerank' or "
+                f"one of {FACT_MECHANISMS}")
     except Exception:  # noqa: BLE001
         pass
     return out

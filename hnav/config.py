@@ -84,6 +84,16 @@ class HNavConfig:
     # truncation counters rather than configured away (T12 note 5).
     nli_max_length: int = 512
 
+    # Which read-path mechanism a LIVE run arms (T13). "rerank" is the T11
+    # chunk-order permutation, kept as evidence and measured HARMFUL
+    # (STAGE1_NULL_ANALIZI.md); "suppress" drops the stale fact and
+    # "demote_late" moves the newest fact to the end of the page — both act at
+    # FACT granularity inside the retrieved chunks (hnav/core/read_policy.py).
+    # The default is deliberately the pre-T13 behaviour so that adding the new
+    # mechanisms cannot change what an existing live command does; the campaign
+    # sets HNAV_READ_MECHANISM explicitly and records it.
+    read_mechanism: str = "rerank"
+
     # paths (both gitignored)
     cache_dir: Path = field(default_factory=lambda: REPO / "hnav/_cache")
     out_dir: Path = field(default_factory=lambda: REPO / "hnav/_out")
@@ -157,6 +167,7 @@ def from_env(env: dict[str, str] | None = None, repo: Path | None = None) -> HNa
         nli_dtype=env.get("HNAV_NLI_DTYPE", "float32"),
         nli_batch=int(env.get("HNAV_NLI_BATCH", "16")),
         nli_max_length=int(env.get("HNAV_NLI_MAX_LENGTH", "512")),
+        read_mechanism=env.get("HNAV_READ_MECHANISM", "rerank").strip().lower(),
         cache_dir=_as_path(repo, env.get("HNAV_CACHE_DIR", "hnav/_cache")),
         out_dir=_as_path(repo, env.get("HNAV_OUT_DIR", "hnav/_out")),
         top_m=int(env.get("HNAV_TOP_M", "50")),
