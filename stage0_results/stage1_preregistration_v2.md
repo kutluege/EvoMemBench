@@ -358,3 +358,50 @@ is on the record before the confirmatory run, and so that a weak result here
 cannot be quietly dropped.
 
 If time or GPU forces a choice, the confirmatory run comes first.
+
+---
+
+## Amendment 1 — a second Branch A prerequisite  ·  2026-08-15, post-registration
+
+**This amendment only ADDS a constraint and a void condition. It relaxes
+nothing, changes no criterion, no threshold and no prediction.** It is recorded
+separately, with its own timestamp, because a registered document must not be
+silently edited.
+
+**Measured after registration.** Every `sh_64k` vector the harness would need is
+already in the shared cache — 4,580/4,580 facts and 17/17 chunks — but all of
+them sit under the pre-T12 namespace `Qwen_Qwen3-Embedding-4B|float32`, i.e.
+they were embedded with the **512-token truncation defect** in force. Nothing is
+cached under `|L512` or `|L8192`.
+
+For facts this is harmless and already argued (§8.1): a fact is one short
+sentence, far under 512 tokens, and the vectors were *proven* identical to the
+prepass's to 8.9e-16.
+
+For CHUNKS it is not harmless **at `sh_64k` specifically**, and the reason is new:
+
+- on the calibration split, chunk vectors only decide the *order* of a page that
+  contains every chunk anyway (2 and 9 ≤ `top_k` 10), so a defective ranking
+  changes nothing about *what the model sees* — which is why every committed
+  calibration result stands unaffected;
+- at `sh_64k`, chunk vectors decide **which 10 of 17 chunks are on the page at
+  all**. A ranking computed from ~12% of each chunk would select the page, and
+  the confirmatory number would then be about a page the benchmark's own
+  retriever would not have produced.
+
+**Prerequisite added for Branch A.** Before any `sh_64k` confirmatory run, the
+17 `sh_64k` chunks must be re-embedded at the corrected `max_length` (8192, the
+current `DEFAULT_MAX_LENGTH`) and the prepass ranking recomputed from those
+vectors. The re-embedding is trivial compute (17 texts) but currently blocked:
+the fp32 embedder needs ~17 GB and both GPUs are held by the two chat servers.
+Freeing the :8003 card and restoring it byte-identically is acceptable; the
+user's :8000 is not ours to touch.
+
+**Void condition 6 (added).** The `sh_64k` confirmatory run is void if its
+chunk-level ranking was computed from 512-truncated chunk vectors. The run
+artifact must record the embedding-cache namespace actually used, and it must be
+the `L8192` one for chunks.
+
+**Note for Branch B.** Branch B does not need this — a whole-context prompt has
+no retrieval step — but Branch B remains blocked by §0's window arithmetic, so
+this does not revive it.
