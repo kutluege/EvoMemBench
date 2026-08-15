@@ -408,3 +408,84 @@ git add stage0_results/crossep/ && git commit -m "T10: M5 mem0_history measureme
 Yorum notu (şimdiden): mem0 kendi LLM-süzgecini ve dedup'ını koşar — ham
 exact-dup oranının qwen3_embedding'dekinden DÜŞÜK çıkması beklenir; sonuç ne
 çıkarsa [GATE] raporuna o girer.
+
+## 10. Koşu günlüğü — §9.1'in ilk denemesi, OOM ve embedder düzeltmesi (provenans)
+
+Bu bölüm ölçüm sonucu değil, **sonucun nasıl elde edildiğinin kaydıdır**;
+sayıların denetlenebilirliği için tutulur.
+
+### 10.1 Üç özdeş OOM ve yanlış hipotezler
+
+`5240774` (T12, `max_length` 512→8192) sonrası §9.1 üç kez denendi ve **üçünde
+de bayt-bayt aynı** hatayla düştü: `Tried to allocate 788.00 MiB`, PyTorch'ta
+22,15 GiB ayrılmış, 778 MiB boş.
+
+| Deneme | `HNAV_EMBED_BATCH` | Sonuç |
+|---|---|---|
+| 1 | 8 (`.env`) | OOM, 20/120 bağlamdan sonra |
+| 2 | 2 (süreç-kapsamlı override) | **aynı** OOM, aynı bayt |
+| 3 | 1 (süreç-kapsamlı override) | **aynı** OOM, aynı bayt |
+
+Batch'in hiç fark etmemesi teşhisin kilit kanıtıydı: hata `crossep_m5:271` →
+`to_candidate` → `encode([content])` yolunda, yani **tek metinlik** bir
+çağrıda gerçekleşiyordu — batch parametresi bu yolda tanım gereği etkisiz.
+Test edilen iki hipotez de YANLIŞ çıktı: (a) "batch çok büyük" (çürütüldü,
+yukarıdaki tablo), (b) "bellek-verimli backend'i zorla" — bu `No available
+kernel` ile abort ediyor, çünkü sorun *öncelik* değil **uygunluk**tu.
+
+### 10.2 Gerçek kök neden (embedder sahibi tarafından box'ta ölçüldü)
+
+Qwen3-Embedding-4B **grouped-query attention** kullanır: 32 query head, 8 KV
+head. Attention mask `None` olduğunda — ki tek-metinlik `encode([content])`
+tam olarak bu durumdur, çünkü hep-birler mask optimize edilip atılır —
+transformers SDPA'ya genişletilmemiş K/V'yi `enable_gqa=True` ile verir;
+PyTorch'un füzyonlu çekirdekleri bunu **doğrudan reddeder** ve MATH yoluna
+düşerek `[1, 32, N, N]` tensörünü maddileştirir. Bellek `N²` ile büyür, bu
+yüzden 5.076 token'lık tek bir metin kartı bitirir. Düzeltme uygunluğu geri
+kazandırır (`repeat_kv` ile K/V 32 head'e genişletilir), böylece füzyonlu
+çekirdeği PyTorch kendisi seçer. İkinci bir OOM daha MLP'de bulundu ve
+token-bütçeli batch'leme ile giderildi (9 × ~5.000 token'lık chunk tek bir
+45k-token forward'a dolduruluyordu).
+
+**Sayısal nötrlük kanıtlanmış (bizim tarafımızdan tüketilen haliyle):**
+eski ve yeni yolun ikisinin de koştuğu yerlerde kosinüsler bit-özdeş,
+bileşenler ~1,2e-07; token-bütçeli batch'leme `max|1−cos| = 5,96e-07`.
+
+### 10.3 Düzeltmenin CrossEp üzerinde doğrulanması (öncesi/sonrası)
+
+Saatlerce GPU harcamadan önce, **tam olarak düşen vaka** tek başına sınandı:
+
+| Ölçüt | Düzeltme öncesi | Düzeltme sonrası |
+|---|---|---|
+| 5.076 token'lık metin (en uzun CrossEp chunk'ı) | 3/3 OOM | `(1, 2560)` vektör ✓ |
+| `gqa_expansion_applied` | — | `True` |
+| Koşu sırasında GPU1 | OOM @ ~22,7 GiB | **18,7 GiB sabit** |
+| `max_length` / `dtype` | 8192 / float32 | **değişmedi** |
+| Cache ad alanı | `…|float32|L8192` | **değişmedi** |
+
+Yani düzeltme hiçbir **pinlenmiş bilimsel parametreye** dokunmadı: ne
+`max_length`, ne dtype, ne model, ne cihaz, ne de cache ad alanı değişti —
+yalnızca aynı matematiğin bellek-verimli çekirdekle koşması sağlandı.
+
+### 10.4 CrossEp token dağılımı (tokenizer-only, GPU'suz ölçüm)
+
+7.879 chunk metni, Qwen3-Embedding-4B tokenizer'ı:
+
+| p50 | p90 | p99 | max | >2048 | >4096 | >8192 |
+|---|---|---|---|---|---|---|
+| 1.045 | 1.130 | 1.411 | **5.076** | 23 (%0,29) | 2 (%0,03) | **0 (%0,00)** |
+
+İki sonucu var: (1) **`L8192` pini hiçbir CrossEp metnini kesmez** — pin
+doğrudur ve toplam token hacmi 2048'de de 8192'de de aynıdır (7,7M);
+(2) metinlerin **%92,55'i 512 token'ı aşar**, yani T12 öncesi kesme kusuru
+CrossEp'te MAB'dakinden bile daha yıkıcıydı — neredeyse her metin sessizce
+kırpılıyordu. Bu, T12 düzeltmesinin bu arena için ne kadar kritik olduğunun
+niceliksel kaydıdır.
+
+### 10.5 Etkilenmeyen sonuçlar
+
+§5'in manşet bulgusu (MD5 exact-dup %11,7 kalibrasyon / %7,2 held-out, en kötü
+küme 0,706; leksik Jaccard) **embedder'dan bağımsızdır** ve bu bölümdeki
+hiçbir olaydan etkilenmemiştir — ne OOM'dan, ne düzeltmeden, ne ad alanı
+değişikliğinden. SMOKE ölçümü provenans olarak `stage0_results/crossep/`
+altında korunur.
