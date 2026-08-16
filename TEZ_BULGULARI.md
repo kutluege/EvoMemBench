@@ -372,17 +372,19 @@ yeniden chunk'lıyor.
 | eksen | kalibrasyon | held-out | kontrol |
 |---|---|---|---|
 | byte-özdeş (MD5) | 0.117 | 0.072 | — |
-| **çift-bazlı yakın-yineleme (cos ≥ 0.95)** | **%21.8 bağlam-içi** | — | **%0.0 bağlam-arası** (20.000 çift) |
+| **çift-bazlı yakın-yineleme (cos ≥ 0.95)** | **%21.8 bağlam-içi** | — | **%0.04 bağlam-arası** (20.000 çiftin 8'i) — **~545× ayrışma** |
 | en-yakın-komşu ≥ 0.95 (şişirilmiş istatistik) | 0.863 | 0.853 | — |
 | **çift yönlü çelişki ≥ 0.90** | **0.0129** | — | — |
 | `is_critical_delta` | **0.0000** | **0.0000** | — |
 
-> **Hangi sayı yazılmalı:** **%21.8 vs %0.0** (çift-bazlı, kontrollü). 0.86
-> bir **en-yakın-komşu** istatistiğidir ve fazlalığı mağaza boyutuyla
-> karıştırır (bağlam başına 30–250 çekiliş, p95 = 0.971) — **tek başına
-> alıntılanması fazlalığı abartır.** Kontrol eşiğin ayırt ettiğini gösteriyor:
-> 20.000 bağlam-arası çiftin **hiçbiri** 0.95'e ulaşmıyor, yani doygunluk
-> artefaktı değil.
+> **Hangi sayı yazılmalı:** **%21.8 vs %0.04** (çift-bazlı, kontrollü, ~545×
+> ayrışma). 0.86 bir **en-yakın-komşu** istatistiğidir: bağımsızlık altında
+> ölçülen p=0.218 ve gerçek mağaza boyutlarıyla **öngörülen oran 0.944** — yani
+> gözlenen 0.863'ün **üstünde**. Dolayısıyla 0.86 **iddianın parçası değildir**;
+> çift oranı ve mağaza boyutunun zaten öngördüğü şeydir, ek kanıt taşımaz.
+> *(Düzeltme: önceki metin bağlam-arası oranı "%0.0 / hiçbiri" diye yuvarlamıştı;
+> gerçek değer 20.000 çiftin **8'i**. `m5b` kontrol betiği bunu yakaladı —
+> kontrolü kod olarak commit etmenin amacı tam da budur.)*
 
 - **Mekanizma ayrımı (hipotezim yarı yanlıştı, kontrolle düzeltildi):**
   *exact* yinelemeler harness artefaktıdır (%11.6'sı System Context bloğunun

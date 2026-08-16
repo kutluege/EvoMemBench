@@ -377,7 +377,7 @@ a frozen 48/72-cluster split):
 | axis | calibration | held out | control |
 |---|---|---|---|
 | byte-identical duplicates | 0.117 | 0.072 | — |
-| **pairwise near-duplication (cos ≥ 0.95)** | **21.8% within-context** | — | **0.0% across contexts** (20,000 pairs) |
+| **pairwise near-duplication (cos ≥ 0.95)** | **21.8% within-context** | — | **0.04% across contexts** (8 of 20,000 pairs) — a **~545× separation** |
 | bidirectional contradiction | 0.0129 | — | — |
 | **critical delta (fact-level, untruncated)** | **0.0000** | **0.0000** | — |
 
@@ -391,9 +391,10 @@ but not the near-duplicates — organic chunks with almost no shared content sti
 reach 0.95 similarity at 85%, and 62% of neighbours come from a different sample
 in the same context. Second, the headline was demoted by its own author: 86% is a
 **nearest-neighbour** statistic, and with a 21.8% pairwise rate over stores of
-30–250 records, a nearest-neighbour maximum above 0.95 is *expected* ~99.9% of
-the time. **The 86% is entirely explained by store size and carries no additional
-evidence.** All reporting leads with 21.8%.
+30–250 records, the predicted nearest-neighbour rate under independence is
+**0.944** — *above* the observed 0.863. **The 86% is therefore not part of the
+claim at all**: it is what the pairwise rate and the store size already predict,
+and carries no additional evidence of redundancy. All reporting leads with 21.8%.
 
 **Verdict:** *Redundancy headroom is real and measured; its conversion to accuracy
 is unproven and currently unmeasurable.* Three reasons for refusing to assert a
