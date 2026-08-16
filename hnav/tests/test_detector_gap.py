@@ -890,3 +890,43 @@ def test_the_committed_confirmatory_artifact_carries_its_verdict():
     assert d["detector_vs_oracle"] == {}, \
         "no oracle arm exists at sh_64k; no ratio may be quoted for it"
     assert any("BACKWARDS" in i for c in d["corrections"] for i in c["items"])
+
+
+# ── the pre-registration must be readable standalone, and stay true ──────────
+def test_preregistration_banner_reports_the_fired_outcome():
+    """A reviewer handed only the pre-registration must be able to tell that the
+    campaign ran and how it came out — and the banner's figures must not drift
+    from the artifact they describe. Prose provenance drifts; a pinned equality
+    cannot."""
+    import json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    prereg = root / "stage0_results/stage1_preregistration_v2.md"
+    art = root / "stage0_results/stage1/detector_gap_confirmatory_sh64k.json"
+    if not art.exists():
+        pytest.skip("confirmatory artifact not present")
+    text = prereg.read_text(encoding="utf-8")
+    head = text[:4000]
+
+    assert "REGISTERED · FIRED · REPORTED" in head
+    assert "THE CAMPAIGN RAN" in head
+    assert "detector_gap_confirmatory_sh64k.json" in head
+    assert "2026-08-15T22:00:02+03:00" in head
+    assert "effective\n> but not yet safe" in head or "effective" in head
+
+    r = json.loads(art.read_text(encoding="utf-8"))["results"][0]
+    c = r["by_stratum"]["conflicted"]
+    paired = c["paired_vs_native"]["detector_suppress"]
+    v = r["void_conditions"]["verdict"]
+
+    # the banner's headline numbers, each checked against the artifact
+    assert f"net **+{paired['net']}**" in head
+    assert (f"{c['arms']['native']['correct']}/66 → "
+            f"**{c['arms']['detector_suppress']['correct']}/66**") in head
+    assert "MET" in head and "VOID" in head
+    assert v["run_void"] is False and v["shot_spent"] is True
+    assert "NOT void" in head and "the shot IS spent" in head
+    # the gold-cut miss is reported as a miss, not smoothed over
+    assert "A MISS" in head
+    # and the prohibition travels with the document
+    assert "No oracle-ceiling ratio exists" in head

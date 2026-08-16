@@ -1,4 +1,45 @@
-# Stage-1 Confirmatory Campaign v2 — PRE-REGISTRATION  ·  **REGISTERED**
+# Stage-1 Confirmatory Campaign v2 — PRE-REGISTRATION  ·  **REGISTERED · FIRED · REPORTED**
+
+> # ✅ THE CAMPAIGN RAN. Outcome below.  ·  banner added 2026-08-16
+>
+> **Fired 2026-08-15T22:00:02+03:00** at HEAD `3a2ebb9`, finished 23:07:19.
+> 500 calls, ~19.8M prompt tokens, frozen `:8003`, retrieval-path harness,
+> page read from the benchmark's own vectors.
+> **Artifact: `stage0_results/stage1/detector_gap_confirmatory_sh64k.json`.**
+> Write-up: `hnav/BUILD_NOTES.md` §13.
+>
+> | | outcome |
+> | --- | --- |
+> | **Primary criterion (§4)** | **MET.** Conflicted-stratum McNemar net **+20** (b=0, c=20), exact **p = 1.9×10⁻⁶**, tokens **−0.31%**. Conflicted accuracy 17/66 → **37/66**. |
+> | **Protective claim (§5, VC5)** | **VOID**, on one question — q77, class `refusal_after_edit` (native "John Milton" → *"The provided knowledge pool does not contain any information about"*, with the gold fact still on the page). |
+> | **Run itself** | **NOT void.** Conditions 1–4 and 6–8 all **passed**. VC5 voids the protective claim only, so **the shot IS spent.** |
+> | **Gold-cut prediction (§6)** | Registered **2**. Observed **1 detection-level deletion, 0 accuracy losses**. **A MISS**, reported as one. |
+>
+> **The registered conclusion of Amendment 4 (R2) applies verbatim — *effective
+> but not yet safe*:** fact-level suppression of detector-verified stale memory
+> raises conflicted-stratum accuracy from 17/66 to 37/66 (+20 net discordant
+> pairs, p = 1.9×10⁻⁶) at a measured cost of one non-conflicted question via
+> refusal-after-edit, and **may not be recommended for deployment on traffic
+> containing non-conflicted queries** until that mechanism is understood and
+> eliminated.
+>
+> Two things this banner will not soften. **VC2 passed on thin margins**: native
+> overall **0.450** sits at the top edge of the pre-fixed [0.30, 0.50] band, and
+> unique-stratum native **28/34 = 0.824** clears the 0.80 floor by a single
+> question — against calibration's 26/26 and 35/35, so the stratum the
+> protective design presumes near-noiseless is not, here. And the single real
+> gold deletion (q20) cost nothing only because the model answered **"Europe"
+> from world knowledge after "Europe" had been removed and only "Asia" was left
+> on the page** — that is evidence about the evaluator, not evidence that gold
+> cuts are safe.
+>
+> **No oracle-ceiling ratio exists for `sh_64k`** and none may be quoted for it
+> (§9b). `detector_vs_oracle` in the artifact is correctly empty.
+>
+> Everything below this banner is the text as registered, unedited. Amendments
+> 1–4 follow the main text and are dated where they were added.
+
+---
 
 > **Registered 2026-08-15, before any `sh_64k` inference of any kind.** The
 > commit that adds this file is the timestamp of record; the campaign artifact
