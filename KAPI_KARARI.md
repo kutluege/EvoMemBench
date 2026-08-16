@@ -1,5 +1,24 @@
 # KAPI KARARI — H-Nav Stage-0 → Stage-1 Geçiş Değerlendirmesi
 
+> ## ⚠️ BU BELGE KISMEN AŞILMIŞTIR — 2026-08-16
+>
+> Bu dosya **2026-08-15 01:52 itibarıyla** doğruydu ve tarihsel karar kaydı
+> olarak korunuyor. Sonraki ölçümler bazı bölümlerini geçersiz kıldı. Güncel
+> durum için **`TEZ_BULGULARI.md`** (kanıt defteri) ve **`HNAV_FINAL_REPORT.md`**
+> okunmalıdır.
+>
+> | Bu belgede yazan | Güncel durum |
+> |---|---|
+> | §1 satır 4: m2 **`NOT_DEGENERATE 4/4`**, margin p50 serisi | **GEÇİCİ İDİ, DÜZELTİLDİ.** Chunk gömmeleri 512 token'da kesiliyordu (~%12'si). Yeniden türetme sonrası: **2/2 kalibrasyon, yeniden kazanıldı**; sh_64k/sh_262k hâlâ L512 dönemi. Ayrıca kesme, sh_32k'yı olduğundan **kolay** göstermiş (margin p50 −%54). |
+> | §1 dipnot: dondurulmuş eşikler `nmargin<0.0048` / `H_z>1.9569` | **SEVK EDİLEN MEKANİZMADA ATIL.** İşletim noktası `ambiguity_mode="none"` kullanır. Ayrıca `H_z` sh_6k'da **yapısal olarak erişilemez** (n_chunks=2 ⇒ H_z ≡ 0.36533 sabit) ve havuzlanmış percentile savunulamaz. Yalnız `r_min` (olgu tabanlı) etkilenmemiştir ve 1.1e-06 ile **sabittir**. |
+> | §3: "read_policy **KOŞULLU**" | **KOŞUL SAĞLANDI ve mekanizma kuruldu, koşuldu, raporlandı.** Chunk düzeyi rerank reddedildi (sistematik zararlı); olgu düzeyi **bastırma** ön-kayıtlı held-out koşumda birincil ölçütü **GEÇTİ** (sh_64k: çakışan 17/66 → 37/66, net +20, p=1.9e-06, token −%0.31); koruyucu iddia tek soruda geçersiz. |
+> | §4: Stage-1 çerçeve seçenekleri 1/2/3 | **AŞILDI.** Kullanıcı seçeneği 1'i seçti; sonuç yukarıdadır. |
+> | §2 m3 okuma-yolu onarım sayıları (+6/−1 vb.) | **AŞILDI** — oracle probe ve dedektör ölçümleri (A2/A3) çok daha iyi ölçümlerdir; m3'ün LLM etiketleri L512 dönemidir. |
+>
+> **Değişmeyen ve hâlâ geçerli olan:** §1 satır 1–3, 5 (geometri öncülü,
+> gruplama, replika sadakati, gölge nötrlüğü), §1 satır 7 (m4 / H2 GEÇMEDİ,
+> LRT p=0.341), **write_policy NO_GO kalıcıdır**, ve §5'teki sapma listesi.
+
 > **KARAR DURUMU: `TAMAMLANDI — AYRIŞIK VERDİKT (§6)`** — Stage-0'ın 10 aşaması
 > da ölçüldü; `report.py --strict: COMPLETE` (2026-08-15 01:52). Bu dosya 10
 > dakikada okunacak şekilde yazılmıştır. Ham veriler: `STAGE0_REPORT.md` +
