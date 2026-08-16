@@ -366,10 +366,51 @@ yeniden chunk'lıyor.
   koşusuna rağmen gerçek; kesme düzeltmesinden etkilenmez.
 - **Doğrulama:** supervisor bağımsız yeniden saydı (en kötü küme 89/126 = 0.7063,
   ham JSONL'den gerçek chunker ile).
-- **Sınırlılık:** anlamsal yakın-yineleme ve çelişki eksenleri henüz ölçülmedi
-  (gerçek-embedder M5 koşusu sırada); split 48/72 **küme** (ICC 0.346, etkin
-  N ≈ 276/884) — güç küme-öncelikli hesaplanmalı.
-- **Durum: SAĞLAM (exact-dup ekseni), AÇIK (anlamsal eksen).**
+- **Anlamsal eksen ÖLÇÜLDÜ (2026-08-16, gerçek embedder, 120 bağlam / 7.879
+  yazma olayı):**
+
+| eksen | kalibrasyon | held-out | kontrol |
+|---|---|---|---|
+| byte-özdeş (MD5) | 0.117 | 0.072 | — |
+| **çift-bazlı yakın-yineleme (cos ≥ 0.95)** | **%21.8 bağlam-içi** | — | **%0.0 bağlam-arası** (20.000 çift) |
+| en-yakın-komşu ≥ 0.95 (şişirilmiş istatistik) | 0.863 | 0.853 | — |
+| **çift yönlü çelişki ≥ 0.90** | **0.0129** | — | — |
+| `is_critical_delta` | **0.0000** | **0.0000** | — |
+
+> **Hangi sayı yazılmalı:** **%21.8 vs %0.0** (çift-bazlı, kontrollü). 0.86
+> bir **en-yakın-komşu** istatistiğidir ve fazlalığı mağaza boyutuyla
+> karıştırır (bağlam başına 30–250 çekiliş, p95 = 0.971) — **tek başına
+> alıntılanması fazlalığı abartır.** Kontrol eşiğin ayırt ettiğini gösteriyor:
+> 20.000 bağlam-arası çiftin **hiçbiri** 0.95'e ulaşmıyor, yani doygunluk
+> artefaktı değil.
+
+- **Mekanizma ayrımı (hipotezim yarı yanlıştı, kontrolle düzeltildi):**
+  *exact* yinelemeler harness artefaktıdır (%11.6'sı System Context bloğunun
+  birebir alt dizisi — MD5 oranıyla neredeyse aynı); ama **yakın-yineleme
+  kütlesi değildir**: sistem içeriği neredeyse sıfır olan "organik" chunk'lar
+  da `sim ≥ 0.95`'e %85.0/%82.9 oranında ulaşıyor ve yakın-yineleme
+  komşularının %62–63'ü aynı bağlamın **farklı bir örneğinden** geliyor —
+  gerçek çapraz-epizot birikimi.
+- **Çelişki ekseni pratikte YOK** — çelişki 0.0129 ve `is_critical_delta`
+  0.0000, fazlalık kütlesinin **iki kat büyüklük altında**. Birincil arenanın
+  tam tersi vurgu. **Uyarı:** 0.0129 bir **alt sınırdır** — NLI girdilerinin
+  **680/800'ü (oran 0.850)** DeBERTa'nın kendi 512-pozisyon sınırında kesildi
+  (modelin özelliği, ayar değil); tam metinle daha yüksek çıkabilir ama iki
+  kat büyüklük farkını kapatması olası değildir.
+- **Sınırlılık:** split 48/72 **küme** (ICC 0.346, etkin N ≈ 276/884) — güç
+  küme-öncelikli hesaplanmalı. Artefaktta `embedder_provenance` alanı **yoktu**
+  (sonradan eklendi, geçmişe dönük **doldurulMAdı**); GQA düzeltmesinin
+  uygulandığı yalnız **dolaylı** kanıtlıdır (ön-koşum probu True; 3/3 OOM veren
+  koşum 18.7 GiB'de tamamlandı).
+- **[GATE] KARARI (kabul edildi):** **fazlalık tavanı gerçek ve ölçülmüştür;
+  doğruluğa dönüşümü kanıtlanmamış ve şu an ölçülemezdir.** Yazma-yolu
+  NO_GO'sunun dürüst muadili. İşaret bile öngörülemez: boşalan retrieval
+  yuvaları yararlı çeşitlilik ekleyebilir de, tek ilgili chunk'ı dışarı da
+  atabilir (birincil arenada 64k'da yardım eden telafinin 262k'da net zarar
+  vermesi emsali). Ayrıca "fazlalık var" ≠ "fazlalık zarar veriyor":
+  `rank_self` top-1 0.972/0.979 ve düşük QR yeniliği, **tutarlı** bir mağaza
+  ile de uyumludur.
+- **Durum: SAĞLAM (her iki eksen de ölçüldü), AÇIK (doğruluğa dönüşüm).**
 
 ---
 
