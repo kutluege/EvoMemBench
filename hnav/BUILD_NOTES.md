@@ -866,7 +866,7 @@ while T13 added a single test. Two corrections follow from that:
   total at that moment was **479 passed / 2 skipped**. The number was written
   from the expected count rather than the printed one. Corrected here.
 * the stable figure for T13's own work is its own files:
-  **`test_detector_gap.py` 86, `test_read_policy_facts.py` 43**. Global totals
+  **`test_detector_gap.py` 86, `test_read_policy_facts.py` 42**. Global totals
   in T13 commit messages should be read as "the suite was green when this
   landed", not as an attribution of test count to T13.
 
