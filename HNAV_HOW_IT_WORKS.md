@@ -266,6 +266,11 @@ This screens out groups that merely look similar.
 
 After this step we have **conflict candidates** — but they are not yet trusted.
 
+> **The mathematics behind this step is written out in full in §11.** If you want
+> to know what "span residual" actually computes, why we remove principal
+> components before measuring similarity, or why one of our thresholds turned
+> out to be arithmetically unreachable, read that section.
+
 ### Step 3 — Subject-identity screen: is it really the same thing?
 
 This step exists because of a failure we measured, and it is the single most
@@ -541,3 +546,280 @@ Being precise about the boundaries is what makes the rest credible.
 | **Detector precision** | 1.000 (735/735 deletions correct on held-out data) |
 | **Result** | conflicted accuracy 25.8% → 56.1% held out, p = 1.9×10⁻⁶, tokens −0.31% |
 | **Caveat** | one non-conflicted regression voids the safety criterion: *effective but not yet safe* |
+
+---
+
+## 11. The geometry in detail — what mathematics is actually used
+
+This section expands §5 Step 2. Everything here is linear algebra on unit
+vectors plus one information-theoretic family; there is no learning, no training
+and no gradient anywhere in H-Nav's detector. Source: `hnav/core/geometry.py`,
+`hnav/core/read_gate.py`, `hnav/core/retrieval_signals.py`.
+
+### 11.1 The space we work in
+
+Each fact is turned into a vector by the embedding model:
+
+$$v \in \mathbb{R}^{d}, \qquad d = 2560 \quad (\text{Qwen3-Embedding-4B})$$
+
+and **L2-normalized**, so every fact lives on the unit sphere:
+
+$$\lVert v \rVert_2 = 1$$
+
+Normalization is what makes the rest cheap: for unit vectors the cosine
+similarity is just the dot product,
+
+$$\cos(u,v) \;=\; \frac{u \cdot v}{\lVert u\rVert\,\lVert v\rVert} \;=\; u \cdot v$$
+
+so a similarity search is a matrix–vector product, and "angle" and "distance"
+become interchangeable:
+
+$$\lVert u - v\rVert_2^{2} \;=\; 2 - 2\cos(u,v)$$
+
+That identity is not decoration — it is why H-Nav's replica of the benchmark's
+index can rank by dot product while the benchmark's FAISS index ranks by squared
+L2 distance and still produce **identical orderings** (verified: Kendall τ =
+1.0000, max score error ≤ 4.5×10⁻⁵). It is also why the precision incident in
+`HNAV_FINAL_REPORT.md` §3.2 was so damaging: the equivalence holds **only for
+exact unit vectors**, and bf16 rounding pushed norms to 0.998–1.002, which is
+enough to swap neighbours whose scores differ by less than that error.
+
+### 11.2 Signal 1 — `sim_max`: nearest-neighbour similarity
+
+For a candidate fact $v$ against a bank of stored facts $B \in \mathbb{R}^{m \times d}$:
+
+$$\text{sim\_max}(v) = \max_{i} \; (B v)_i , \qquad
+\text{argmax\_id} = \arg\max_{i} \; (B v)_i$$
+
+One matrix–vector product. This answers "what is the most similar thing already
+in memory, and which one is it?"
+
+### 11.3 ABTT whitening — removing the directions that carry no information
+
+**The problem.** Sentence embeddings are not isotropic. A few directions are
+shared by almost every sentence in a corpus (they encode things like "this is an
+English declarative sentence"), and because they are common to everything they
+carry *no discriminative information* — yet they dominate the dot product. The
+practical symptom is that unrelated sentences all sit at cosine ≈ 0.6–0.8 instead
+of near 0.
+
+**The fix** (Mu & Viswanath's *all-but-the-top*), implemented in
+`ABTTWhitening`:
+
+1. **Estimate the mean** over the store's $N$ vectors:
+   $$\mu = \frac{1}{N}\sum_{i=1}^{N} v_i$$
+2. **Center**: $\tilde{M} = M - \mathbf{1}\mu^{\top}$
+3. **Find the dominant directions** by economy SVD:
+   $$\tilde{M} = U\Sigma V^{\top}, \qquad C = V^{\top}_{1:D} \;\in\; \mathbb{R}^{D \times d}, \quad D = 3$$
+   The top $D$ right singular vectors *are* the principal directions of the
+   centered cloud.
+4. **Project them out and renormalize**, for any vector $v$:
+   $$v' = (v - \mu) - \big((v-\mu)C^{\top}\big)C, \qquad
+     \hat{v} = \frac{v'}{\lVert v'\rVert_2}$$
+
+The middle expression is the projection onto the orthogonal complement of
+$\operatorname{span}(C)$: $(I - C^{\top}C)(v-\mu)$.
+
+**The refusal rule — a deliberate design constraint.** $\mu$ and $C$ are
+*estimates*. On a small store they are estimates of noise. So `fit()`
+**refuses** below `min_fit_n = 200` records and the module falls back to raw
+cosine, **recording which path it took** (`whitened`, `whitening_refused`) so the
+fallback rate is reportable instead of invisible. On `sh_6k` (455 facts) it fits;
+on early cross-episode contexts (<20 chunks) it does not.
+
+**Measured effect** (same-key separation AUC, raw → whitened):
+sh_6k **0.936 → 0.955**, sh_32k **0.988 → 0.991**. Real but modest — which is
+itself informative: in this arena the raw geometry was already strong enough
+that whitening was not load-bearing.
+
+### 11.4 Signal 2 — the QR residual: novelty as an orthogonal projection
+
+**The question:** how much of a new fact is *not already explained* by what is
+stored?
+
+Formally: let $B$ be the bank. The stored facts span a subspace
+$\mathcal{S} = \operatorname{span}(B) \subseteq \mathbb{R}^{d}$. Decompose $v$
+into the part inside that subspace and the part orthogonal to it:
+
+$$v = P_{\mathcal{S}}\,v \;+\; (I - P_{\mathcal{S}})\,v$$
+
+The **residual** is the norm of the second term:
+
+$$r(v) = \big\lVert v - P_{\mathcal{S}}\,v \big\rVert_2$$
+
+To compute $P_{\mathcal{S}}$ we need an **orthonormal basis** for $\mathcal{S}$,
+which is exactly what QR decomposition provides:
+
+$$B^{\top} = QR \quad\Longrightarrow\quad
+  Q^{\top}Q = I, \quad \operatorname{span}(Q) = \operatorname{span}(B^{\top})$$
+$$P_{\mathcal{S}} = QQ^{\top}, \qquad
+  r(v) = \big\lVert v - QQ^{\top}v \big\rVert_2$$
+
+Because $v$ is a unit vector and $P$ is an orthogonal projection, Pythagoras
+bounds the result neatly:
+
+$$r(v) \in [0, 1], \qquad r^2 = 1 - \lVert P_{\mathcal{S}}v\rVert^2$$
+
+- $r = 0$ → the fact is a **linear combination of things already stored**:
+  nothing new.
+- $r = 1$ → the fact is **orthogonal to the entire store**: entirely new.
+
+**An honesty detail that is stated in the return value, not buried.** QR on a
+bank of 18,332 vectors is expensive, so the basis is subsampled to
+`max_basis = 512` columns (fixed seed). A *smaller* span can only leave *more*
+of $v$ unexplained, so the reported residual is a rigorous **upper bound** on
+true novelty — and the flag `qr_basis_subsampled` travels with the number so no
+reader mistakes a bound for a point estimate.
+
+Cost: $O(d\,m^2)$ for the decomposition, $O(dm)$ per query afterwards.
+
+### 11.5 The grouping test — leave-one-out span residual
+
+This is the screen that decides whether a set of similar-looking facts is really
+*one slot restated* rather than several distinct facts that happen to look alike.
+
+For a candidate set $\{v_1,\dots,v_n\}$, compute for each member its residual
+against **all the others**:
+
+$$r_i = \big\lVert v_i - P_{\operatorname{span}(V \setminus v_i)}\, v_i \big\rVert_2$$
+
+A tentative group survives only if
+
+$$\min_i r_i \;<\; r_{\min}$$
+
+In words: **at least one member must be almost entirely reconstructible from the
+rest.** That is the signature of a restatement of the same slot — which is what a
+supersession is — rather than a cluster of merely-similar facts.
+
+**A closed form worth knowing, because it links the two thresholds.** For a
+two-member group whose other candidates are unrelated (near-orthogonal), the
+projection of the unit vector $v_a$ onto $\operatorname{span}\{v_b\}$ has norm
+$|\cos|$, so:
+
+$$r_a = \sqrt{1 - \cos^2(v_a, v_b)}$$
+
+Invert it and a residual threshold *is* a cosine threshold:
+
+$$r_{\min} \;\Longleftrightarrow\; \cos > \sqrt{1 - r_{\min}^{2}}$$
+
+| $r_{\min}$ | implied pair cosine | where it comes from |
+|---|---|---|
+| 0.1924 | **> 0.9813** | the frozen Stage-0 calibration value |
+| **0.44** | **> 0.8980** | the Stage-1 operating point |
+
+This is why the operating point pairs `r_min = 0.44` with `cos_pair = 0.90`:
+$\sqrt{1-0.44^2} = 0.898$, so the two screens **agree** instead of one silently
+overriding the other. The original 0.1924 was far stricter than the cosine screen
+it accompanied — it implied ≈ 0.981, well above the median true-conflict
+similarity of 0.964, which is precisely why the Stage-0 defaults were
+precision-first to the point of rarely firing.
+
+### 11.6 From pairwise scores to groups — a graph problem
+
+Once pairs are scored, grouping is pure graph theory:
+
+- **Nodes** = candidate facts.
+- **Edges** = pairs passing the cosine screen.
+- **Tentative groups** = connected components of size ≥ 2.
+- Each tentative group is then tested by §11.5, and each surviving edge is
+  verified by the subject screen and bidirectional NLI (Steps 3–4).
+- **Final groups** = connected components of the **verified** edges only.
+
+Components are computed deterministically (members ascending), so the same input
+always produces the same grouping — a requirement for the byte-neutrality
+guarantees in §5 Step 6.
+
+### 11.7 The adaptive threshold `tau_t`
+
+`sim_max` drifts upward with store size: in a bigger store, the nearest
+neighbour of *anything* is closer. A fixed threshold therefore silently tightens
+as a run proceeds. So the write-side threshold is adaptive:
+
+$$\tau_t = \operatorname{clip}\!\Big(\bar{s}_t + z\,\sigma_t,\; \text{lo},\, \text{hi}\Big),
+\qquad z = 1,\; \text{lo} = 0.50,\; \text{hi} = 0.99$$
+
+with $\bar{s}_t$ and $\sigma_t$ the running mean and standard deviation of the
+`sim_max` values observed *so far*, maintained from streaming sums
+($\sum s$, $\sum s^2$). Below `min_n = 50` observations there is nothing to adapt
+to and a fixed `init_tau = 0.85` is used.
+
+**The subtlety that makes it honest:** it is stateful and order-dependent *by
+design*. It models what an online policy would have known at time $t$, so
+`update()` must be called in observation order and never with a future
+candidate's value. This is the same write-time-versus-read-time visibility rule
+that runs through the whole codebase.
+
+### 11.8 The retrieval-side family — entropy, margin, and a threshold that could never fire
+
+These signals describe the *ranking* rather than individual facts. They are
+**inert in the shipped configuration** (§6.3), but they matter because one of
+them produced a genuine methodological finding.
+
+Given ranked scores $s_1 \ge s_2 \ge \dots \ge s_n$ over the top $m = 50$:
+
+$$\text{margin} = s_1 - s_2, \qquad \text{nmargin} = \frac{s_1 - s_2}{|s_1|}$$
+
+For the entropy family the scores are first **z-scored**, then softmaxed, then
+Shannon entropy is taken in nats:
+
+$$z_i = \frac{s_i - \bar{s}}{\sigma}, \qquad
+p_i = \frac{e^{z_i}}{\sum_j e^{z_j}}, \qquad
+H_z = -\sum_i p_i \log p_i$$
+
+with $\text{eff\_size} = e^{H_z}$ read as "how many neighbours are effectively
+competing." A variant $H_{vn}$ (von Neumann entropy of the top-$m$ Gram matrix)
+is computed when vectors are supplied.
+
+Why z-score first? Because raw cosine scores have an arbitrary scale, and a
+softmax over them measures the *scale* as much as the *shape*. A parallel raw
+version $H_{raw}$ is logged **but is forbidden from ever feeding a decision** —
+enforced by an AST scan in the test suite, not by convention.
+
+**The finding.** Entropy over $n$ items is bounded by $\log n$. At `sh_6k` the
+store is **2 chunks**, so:
+
+$$H_z \le \log 2 = 0.693$$
+
+Worse, with $n = 2$ the z-scored vector is *always* $[+1, -1]$ regardless of the
+underlying scores, so the entropy collapses to a **constant**:
+
+$$H_z \equiv 0.36533385508\ldots \quad \text{for every question at } n=2$$
+
+The frozen threshold inherited from Stage 0 was $H_z > 1.9569$ — **above the
+mathematical ceiling**. It could never fire on `sh_6k`, under that threshold, a
+re-fitted one, or even `sh_6k`'s own 75th percentile. And because it had been fit
+on *pooled* calibration data, it landed on `sh_32k`'s median instead — making it
+effectively a **store-size detector rather than an ambiguity detector**. That is
+the concrete reason the shipped operating point disables this screen, and the
+reason the codebase now requires per-subset reporting.
+
+### 11.9 The cheap paths that run first
+
+Two O(1) checks precede all vector arithmetic:
+
+- **Exact duplicate:** MD5 of the exact string. If the text has been seen
+  verbatim, no geometry is needed.
+- **Verbatim value extraction:** a deliberately crude regex for capitalized
+  phrases and numbers, used to ask "does this candidate introduce a value the
+  store has never seen?" It is tuned for **recall, not precision**, because the
+  error costs are asymmetric — a false positive costs a suppression that would
+  have happened anyway; a false negative destroys an answer.
+
+### 11.10 Summary of the mathematics
+
+| signal | mathematics | cost | what it answers |
+|---|---|---|---|
+| `sim_max` | dot product on unit vectors | $O(md)$ | is anything in memory this similar? |
+| ABTT whitening | mean removal + top-3 SVD projection + renormalize | $O(Nd^2)$ once | remove directions that carry no information |
+| QR residual | orthogonal projection via QR, $\lVert v - QQ^{\top}v\rVert$ | $O(dm^2)$ | how much of this is genuinely new? |
+| LOO span residual | the same, member-vs-rest | $O(n \cdot dn^2)$ per group | is this one slot restated, or several facts? |
+| grouping | connected components | $O(V+E)$ | which facts belong together? |
+| `tau_t` | running mean + $z\sigma$, clipped | $O(1)$ streaming | adapt to a growing store |
+| margin / `nmargin` | $s_1-s_2$, normalized | $O(1)$ | is the top result decisive? |
+| $H_z$ / eff\_size | softmax over z-scores → Shannon entropy | $O(m)$ | how many neighbours compete? |
+
+**The overall design principle:** cheap and exact first (hash), then linear
+algebra (cosine, projections), then — only for the few pairs that survive — the
+expensive neural check (NLI). Nothing in the geometric stage is learned or
+tuned during a run; every threshold is fitted once on the calibration split and
+frozen.
