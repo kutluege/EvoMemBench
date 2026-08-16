@@ -238,3 +238,124 @@ def test_embedder_report_distinguishes_not_run_from_did_not_engage():
 
     ok = m5.embedder_report(_FakeHF(True))
     assert ok["gqa_expansion_applied"] is True
+
+
+# ── M5b controls ─────────────────────────────────────────────────────────────
+def _write_cache(tmp_path, namespace, texts_to_vecs):
+    import hashlib
+    d = tmp_path / "emb"
+    d.mkdir(exist_ok=True)
+    for t, v in texts_to_vecs.items():
+        h = hashlib.sha256((namespace + "||" + t).encode()).hexdigest()
+        np.save(d / f"{h}.npy", np.asarray(v, dtype=np.float32))
+    return d
+
+
+def test_m5b_cache_miss_is_fatal_never_a_silent_reembed(tmp_path):
+    """M5b validates another run's vectors; embedding on a miss would let it
+    silently compute in a different space from the run under validation."""
+    from hnav.stage0 import crossep_m5b_control as m5b
+
+    cache = m5b.CachedVectors("ns|float32|L8192", tmp_path)
+    with pytest.raises(FileNotFoundError, match="will not embed"):
+        cache.get("a text that was never embedded")
+
+
+def test_m5b_cached_vectors_are_l2_normalized(tmp_path):
+    from hnav.stage0 import crossep_m5b_control as m5b
+
+    ns = "ns|float32|L8192"
+    d = _write_cache(tmp_path, ns, {"t": np.array([3.0, 4.0])})   # norm 5
+    v = m5b.CachedVectors(ns, d).get("t")
+    assert v == pytest.approx([0.6, 0.8])
+
+
+def test_m5b_control_pairs_are_reproducible_and_correctly_partitioned():
+    """Closed form: contexts are built so within-context pairs are IDENTICAL
+    vectors (cos 1.0) and across-context pairs are ORTHOGONAL (cos 0.0)."""
+    from hnav.stage0 import crossep_m5b_control as m5b
+
+    e1 = np.array([1.0, 0.0, 0.0])
+    e2 = np.array([0.0, 1.0, 0.0])
+    e3 = np.array([0.0, 0.0, 1.0])
+    ctx = {"A": [e1, e1, e1], "B": [e2, e2, e2], "C": [e3, e3, e3]}
+
+    out = m5b.control_pairs(ctx, n_pairs=200, seed=1)
+    assert out["within_context"]["p50"] == pytest.approx(1.0)
+    assert out["within_context"]["frac_ge_0.95"] == pytest.approx(1.0)
+    assert out["across_contexts"]["p50"] == pytest.approx(0.0)
+    assert out["across_contexts"]["frac_ge_0.95"] == pytest.approx(0.0)
+
+    # same seed -> same draws; different seed -> the sampler actually moved
+    again = m5b.control_pairs(ctx, n_pairs=200, seed=1)
+    assert again == out
+
+
+def test_m5b_naive_nn_prediction_matches_the_closed_form():
+    """1 - (1-p)^i averaged over writes. Hand-checked on a 3-record store."""
+    from hnav.stage0 import crossep_m5b_control as m5b
+
+    p = 0.5
+    got = m5b.naive_nn_prediction({"ctx": 3}, p)
+    expected = np.mean([1 - 0.5 ** 1, 1 - 0.5 ** 2])      # writes i=1,2
+    assert got["mean_predicted_nn_rate"] == pytest.approx(expected)
+    assert got["n_writes_considered"] == 2
+
+    # The point the report makes: at the measured pairwise rate and a
+    # realistic store, the independent prediction for the NN max sits far
+    # ABOVE M5's observed ~0.86 — so sim_max carries no evidence the pairwise
+    # rate did not already carry. (Averaged over i=1..n-1, so early writes
+    # with few priors pull it below the asymptote of ~1.0.)
+    big = m5b.naive_nn_prediction({"ctx": 120}, 0.218)
+    assert 0.96 < big["mean_predicted_nn_rate"] < 1.0
+    assert big["mean_predicted_nn_rate"] > 0.86
+
+
+def test_m5b_shingle_containment_is_a_ratio_of_the_chunk():
+    from hnav.stage0 import crossep_m5b_control as m5b
+
+    sys_text = " ".join(f"w{i}" for i in range(20))
+    chunk = " ".join(f"w{i}" for i in range(10))          # wholly inside
+    sh_c, sh_s = m5b.shingles(chunk), m5b.shingles(sys_text)
+    assert sh_c and sh_c <= sh_s
+    assert len(sh_c & sh_s) / len(sh_c) == pytest.approx(1.0)
+
+    unrelated = " ".join(f"z{i}" for i in range(10))
+    sh_u = m5b.shingles(unrelated)
+    assert len(sh_u & sh_s) / len(sh_u) == pytest.approx(0.0)
+
+
+def test_m5b_attribution_separates_artifact_from_organic():
+    """A context with one system-derived chunk and one organic near-duplicate:
+    the attribution must credit the artifact only where it applies."""
+    from hnav.stage0 import crossep_m5b_control as m5b
+
+    sys_text = " ".join(f"s{i}" for i in range(40))
+    sys_chunk = " ".join(f"s{i}" for i in range(30))       # verbatim substring
+    organic = " ".join(f"q{i}" for i in range(30))         # nothing in common
+
+    streams = {"ctx": [
+        {"text": sys_chunk, "task_id": "t1"},
+        {"text": sys_chunk, "task_id": "t2"},              # artifact dup
+        {"text": organic, "task_id": "t3"},
+        {"text": organic, "task_id": "t4"},                # organic dup
+    ]}
+    v_sys = np.array([1.0, 0.0])
+    v_org = np.array([0.0, 1.0])
+    ctx_vecs = {"ctx": [v_sys, v_sys, v_org, v_org]}
+
+    attr = m5b.attribution(streams, ctx_vecs, {"ctx": sys_text}, calib={"ctx"})
+    assert attr["n_write_events"] == 4
+    # two chunks are literally inside the system block
+    assert attr["verbatim_system_substring"]["n"] == 2
+    assert attr["verbatim_system_substring"]["rate"] == pytest.approx(0.5)
+
+    b = attr["calibration"]
+    # writes 2,3,4 get a sim_max; the two dups hit 1.0, the first organic 0.0
+    assert b["near_dup_mass"]["n"] == 2
+    assert b["near_dup_mass"]["cross_sample_frac"] == pytest.approx(1.0)
+    # exactly one of the two near-dups is system-derived
+    assert b["near_dup_mass"]["containment_frac_ge"]["0.9"] == pytest.approx(0.5)
+    # the organic pair is counted as organic and IS a near-duplicate
+    assert b["organic_chunks"]["n"] == 2
+    assert b["organic_chunks"]["sim_max_frac_ge_tau"] == pytest.approx(0.5)
