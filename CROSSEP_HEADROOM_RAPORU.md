@@ -521,11 +521,24 @@ Artefakt: `stage0_results/crossep/m5_crossep_write_headroom_qwen3_embedding.json
 | sim_max p50 | 0,976 | 0,973 |
 | QR novelty p50 | 0,148 | 0,155 |
 | rank_self top-1 | 0,972 | 0,979 |
-| `is_critical_delta` (MAB varsayılan tau) | **0,0000** | **0,0000** |
-| **çift-yönlü NLI çelişki ≥ 0,90** | **0,0129** | — |
+| **`is_critical_delta`** (diff-geometri; **kesilme YOK**) | **0,0000** | **0,0000** |
+| çift-yönlü NLI çelişki ≥ 0,90 (**ALT SINIR**, %85 kesilmiş) | 0,0129 † | — |
+
+† Alt sınırdır ve **yönü bellidir: gerçek değer ancak DAHA YÜKSEK olabilir.**
+Kesme yalnız metin *çıkarır*; atılan kuyrukta yaşayan bir çelişki nötr
+skorlanır, asla uydurma bir çelişki yaratmaz. Çift-yönlü ölçüt bunu
+**bileşikleştirir**: iki yönün de 0,90'ı geçmesi gerekir, dolayısıyla tek bir
+yönün kesilmesi çifti düşürmeye yeter. Ayrıntı §11.4.
 
 Yakın-tekrar kütlesi exact-dup'ın **bir büyüklük mertebesi üzerinde**; çelişki
 ise neredeyse yok. Birincil arenanın vurgusunun tersi.
+
+> **"Çakışma değil tekrar" iddiasının taşıyıcı kanıtı `is_critical_delta =
+> 0,0000`'dır**, NLI değil. Gerekçe: diff-geometri fact düzeyinde çalışır,
+> embedder tabanlıdır ve **kesilmeye maruz kalmaz** — 7.879 yazının
+> tamamında ölçülür. NLI rakamı bunu **destekleyici** kanıttır ve kendi alt
+> sınır uyarısını taşır (%85 kesilme). Sonuç iki sıralamada da ayakta kalır;
+> ama kesilmeyen ölçüte dayanan sıralama denetime dayanıklıdır.
 
 > **Hangi sayı alıntılanmalı.** Tekrarın taban oranı olarak **aynı-bağlam
 > ikili oranı %21,8 (bağlamlar arası %0,0)** kullanılır — §11.2'nin kontrolü.
@@ -538,21 +551,35 @@ ise neredeyse yok. Birincil arenanın vurgusunun tersi.
 ### 11.2 KONTROL — 0,95 eşiği bu uzunlukta anlamlı mı?
 
 Uzun metinlerde kosinüs doygunlaşır, bu yüzden eşik kalibre edilmeden hiçbir
-oran yorumlanamaz. Cache'lenmiş vektörlerle (GPU'suz) ölçülen taban:
+oran yorumlanamaz. Kontroller **kod olarak** koşulur ve artefaktlanır:
+`hnav/stage0/crossep_m5b_control.py` → `stage0_results/crossep/m5b_crossep_control.json`
+(yalnız cache'lenmiş vektörler; GPU/model/ağ yok, cache miss **ölümcül
+hatadır** — doğrulanan koşudan farklı bir uzayda sessizce hesaplamak
+imkânsız). Örnekleme yöntemi ve `--seed 20260816` dosyada belgelidir;
+20.000'er çift.
 
 | Çift tipi | p05 | p50 | p95 | ≥0,95 |
 |---|---|---|---|---|
-| **FARKLI bağlamlardan** rastgele chunk | 0,691 | 0,790 | 0,865 | **0,000** |
-| **AYNI bağlamdan** rastgele chunk | 0,833 | 0,925 | 0,971 | **0,218** |
+| **FARKLI bağlamlardan** rastgele chunk | 0,691 | 0,790 | 0,865 | **0,0004** |
+| **AYNI bağlamdan** rastgele chunk | 0,833 | 0,925 | 0,971 | **0,2180** |
 
-**Eşik ayırt edicidir:** bağlamlar arası 20.000 rastgele çiftin *hiçbiri*
-0,95'e ulaşmıyor (p95 = 0,865). Yani 0,86'lık oran doygunluk artefaktı değil.
+**Eşik ayırt edicidir:** bağlamlar arası 20.000 çiftin yalnız **8'i** (0,0004)
+0,95'e ulaşıyor; p95 = 0,865. Aynı-bağlam oranıyla arasında **~545 kat** fark
+var. (Önceki taslakta bu değer "0,000 / hiçbiri" olarak yuvarlanmıştı;
+kesin değer 0,0004'tür ve burada düzeltilmiştir.) Yani 0,86'lık oran bir
+doygunluk artefaktı **değildir**.
 
-**Ama %86 bir *en-yakın-komşu* istatistiğidir** ve mağaza büyüklüğüyle
-karışır: p95'i 0,971 olan bir dağılımdan 30-250 kez çekilince maksimumun
-0,95'i aşması beklenir. Tekrarın dürüst taban oranı **aynı-bağlam ikili
-oranıdır: %21,8** (bağlamlar arası %0,0'a karşı). İki sayı da rapor edilmeli;
-%86 tek başına tekrarı abartır.
+**Ama %86 bir *en-yakın-komşu* istatistiğidir ve mağaza büyüklüğüyle
+karışır — dahası, kütlesinin TAMAMI onunla açıklanır.** Bağımsızlık
+varsayımı altında ikili oran `p` ve `i` önceki kayıt için
+`P(maks ≥ τ) = 1 − (1−p)^i`; ölçülen `p = 0,218` ve gerçek mağaza
+büyüklükleriyle (30-250) tüm yazılar üzerinden ortalama **0,9445**
+(`m5b: store_size_effect`). Gözlenen **0,863 bunun ALTINDA** — yani
+`sim_max`, ikili oranın zaten taşımadığı **hiçbir ek kanıt taşımıyor**.
+
+Tekrarın dürüst taban oranı bu yüzden **aynı-bağlam ikili oranıdır: %21,8**
+(bağlamlar arası %0,04'e karşı). İki sayı da raporlanır; **%86 tek başına
+alıntılanırsa tekrar olduğundan büyük gösterilir.**
 
 ### 11.3 Mekanizma — ne kadarı harness artefaktı?
 
@@ -586,9 +613,19 @@ ayar değildir** ve yükseltmek doğrulanmış aralığın dışına çıkmaktı
 
 Dolayısıyla **çift-yönlü çelişki ≥0,90 = 0,0129 oranı, girdilerin %85'i
 kesilmişken ölçülmüş bir ALT SINIRDIR** ve temiz bir ölçüm gibi sunulamaz.
-Tam metinle çelişki oranının daha yüksek olması mümkündür; ancak 0,0129 ile
-tekrar kütlesi arasındaki iki büyüklük mertebesi farkını tek başına kapatması
-beklenmez.
+
+**Sınırın yönü tek taraflıdır ve bellidir.** Kesme yalnız metin *çıkarır*:
+atılan kuyrukta yaşayan bir çelişki en iyi ihtimalle nötr skorlanır — kesme
+asla var olmayan bir çelişki *yaratamaz*. Çift-yönlü ölçüt bunu bileşikleştirir,
+çünkü hem A⇒B hem B⇒A 0,90'ı geçmek zorundadır; tek bir yönün kesilmesi çifti
+düşürür. Dolayısıyla **gerçek çelişki oranı ancak 0,0129'un ÜSTÜNDE olabilir**,
+asla altında.
+
+Bu yüzden §11.1'in taşıyıcı kanıtı NLI değil, **`is_critical_delta = 0,0000`**
+seçilmiştir: diff-geometri embedder tabanlıdır, fact düzeyinde çalışır ve
+**kesilmez** — 7.879 yazının tamamını görür. NLI onu destekler. Alt sınırın
+tekrar kütlesiyle arasındaki iki büyüklük mertebesi farkı tek başına kapanmaz;
+ama iddia zaten kesilmeyen ölçüte yaslandığı için bu boşluk kritik değildir.
 
 ### 11.5 Değişmeyen bulgu
 
@@ -609,12 +646,19 @@ Bu, birincil arenanın yazı-yolu NO_GO'sunun dürüst muadilidir — "yeşil ı
 değildir. İki bulgu birlikte okunur:
 
 1. **Tekrar ekseni gerçek:** aynı-bağlam ikili tekrar oranı **%21,8**, buna
-   karşılık bağlamlar arası **%0,0** (20.000'er çift). Eşik doygun değil,
-   ayırt edici. Exact-dup %11,7/%7,2. Bu eksen MAB'da YOKTU (`duplicate_rate`
-   her yerde 0,000).
-2. **Çakışma ekseni yok denecek kadar zayıf:** çift-yönlü NLI çelişki ≥0,90 =
-   **0,0129** (girdilerin **%85'i kesilmiş**; ALT SINIR), `is_critical_delta`
-   = **0,0000**. Tekrar kütlesinin iki büyüklük mertebesi altında.
+   karşılık bağlamlar arası **%0,04** (20.000'er çift, ~545 kat ayrım). Eşik
+   doygun değil, ayırt edici. Exact-dup %11,7/%7,2. Bu eksen MAB'da YOKTU
+   (`duplicate_rate` her yerde 0,000). **`sim_max ≥ 0,95` %86 rakamı iddiaya
+   dahil DEĞİLDİR** — mağaza büyüklüğü altında beklenen 0,9445'in altında
+   kalır, ek kanıt taşımaz (§11.2). Kontroller kod olarak koşulur:
+   `crossep_m5b_control.py` + `m5b_crossep_control.json`.
+2. **Çakışma ekseni yok denecek kadar zayıf:** taşıyıcı kanıt
+   **`is_critical_delta` = 0,0000** (diff-geometri; embedder tabanlı,
+   **kesilmiyor**, 7.879 yazının tamamında). Destekleyici: çift-yönlü NLI
+   çelişki ≥0,90 = **0,0129**, girdilerin **%85'i kesilmişken** — yönü belli
+   bir **ALT SINIR** (kesme yalnız metin çıkarır, çelişki uyduramaz; çift-yönlü
+   ölçüt bunu bileşikleştirir), yani gerçek değer ancak daha yüksek olabilir.
+   Her iki ölçüt de tekrar kütlesinin çok altında.
 
 Yani CrossEp'in yazı-yolu sorusu **dedup/merge** sorusudur; MAB'ın
 çakışma-çözümü vurgusunun tersi. Bu, tezde kendi başına raporlanabilir bir
