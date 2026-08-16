@@ -286,6 +286,45 @@ def replay_context(context_id: str, events: list[dict], embedder, cfg,
 
 
 # ── statistics (cluster-first, never pooled) ─────────────────────────────────
+def embedder_report(emb) -> dict:
+    """Everything needed to reproduce (or impeach) this run's vectors.
+
+    Written because the 2026-08-16 artifact could NOT self-certify: that run
+    survived only thanks to the GQA fused-kernel fix (T13), and
+    ``HFEmbedder.gqa_expansion_applied`` records whether the fix actually
+    engaged — but M5 captured no embedder provenance, so the artifact was
+    silent about the one field that would have proven it. A silent fallback
+    to the MATH path is exactly what that flag exists to catch, and "the run
+    did not OOM" is indirect evidence, not a record.
+
+    Must be read AFTER the replay: ``gqa_expansion_applied`` is set during
+    the first forward pass, so capturing it before any encoding would always
+    log ``None``. The cache namespace is recorded verbatim
+    (``model|dtype|Lmax``) so a reader can locate — or fail to locate — these
+    exact vectors on disk.
+    """
+    inner = getattr(emb, "inner", emb)      # unwrap DiskCachedEmbedder
+    out = {
+        "class": type(inner).__name__,
+        "wrapper": type(emb).__name__ if inner is not emb else None,
+        "model": getattr(inner, "model_name", None),
+        "dtype": getattr(inner, "dtype_name", None),
+        "device": getattr(inner, "device", None),
+        "max_length": getattr(inner, "max_length", None),
+        "max_batch_tokens": getattr(inner, "max_batch_tokens", None),
+        "batch": getattr(inner, "batch", None),
+        "dim": getattr(inner, "dim", None),
+        "cache_namespace": getattr(emb, "key", None),
+        "cache_dir": str(getattr(emb, "cache_dir", "")) or None,
+    }
+    # None (no forward ran yet) and False (the fix did not engage) are
+    # DIFFERENT states and stay distinct; "not_applicable" means this
+    # embedder has no such flag at all (e.g. HashEmbedder).
+    out["gqa_expansion_applied"] = getattr(inner, "gqa_expansion_applied",
+                                           "not_applicable")
+    return out
+
+
 def pcts(x) -> dict:
     x = np.asarray([v for v in x if v is not None and np.isfinite(v)], dtype=float)
     if x.size == 0:
@@ -567,6 +606,7 @@ def main() -> int:
     embed_accounting = None
     if hasattr(emb, "n_hits"):
         embed_accounting = {"cache_hits": emb.n_hits, "cache_misses": emb.n_misses}
+    embedder_provenance = embedder_report(emb)
 
     # the honest headroom sketch this measurement exists for — descriptive
     # only; any operating threshold must later be fit on calibration clusters
@@ -608,6 +648,7 @@ def main() -> int:
         "n_contexts": len(streams),
         "n_write_events": n_events_total,
         "embed_accounting": embed_accounting,
+        "embedder_provenance": embedder_provenance,
         "by_split": by_split,
         "per_cluster": rows,
         "nli": nli_block,

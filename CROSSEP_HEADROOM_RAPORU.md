@@ -489,3 +489,156 @@ küme 0,706; leksik Jaccard) **embedder'dan bağımsızdır** ve bu bölümdeki
 hiçbir olaydan etkilenmemiştir — ne OOM'dan, ne düzeltmeden, ne ad alanı
 değişikliğinden. SMOKE ölçümü provenans olarak `stage0_results/crossep/`
 altında korunur.
+
+## 11. GERÇEK-EMBEDDER ÖLÇÜMÜ (M5, 2026-08-16) — semantik eksen
+
+Artefakt: `stage0_results/crossep/m5_crossep_write_headroom_qwen3_embedding.json`
+(`smoke: false`, `fallback_chunker: false`, Qwen3-Embedding-4B fp32, `L8192`,
+120 bağlam / 7.879 yazı olayı, 120/120 tekrar oynatıldı; cache 29.248 hit /
+16.438 miss). SMOKE koşusu provenans olarak yanında durur.
+
+> **Provenans boşluğu (dürüstçe kaydedilir, artefakta geriye dönük
+> YAZILMAZ).** Bu koşu ancak T13'ün GQA füzyonlu-çekirdek düzeltmesi
+> sayesinde tamamlandı, ama M5 o sırada embedder provenansı kaydetmiyordu:
+> artefakt `gqa_expansion_applied` alanını **içermiyor**. Düzeltmenin
+> uygulandığına dair kanıt bu koşu için **dolaylıdır**: (i) koşu öncesi aynı
+> box'ta yapılan sonda `True` döndürdü, (ii) daha önce 3/3 OOM veren yol bu
+> kez 18,7 GiB'de sabit kalarak 120/120 bağlamı bitirdi. Alan sonradan
+> doldurulmadı — yayımlanmış bir artefakta değer uydurmak provenansı yok
+> eder. `embedder_report()` (T10) eklendi; **bundan sonraki** artefaktlar
+> `gqa_expansion_applied`, model, dtype, `max_length`, `max_batch_tokens` ve
+> cache ad alanını kendisi taşır.
+
+### 11.1 Manşet: sorun ÇAKIŞMA değil, TEKRAR (redundancy)
+
+| Ölçüt (küme-önce ortalama) | Kalibrasyon (48) | Held-out (72) |
+|---|---|---|
+| MD5 exact-dup | 0,1170 | 0,0721 |
+| sim_max ≥ 0,80 | 1,000 | 0,999 |
+| sim_max ≥ 0,90 | 0,983 | 0,979 |
+| **sim_max ≥ 0,95** | **0,863** | **0,853** |
+| sim_max ≥ 0,99 | 0,216 | 0,178 |
+| sim_max p50 | 0,976 | 0,973 |
+| QR novelty p50 | 0,148 | 0,155 |
+| rank_self top-1 | 0,972 | 0,979 |
+| `is_critical_delta` (MAB varsayılan tau) | **0,0000** | **0,0000** |
+| **çift-yönlü NLI çelişki ≥ 0,90** | **0,0129** | — |
+
+Yakın-tekrar kütlesi exact-dup'ın **bir büyüklük mertebesi üzerinde**; çelişki
+ise neredeyse yok. Birincil arenanın vurgusunun tersi.
+
+> **Hangi sayı alıntılanmalı.** Tekrarın taban oranı olarak **aynı-bağlam
+> ikili oranı %21,8 (bağlamlar arası %0,0)** kullanılır — §11.2'nin kontrolü.
+> Tablodaki **%86'lık `sim_max ≥ 0,95` bir *en-yakın-komşu* istatistiğidir**
+> ve tekrarı mağaza büyüklüğüyle karıştırır: 30-250 kayıtlık bir mağazada
+> maksimumun eşiği aşması, ikili tekrar oranı sabit kalsa bile beklenir.
+> **%86'yı tek başına alıntılamak tekrarı olduğundan büyük gösterir.** İkisi
+> birlikte raporlanır; iddia %21,8 üzerine kurulur.
+
+### 11.2 KONTROL — 0,95 eşiği bu uzunlukta anlamlı mı?
+
+Uzun metinlerde kosinüs doygunlaşır, bu yüzden eşik kalibre edilmeden hiçbir
+oran yorumlanamaz. Cache'lenmiş vektörlerle (GPU'suz) ölçülen taban:
+
+| Çift tipi | p05 | p50 | p95 | ≥0,95 |
+|---|---|---|---|---|
+| **FARKLI bağlamlardan** rastgele chunk | 0,691 | 0,790 | 0,865 | **0,000** |
+| **AYNI bağlamdan** rastgele chunk | 0,833 | 0,925 | 0,971 | **0,218** |
+
+**Eşik ayırt edicidir:** bağlamlar arası 20.000 rastgele çiftin *hiçbiri*
+0,95'e ulaşmıyor (p95 = 0,865). Yani 0,86'lık oran doygunluk artefaktı değil.
+
+**Ama %86 bir *en-yakın-komşu* istatistiğidir** ve mağaza büyüklüğüyle
+karışır: p95'i 0,971 olan bir dağılımdan 30-250 kez çekilince maksimumun
+0,95'i aşması beklenir. Tekrarın dürüst taban oranı **aynı-bağlam ikili
+oranıdır: %21,8** (bağlamlar arası %0,0'a karşı). İki sayı da rapor edilmeli;
+%86 tek başına tekrarı abartır.
+
+### 11.3 Mekanizma — ne kadarı harness artefaktı?
+
+§5'te exact-dup'ların kaynağı olarak işaret edilen "paylaşılan System Context
+bloğunun her örneklemde yeniden chunk'lanması" doğrulandı **ama yalnız
+exact-dup'lar için**:
+
+- Yazı olaylarının **%11,6'sı** bağlamın system bloğunun **birebir alt
+  dizesi** — MD5 dup oranıyla (%11,7 / %7,2) örtüşüyor. Exact-dup kütlesi
+  **harness artefaktıdır**.
+- sim ≥ 0,95 kütlesinin yalnız **%16,5 / %13,6'sı** yüksek system-içeriğine
+  (5-gram containment ≥ 0,9) sahip; containment ≥ 0,1 ile bile ancak **%34 /
+  %33**.
+- **Belirleyici:** system içeriği ihmal edilebilir olan ("organik", containment
+  < 0,1) chunk'larda sim ≥ 0,95 oranı **0,850 / 0,829** — genel orandan
+  neredeyse farksız.
+- Yakın-tekrarların **%62-63'ünde** en yakın komşu *başka bir örnekleme* ait
+  (aynı bağlam içinde, çapraz-epizot) — yani tekrar, epizotlar arasında
+  organik olarak birikiyor.
+
+**Sonuç:** exact-dup'lar artefakt; **yakın-tekrar kütlesi değil.** CrossEp
+trajektorileri birbirine gerçekten çok benziyor (aynı alan, aynı görev ailesi,
+benzer asistan yanıtları). Bu, ajan belleğinin organik bir özelliğidir.
+
+### 11.4 NLI — ölçülen oran bir ALT SINIRDIR
+
+`truncation: 680/800 girdi kesildi, max_length=512, oran **0,850**` —
+öngördüğüm ~0,715'ten yüksek. DeBERTa-v3'ün `max_position_embeddings` değeri
+512'dir ve premise+hypothesis bu bütçeyi paylaşır; bu bir **model özelliğidir,
+ayar değildir** ve yükseltmek doğrulanmış aralığın dışına çıkmaktır.
+
+Dolayısıyla **çift-yönlü çelişki ≥0,90 = 0,0129 oranı, girdilerin %85'i
+kesilmişken ölçülmüş bir ALT SINIRDIR** ve temiz bir ölçüm gibi sunulamaz.
+Tam metinle çelişki oranının daha yüksek olması mümkündür; ancak 0,0129 ile
+tekrar kütlesi arasındaki iki büyüklük mertebesi farkını tek başına kapatması
+beklenmez.
+
+### 11.5 Değişmeyen bulgu
+
+§5'in MD5/Jaccard sonucu **embedder'dan bağımsızdır** ve bu koşudan
+etkilenmemiştir (aynı sayılar: 0,1170 / 0,0721). SMOKE artefaktı korunur.
+
+## 12. [GATE] GİRDİSİ — CrossEp yazı-kaskadı kararı
+
+**Soru:** CrossEp'te ölçülebilir yazı-kaskadı tavanı var mı, ne türden, ve
+doğruluk sayısına çevirmek ne gerektirir?
+
+### 12.1 Verdikt
+
+> **Tekrar (redundancy) tavanı GERÇEK ve ÖLÇÜLDÜ; doğruluğa çevrilebilirliği
+> KANITLANMAMIŞ ve şu an ÖLÇÜLEMEZ.**
+
+Bu, birincil arenanın yazı-yolu NO_GO'sunun dürüst muadilidir — "yeşil ışık"
+değildir. İki bulgu birlikte okunur:
+
+1. **Tekrar ekseni gerçek:** aynı-bağlam ikili tekrar oranı **%21,8**, buna
+   karşılık bağlamlar arası **%0,0** (20.000'er çift). Eşik doygun değil,
+   ayırt edici. Exact-dup %11,7/%7,2. Bu eksen MAB'da YOKTU (`duplicate_rate`
+   her yerde 0,000).
+2. **Çakışma ekseni yok denecek kadar zayıf:** çift-yönlü NLI çelişki ≥0,90 =
+   **0,0129** (girdilerin **%85'i kesilmiş**; ALT SINIR), `is_critical_delta`
+   = **0,0000**. Tekrar kütlesinin iki büyüklük mertebesi altında.
+
+Yani CrossEp'in yazı-yolu sorusu **dedup/merge** sorusudur; MAB'ın
+çakışma-çözümü vurgusunun tersi. Bu, tezde kendi başına raporlanabilir bir
+substrat bulgusudur.
+
+### 12.2 Neden "doğruluğa çevrilebilir" DEMİYORUZ
+
+- **Yön öngörülemez.** Dedup, top-10'da yer açar; açılan yer ya faydalı
+  çeşitlilik getirir ya da tek ilgili chunk'ı dışarı atar. Birincil arenada
+  bir onarım stratejisi sh_64k'da 6/1 yardım, sh_262k'da 3/5 **net zarar**
+  vermişti; ölçeğe göre işaret değiştiren bir müdahale sınıfı için işaret
+  iddia etmek kanıtsızdır.
+- **Ölçüm zinciri kapalı.** Doğruluk sayısı, bellekli uçtan uca bir CrossEp
+  koşusu + LLM-yargıç gerektirir; ikisi de DeepSeek/DashScope kimlik
+  bilgilerine bağlı (§9.2 bloke) ve box'ta CrossEp yığını kurulu değil.
+- **Tekrarın zararlı olduğu gösterilmedi.** Yüksek `rank_self` top-1 (0,972 /
+  0,979) ve düşük QR novelty (p50 ≈ 0,15), mağazanın *tutarlı* olduğunu da
+  gösterebilir; "tekrar var" ile "tekrar zarar veriyor" farklı iddialardır.
+
+### 12.3 En ucuz belirleyici deney (öneri)
+
+**Retrieval-düzeyi A/B:** LLM-free `qwen3_embedding_4b` backend'inde,
+enjekte edilen bağlam **token-eşleştirilmiş** tutularak dedup'lı vs dedup'sız
+top-k karşılaştırması. Ekstraksiyon LLM'i gerekmez (backend zaten LLM-free);
+yalnız değerlendirme yargıcı gerekir. Küme-robust analiz (ICC 0,346), eşikler
+YALNIZ kalibrasyon kümelerinde. Bu, tavanı doğruluğa çeviren en kısa yoldur
+ve tek açık bağımlılığı kimlik bilgileridir.

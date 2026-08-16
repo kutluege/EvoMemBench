@@ -191,3 +191,50 @@ def test_mem0_history_reader(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         m5.iter_mem0_history(tmp_path / "empty-nowhere")
+
+
+# ── embedder provenance capture ──────────────────────────────────────────────
+def test_embedder_report_unwraps_the_cache_and_records_the_namespace(tmp_path):
+    """The artifact must self-certify which vectors it used.
+
+    The 2026-08-16 real-embedder run could not: it survived only because the
+    GQA fused-kernel fix engaged, and the flag that proves that was never
+    written to the artifact. This pins the capture, including the distinction
+    between "the fix did not engage" and "this embedder has no such flag".
+    """
+    from hnav.core.embedding import DiskCachedEmbedder, cache_key
+
+    inner = HashEmbedder(dim=8)
+    key = cache_key("some/model", "float32", 8192)
+    assert key == "some_model|float32|L8192"      # slash-free, length-carrying
+
+    wrapped = DiskCachedEmbedder(inner, tmp_path, key)
+    rep = m5.embedder_report(wrapped)
+
+    assert rep["class"] == "HashEmbedder"
+    assert rep["wrapper"] == "DiskCachedEmbedder"
+    assert rep["cache_namespace"] == key
+    assert rep["cache_dir"] == str(tmp_path)
+    # HashEmbedder has no GQA path at all — that is not the same as False
+    assert rep["gqa_expansion_applied"] == "not_applicable"
+
+
+def test_embedder_report_distinguishes_not_run_from_did_not_engage():
+    class _FakeHF:
+        model_name, dtype_name, device = "Qwen/Qwen3-Embedding-4B", "float32", "cuda:1"
+        max_length, max_batch_tokens, batch, dim = 8192, 8192, 8, 2560
+
+        def __init__(self, flag):
+            self.gqa_expansion_applied = flag
+
+    not_run = m5.embedder_report(_FakeHF(None))
+    assert not_run["gqa_expansion_applied"] is None      # no forward pass yet
+    assert not_run["wrapper"] is None                    # unwrapped embedder
+
+    failed = m5.embedder_report(_FakeHF(False))
+    assert failed["gqa_expansion_applied"] is False      # fix did NOT engage
+    assert failed["max_length"] == 8192 and failed["max_batch_tokens"] == 8192
+    assert failed["dtype"] == "float32" and failed["model"].endswith("Embedding-4B")
+
+    ok = m5.embedder_report(_FakeHF(True))
+    assert ok["gqa_expansion_applied"] is True
