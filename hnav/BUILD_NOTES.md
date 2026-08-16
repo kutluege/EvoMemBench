@@ -855,6 +855,21 @@ tokens, frozen `:8003`, retrieval-path harness, page read from the benchmark's
 own vectors. Artifact:
 `stage0_results/stage1/detector_gap_confirmatory_sh64k.json`.
 
+### 13.0 A note on the suite counts quoted in T13 commit messages
+
+The working tree is shared with a concurrently-committing agent (the T10 /
+CrossEp line), so the **global** `pytest hnav/tests/ -q` total moves for reasons
+that have nothing to do with T13 — it passed 465, 479 and 485 within one hour
+while T13 added a single test. Two corrections follow from that:
+
+* the banner commit (`76f8fb2`) quotes "466 passed / 1 skipped"; the observed
+  total at that moment was **479 passed / 2 skipped**. The number was written
+  from the expected count rather than the printed one. Corrected here.
+* the stable figure for T13's own work is its own files:
+  **`test_detector_gap.py` 86, `test_read_policy_facts.py` 43**. Global totals
+  in T13 commit messages should be read as "the suite was green when this
+  landed", not as an attribution of test count to T13.
+
 ### 13.1 Result
 
 | arm | overall | unique | conflicted | b/c | net | exact p | tok |
