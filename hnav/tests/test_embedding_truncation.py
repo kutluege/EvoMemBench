@@ -138,7 +138,13 @@ def test_max_length_is_passed_through_to_the_tokenizer(monkeypatch):
 
     emb.model = _Model()
     emb.encode(["some text", "other text"])
-    assert tok.seen == [4242], f"tokenizer saw max_length={tok.seen}, want [4242]"
+    # _batches() length-probes each text before grouping, so the tokenizer is
+    # called more than once. The property under test is that EVERY call carries
+    # the configured length — asserting a fixed call count instead pins the
+    # batching implementation, which is what made this assertion go stale.
+    assert tok.seen, "tokenizer was never called"
+    assert set(tok.seen) == {4242}, (
+        f"tokenizer saw max_length={tok.seen}, want every call at 4242")
 
 
 # ── the cache namespace must encode the length ───────────────────────────────
