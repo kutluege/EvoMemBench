@@ -709,8 +709,11 @@ Independent of whether H-Nav works, these are publishable observations:
 1. **The benchmark's headline metric is dominated by conflict-free questions.**
    Anyone citing `Conflict_Resolution` accuracy is largely measuring something
    else.
-2. **Explicit precedence instructions are ~95% ineffective** on this model at
-   this scale, and the failure is systematic (the stale value, not confusion).
+2. **The model does not read the serial number as a precedence signal at all.**
+   Explicit precedence instructions are ~95% ineffective, and the failure is
+   systematic (the stale value, not confusion). When the symbolic recency label
+   and text position are put in *conflict*, the model follows **position** on
+   93–97% of conflicted questions. See `HNAV_POSITION_VS_RECENCY.md`.
 3. **NLI alone cannot verify memory conflicts** — 33–93% false verification;
    a parsed subject screen drives it to 0.000.
 4. **Reduced-precision embedding serving silently destroys retrieval fidelity** —
@@ -839,6 +842,7 @@ Independent of whether H-Nav works, these are publishable observations:
 |---|---|
 | `HNAV_FINAL_REPORT.md` | The full program report — the definitive account. |
 | `HNAV_HOW_IT_WORKS.md` | Step-by-step mechanism, including the mathematics in §11. |
+| `HNAV_POSITION_VS_RECENCY.md` | Does the model track recency or position? The position-swap re-analysis, and what is still untraced. |
 | `TEZ_BULGULARI.md` | Evidence ledger (Turkish) — every claim with its artifact. |
 | `STAGE0_REPORT.md` | Machine-generated measurement report; every number read off disk. |
 | `KAPI_KARARI.md` | The Stage-0 gate decision (Turkish; partly superseded, kept as a record). |
