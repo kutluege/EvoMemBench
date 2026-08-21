@@ -1,0 +1,141 @@
+{
+  "measurement": "M6 ABTT geometry re-measurement",
+  "interpretation": "A gain that appears in AUC but vanishes at equal coverage is a rescaling, not a detection improvement: the pipeline thresholds cosine, so only a change in the ORDER of pairs can change a decision. Report the equal-coverage deltas as the headline and AUC as context, never the reverse.",
+  "config": {
+    "embed_model": "Qwen/Qwen3-Embedding-4B",
+    "embed_dtype": "float32",
+    "embed_max_length": 8192,
+    "whiten_min_fit_n": 200,
+    "d_grid": [
+      0,
+      1,
+      2,
+      3,
+      5,
+      8,
+      16
+    ],
+    "regimes": [
+      "per_store",
+      "frozen_global",
+      "pool_level"
+    ]
+  },
+  "mode": "prepass (mechanism M3 only)",
+  "prepass": [
+    {
+      "source": "stage1_prepass_sh_6k.json",
+      "subset": "sh_6k",
+      "n_facts": 455,
+      "cos_loose": 0.9,
+      "n_pairs": 4501,
+      "n_true_supersession": 1437,
+      "base_rate": 0.3192623861364141,
+      "pair_support": "RAW loose screen - pairs the whitened screen would admit but the raw screen rejected are NOT in this population, so mechanism M2 is invisible here",
+      "distributions": {
+        "cos_raw": {
+          "n": 4501,
+          "min": 0.8513053229863878,
+          "p10": 0.8750409316731175,
+          "p50": 0.9174190167754757,
+          "p90": 0.9787729076931379,
+          "max": 0.9912601733459935,
+          "mean": 0.9229333498220457,
+          "std": 0.03962326562062132,
+          "band_p10_p90": 0.10373197602002038
+        },
+        "cos_whitened": {
+          "n": 4501,
+          "min": 0.3297210265981749,
+          "p10": 0.37694574163080696,
+          "p50": 0.6015005987358564,
+          "p90": 0.9171642966354174,
+          "max": 0.9723288060862696,
+          "mean": 0.6521869732315246,
+          "std": 0.19519802992367938,
+          "band_p10_p90": 0.5402185550046105
+        }
+      },
+      "auc": {
+        "cos_raw": 0.9360756199000311,
+        "cos_whitened": 0.9546249257319154,
+        "rmin_raw": 0.352268742357428,
+        "rmin_whitened": 0.45126026353132703
+      },
+      "class_separation": {
+        "raw_mean_gap": 0.062367111331749436,
+        "whitened_mean_gap": 0.32326526579168535
+      },
+      "rank_agreement_cos_vs_cos_w": {
+        "spearman": 0.9779669378807644,
+        "kendall_tau": 0.8867413451788818
+      },
+      "equal_coverage": [
+        {
+          "raw_threshold": 0.9,
+          "n_admitted": 3043,
+          "whitened_threshold_equal_coverage": 0.535918839479554,
+          "raw_precision": 0.472231350640815,
+          "raw_recall": 1.0,
+          "whitened_precision": 0.46899477806788514,
+          "whitened_recall": 1.0,
+          "delta_precision": -0.0032365725729298633,
+          "delta_recall": 0.0
+        },
+        {
+          "raw_threshold": 0.92,
+          "n_admitted": 2129,
+          "whitened_threshold_equal_coverage": 0.6169076048688116,
+          "raw_precision": 0.6547674964772193,
+          "raw_recall": 0.9700765483646486,
+          "whitened_precision": 0.6693060083837913,
+          "whitened_recall": 1.0,
+          "delta_precision": 0.01453851190657196,
+          "delta_recall": 0.029923451635351372
+        },
+        {
+          "raw_threshold": 0.94,
+          "n_admitted": 1643,
+          "whitened_threshold_equal_coverage": 0.7631444870977768,
+          "raw_precision": 0.8003651856360317,
+          "raw_recall": 0.9151009046624913,
+          "whitened_precision": 0.7934523809523809,
+          "whitened_recall": 0.9276270006958942,
+          "delta_precision": -0.006912804683650742,
+          "delta_recall": 0.012526096033402934
+        },
+        {
+          "raw_threshold": 0.96,
+          "n_admitted": 1259,
+          "whitened_threshold_equal_coverage": 0.8290658915778267,
+          "raw_precision": 0.8228752978554408,
+          "raw_recall": 0.720946416144746,
+          "whitened_precision": 0.888801261829653,
+          "whitened_recall": 0.7842727905358385,
+          "delta_precision": 0.06592596397421224,
+          "delta_recall": 0.06332637439109257
+        }
+      ],
+      "recall_at_precision": {
+        "cos_raw": {
+          "recall_at_precision_0.9": 0.03897007654836465,
+          "recall_at_precision_0.95": 0.03897007654836465,
+          "recall_at_precision_0.99": 0.03897007654836465,
+          "recall_at_precision_1": 0.03897007654836465
+        },
+        "cos_whitened": {
+          "recall_at_precision_0.9": 0.11899791231732777,
+          "recall_at_precision_0.95": 0.11899791231732777,
+          "recall_at_precision_0.99": 0.11899791231732777,
+          "recall_at_precision_1": 0.11899791231732777
+        }
+      },
+      "verdict_m3": {
+        "auc_delta_cos": 0.0185493058318843,
+        "auc_delta_rmin": 0.09899152117389903,
+        "max_equal_coverage_precision_gain": 0.06592596397421224,
+        "max_equal_coverage_recall_gain": 0.06332637439109257
+      }
+    }
+  ]
+}
