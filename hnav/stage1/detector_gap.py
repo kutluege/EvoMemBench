@@ -1608,8 +1608,17 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
     return dest
 
 
-def frozen_cell() -> dict:
-    """The committed operating point, as a grid cell. Refuses to invent one."""
+def frozen_cell(geometry_space: str = "raw") -> dict:
+    """The committed operating point, as a grid cell. Refuses to invent one.
+
+    [ABTT] The whitened arm reads its OWN frozen artifact. Falling back to the
+    shipped raw point here would score whitened vectors against thresholds
+    calibrated in the raw space -- the arms would differ by two things at once
+    and the contrast would mean nothing.
+    """
+    global OPERATING_POINT
+    if geometry_space == "abtt":
+        OPERATING_POINT = REPO / "stage0_results" / "abtt" / "abtt_operating_point.json"
     if not OPERATING_POINT.exists():
         raise SystemExit(
             f" REFUSED: {_rel(OPERATING_POINT)} does not exist. Run\n"
@@ -1772,7 +1781,7 @@ def main() -> int:
               f"{_rel(freeze(chosen, ctx, subsets, cfg, args))}")
         return 0
 
-    cell = frozen_cell()
+    cell = frozen_cell(getattr(args, "geometry_space", "raw"))
     print(f" harness: {args.harness}"
           + (f" (page source: {args.page_source})"
              if args.harness == "retrieval" else ""))

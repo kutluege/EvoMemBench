@@ -54,6 +54,14 @@ def main() -> int:
     ap.add_argument("--subset", default=CONFIRMATORY)
     ap.add_argument("--top-k", type=int, default=10)
     ap.add_argument("--chunk-size", type=int, default=4096)
+    ap.add_argument("--geometry-space", choices=("raw", "abtt"), default="raw",
+                    help="'abtt' whitens the fact-fact geometry with the "
+                         "offline artifact, matching the whitened arm's "
+                         "operating point. Writes *_abtt.")
+    ap.add_argument("--whitening-artifact", default=None)
+    ap.add_argument("--cos-loose", type=float, default=None,
+                    help="loose-screen threshold; required for abtt (0.90 is a "
+                         "raw-space coordinate)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--stub-nli", action="store_true",
                     help="SMOKE ONLY: writes *_SMOKE and may not feed a run.")
@@ -69,10 +77,27 @@ def main() -> int:
     cfg.require_not_live()
 
     # Forced, not defaulted: neither can be overridden from the command line.
+    # [ABTT] The artifact is FIT on the calibration split; here it is only
+    # SPENT. Nothing about the whitening is derived from sh_64k.
+    whitener = None
+    if args.geometry_space == "abtt":
+        if not args.whitening_artifact or args.cos_loose is None:
+            print(" REFUSED: --geometry-space abtt needs --whitening-artifact "
+                  "and --cos-loose.")
+            return 2
+        from hnav.stage1.calibrate_read_policy import load_whitening
+        whitener, art = load_whitening(args.whitening_artifact)
+        if CONFIRMATORY in art.get("fit_subsets", []):
+            print(f" REFUSED: the artifact was fit on {art['fit_subsets']}, "
+                  f"which includes the confirmatory subset.")
+            return 2
+
     opts = SimpleNamespace(top_k=args.top_k, chunk_size=args.chunk_size,
                            max_questions=0, page_source="benchmark",
                            cache_only=True, smoke_embedder=False,
-                           stub_nli=args.stub_nli)
+                           stub_nli=args.stub_nli,
+                           whiten_scope="pairs", cos_loose=args.cos_loose)
+    opts._whitener = whitener
 
     data = json.loads(Path(DATA).read_text(encoding="utf-8"))
     item = next((i for i in data if subset_name(i) == args.subset), None)
@@ -101,7 +126,7 @@ def main() -> int:
     print(f" prepass {args.subset} ...", flush=True)
     pp = prepass_subset(st, emb, nli, cfg, opts)
 
-    tag = "_SMOKE" if args.stub_nli else ""
+    tag = ("_abtt" if whitener is not None else "")         + ("_SMOKE" if args.stub_nli else "")
     out = cfg.out_dir / f"stage1_prepass_{args.subset}_benchmarkpage{tag}.json"
     out.write_text(json.dumps(pp), encoding="utf-8")
     npairs = sum(len(q["pairs"]) for q in pp["questions"])
