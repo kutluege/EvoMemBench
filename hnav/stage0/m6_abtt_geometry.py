@@ -81,6 +81,38 @@ INTERPRETATION = (
 )
 
 
+# -- embedder choice ---------------------------------------------------------
+class _FailOnMiss:
+    """Inner embedder for --cache-only: any miss is a hard, named error.
+
+    Mirrors ``calibrate_read_policy._FailOnMiss`` rather than importing it, so
+    a Stage-0 script keeps no dependency on Stage 1 (M1 inlines its embedder for
+    the same reason). M1 already paid for these vectors, so a miss here means
+    the namespace moved - which must stop the run, not silently re-embed into a
+    different geometry.
+    """
+
+    dim = 0
+
+    def encode(self, texts):
+        raise RuntimeError(
+            f"--cache-only but {len(texts)} text(s) missing from the embedding "
+            f"cache, first={texts[0][:80]!r}. The cache namespace encodes model, "
+            f"dtype and max_length - a miss means one of them changed. Run M1 "
+            f"with the real embedder first, or drop --cache-only.")
+
+
+def make_embedder(args, cfg):
+    if args.smoke_embedder:
+        from hnav.core.embedding import HashEmbedder
+        return HashEmbedder(dim=64)
+    from hnav.core.embedding import DiskCachedEmbedder, cache_key
+    key = cache_key(cfg.embed_model, cfg.embed_dtype, cfg.embed_max_length)
+    if args.cache_only:
+        return DiskCachedEmbedder(_FailOnMiss(), cfg.emb_cache_dir, key)
+    return build_embedder(cfg)
+
+
 # -- shared helpers ----------------------------------------------------------
 def describe(v: np.ndarray) -> dict:
     """Distribution summary. ``band_p10_p90`` is the working range a threshold
@@ -153,6 +185,84 @@ def recall_at_precision(score: np.ndarray, y: np.ndarray,
     return out
 
 
+def threshold_at_precision(score: np.ndarray, y: np.ndarray,
+                           target: float) -> float | None:
+    """The loosest threshold whose admitted set reaches ``target`` precision.
+
+    Loosest rather than tightest because the screen's job is recall: among the
+    thresholds that meet the precision bar, the pipeline wants the one that
+    admits most. Returns None when the bar is unreachable.
+    """
+    y = np.asarray(y, dtype=bool)
+    s = np.asarray(score, dtype=float)
+    if y.size == 0 or y.sum() == 0:
+        return None
+    order = np.argsort(-s, kind="stable")
+    ys, ss = y[order], s[order]
+    prec = np.cumsum(ys) / np.arange(1, len(ys) + 1)
+    ok = np.flatnonzero(prec >= target)
+    return float(ss[ok.max()]) if ok.size else None
+
+
+def apply_threshold(score: np.ndarray, y: np.ndarray, thr: float) -> dict:
+    """Precision/recall of an absolute threshold — the transfer readout."""
+    y = np.asarray(y, dtype=bool)
+    sel = np.asarray(score, dtype=float) >= thr
+    n_true = int(y.sum())
+    return {"threshold": float(thr), "n_admitted": int(sel.sum()),
+            "coverage": float(sel.mean()),
+            "precision": float(y[sel].mean()) if sel.any() else float("nan"),
+            "recall": float(y[sel].sum() / n_true) if n_true else float("nan")}
+
+
+def transfer_matrix(per_subset: dict, target: float = 0.95) -> dict:
+    """Fit an absolute threshold on one subset, spend it on another.
+
+    This is the portability question, and it is the one place ABTT has a
+    mechanism-level reason to win: the raw cosine floor rises with store size
+    (0.58 -> 0.65 across the subsets), so a constant raw threshold silently
+    tightens as the store grows. Removing the shared directions should remove
+    that drift. ``REFIT_PER_SUBSET`` exists in the shipped gate precisely
+    because pooling a threshold across these subsets was indefensible; if
+    whitening makes one threshold transfer, that constraint relaxes.
+
+    ``degradation`` is the precision lost by spending a foreign threshold
+    instead of the subset's own — lower is better, and the raw-vs-whitened
+    difference in it is the headline.
+    """
+    out: dict = {"precision_target": target, "space": {}}
+    for space in ("raw", "whitened"):
+        rows = []
+        for fit_s, fit_d in per_subset.items():
+            thr = threshold_at_precision(fit_d[space], fit_d["y"], target)
+            if thr is None:
+                rows.append({"fit_on": fit_s, "threshold": None,
+                             "note": f"precision {target} unreachable"})
+                continue
+            for eval_s, eval_d in per_subset.items():
+                got = apply_threshold(eval_d[space], eval_d["y"], thr)
+                own = threshold_at_precision(eval_d[space], eval_d["y"], target)
+                own_p = (apply_threshold(eval_d[space], eval_d["y"], own)["precision"]
+                         if own is not None else float("nan"))
+                rows.append({"fit_on": fit_s, "eval_on": eval_s,
+                             "transferred": fit_s != eval_s, **got,
+                             "own_threshold": own,
+                             "degradation_vs_own": own_p - got["precision"]})
+        out["space"][space] = rows
+    cross = {sp: [r for r in rs if r.get("transferred")]
+             for sp, rs in out["space"].items()}
+    out["summary"] = {
+        sp: {"mean_transferred_precision":
+             float(np.nanmean([r["precision"] for r in rs])) if rs else None,
+             "mean_degradation":
+             float(np.nanmean([r["degradation_vs_own"] for r in rs])) if rs else None,
+             "threshold_spread":
+             float(np.nanmax([r["threshold"] for r in rs])
+                   - np.nanmin([r["threshold"] for r in rs])) if rs else None}
+        for sp, rs in cross.items()}
+    return out
+
+
 def rank_agreement(a: np.ndarray, b: np.ndarray) -> dict:
     """How much whitening actually reorders pairs.
 
@@ -220,6 +330,9 @@ def analyse_prepass(path: Path) -> dict:
         "max_equal_coverage_recall_gain":
             max((r["delta_recall"] for r in ec), default=0.0),
     }
+    # kept private (stripped before serialisation) so the cross-subset transfer
+    # can be computed without re-reading and re-parsing every prepass file
+    out["_arrays"] = {"raw": cos, "whitened": cos_w, "y": y}
     return out
 
 
@@ -335,9 +448,13 @@ def main() -> int:
     ap.add_argument("--max-facts", type=int, default=None)
     ap.add_argument("--top-n", type=int, default=10)
     ap.add_argument("--control-pairs", type=int, default=20000)
+    ap.add_argument("--transfer-precision", type=float, default=0.95,
+                    help="precision bar a transferred threshold must clear")
     ap.add_argument("--pool-cap", type=int, default=50,
                     help="rows the pool_level regime fits on (the read-gate pool size)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--cache-only", action="store_true",
+                    help="read vectors from the disk cache only; a miss is fatal")
     ap.add_argument("--smoke-embedder", action="store_true")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
@@ -387,14 +504,36 @@ def main() -> int:
                       f" ({row['delta_precision']:+.4f}) | R "
                       f"{row['raw_recall']:.4f}->{row['whitened_recall']:.4f}"
                       f" ({row['delta_recall']:+.4f})")
+
+        # cross-subset threshold transfer needs >= 2 subsets
+        per = {r["subset"]: r.pop("_arrays") for r in result["prepass"]
+               if "_arrays" in r}
+        if len(per) >= 2:
+            tm = transfer_matrix(per, target=args.transfer_precision)
+            result["transfer"] = tm
+            print(f"\nTHRESHOLD TRANSFER (fit at precision "
+                  f">= {args.transfer_precision}, spend on the other subset):")
+            for sp, s in tm["summary"].items():
+                if s["mean_transferred_precision"] is None:
+                    continue
+                print(f"  {sp:9s} transferred precision="
+                      f"{s['mean_transferred_precision']:.4f}"
+                      f"  degradation={s['mean_degradation']:+.4f}"
+                      f"  threshold spread={s['threshold_spread']:.4f}")
+            for sp in ("raw", "whitened"):
+                for r in tm["space"][sp]:
+                    if r.get("transferred"):
+                        print(f"    {sp:9s} fit {r['fit_on']:6s} -> eval "
+                              f"{r['eval_on']:6s}  thr={r['threshold']:.4f}"
+                              f"  P={r['precision']:.4f} R={r['recall']:.4f}"
+                              f"  (own thr={r['own_threshold']:.4f})")
+        else:
+            for r in result["prepass"]:
+                r.pop("_arrays", None)
     else:
         result["mode"] = "vectors (mechanism M2 + anisotropy + candidate floor)"
         data = json.loads(DATA.read_text(encoding="utf-8"))
-        if args.smoke_embedder:
-            from hnav.core.embedding import HashEmbedder
-            emb = HashEmbedder(dim=64)
-        else:
-            emb = build_embedder(cfg)
+        emb = make_embedder(args, cfg)
         loaded = {}
         for item in data:
             # same derivation as M1b, so subset names cannot drift between them
