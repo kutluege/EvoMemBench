@@ -2,7 +2,7 @@
 
 *What is actually applied to text entering the H-Nav pipeline, what the embedding
 space's anisotropy was measured to be, and why the whitening machinery is built,
-tested — and switched off.*
+tested, armed once — and still switched off.*
 
 Companion to `presentation_evidence/DETECTOR_MECHANICS.md` §2, which covers the
 filter's decision logic. This document covers the *space* the filter operates in.
@@ -227,22 +227,78 @@ cosine.**
 > cosine screen** — a far harder, pre-filtered population. Do not present 1.0000
 > and 0.9361 as a contradiction or as a degradation.
 
-### 3.4 Why not turn it on
+### 3.4 Why it was not turned on — and what happened when it was
 
-Stated plainly, because the honest answer is not "it doesn't work":
+The four reasons below were the *a priori* case for leaving ABTT off. Three of
+them have since been tested directly (§3.5); reason 2 turned out to be right for
+the wrong reason, and reason 1 turned out to be avoidable.
 
-1. **It cannot run where the decision is made** (§3.2): the 50-fact pool is below
-   `min_fit_n`.
-2. **The gain is small and the pipeline does not need it.** Raw cosine already
-   separates conflict from control at AUC 1.0000 (§2.1), and downstream precision
-   at the frozen operating point is 1.000. There is no precision headroom for
-   whitening to recover.
-3. **Turning it on would change every threshold.** Whitening moves the cosine
-   distribution, so `cos_pair` and `r_min` would need re-fitting — on the
-   calibration split only, and the held-out shot is already spent.
-4. **It is kept, tested and logged** (`test_geometry.py:49-81`: refusal below
-   `min_fit_n`, removal of the dominant direction, determinism) so the decision is
-   reversible and the evidence for reversing it is on disk.
+1. ~~**It cannot run where the decision is made**~~ (§3.2): the 50-fact pool is
+   below `min_fit_n`. **Superseded.** This conflates the *fit basis* with the
+   *decision pool*. `MABAdapter.facts` holds the whole store (455–18,332 facts)
+   and `select_pool` only selects 50 from it, so a per-store fit is available
+   online; and fitting **offline**, once, removes the question entirely — a
+   pre-fitted whitener has nothing left to estimate at decision time.
+2. **The gain is small and the pipeline does not need it.** Half right. The gain
+   on *detection quality* is not small — recall at precision 1.000 rises 6.8× on
+   sh_6k and 40× on sh_32k (§3.5). But the conclusion holds: the pipeline does
+   not need it, because it buys precision from the regex `pair_filter` and NLI
+   rather than from cosine.
+3. **Turning it on would change every threshold.** Confirmed, and paid: the
+   whitened operating point was re-fitted from scratch on the calibration split
+   (`cos_pair` 0.90 → 0.30, `r_min` 0.44 → 0.9539).
+4. **It is kept, tested and logged** so the decision is reversible and the
+   evidence for reversing it is on disk. This is what made §3.5 possible.
+
+### 3.5 Measured: ABTT armed before the cosine screen
+
+Full campaign in `stage0_results/abtt/` (`ABTT_REPORT.md`, pre-registered at
+commit `dd4439b` before grading). ABTT was fitted **offline** on the calibration
+split (`frozen_global`, D = 128, fingerprint `3fdacc1fcc479efb…`), applied to the
+fact–fact geometry the gate decides on, thresholds re-fitted on detection quality
+alone, and fired once on held-out `sh_64k`.
+
+**What it changed — a lot:**
+
+| property | raw | ABTT |
+|---|---|---|
+| anisotropy (unrelated-pair mean cos) | 0.6024 / 0.6026 | ≈ 0.000 |
+| candidate-pair floor | 0.5815 / 0.6130 | 0.083 / 0.081 |
+| screen precision at equal recall (sh_32k) | 5.3% | **51.3%** |
+| recall at precision 1.000 (sh_6k / sh_32k) | 0.0750 / 0.0072 | **0.5125 / 0.2910** |
+
+Mean-centering alone (D = 0) removes essentially all of the anisotropy; the
+principal directions buy the ranking gains on top.
+
+**What it changed in accuracy — nothing:**
+
+| stratum | A0 native | raw | ABTT |
+|---|---|---|---|
+| overall | 45/100 | 64/100 | 64/100 |
+| conflicted | 17/66 | 37/66 | 37/66 |
+
+Paired on the conflicted stratum: **net = 0, not one question differs**
+(95% CI [0, 0], McNemar p = 1), at equal harm and equal token cost. The A/A floor
+was a true 0/0 and the raw arm reproduced the committed campaign with 500/500
+identical outcomes and zero differing model outputs, so this is an exact null
+rather than a measurement failure.
+
+It is not, however, an inert null: the two arms produced **different suppression
+plans on 12 of 100 questions** and differed by 16 suppressed facts, changing the
+model's output text exactly once and its correctness never. The facts the two
+geometries disagree about are facts no question depended on.
+
+**The conclusion, stated carefully.** ABTT improves the stage that was not the
+bottleneck. Its large gains live in the regime where cosine must carry precision
+*alone*; here the parsed subject+relation screen already supplies that precision
+for free. This bounds the mechanism rather than dismissing it — the untested and
+interesting case is an arena with no parseable template, where that screen does
+not exist.
+
+One further measured caveat: whitening the **query** vector as well as the facts
+is actively harmful — reachable true-supersession pairs fall 1,443 → 1,048 on
+sh_6k (−27%) because `select_pool` then builds a worse pool. ABTT helps
+symmetric fact–fact comparison and hurts asymmetric question–fact retrieval.
 
 ---
 
@@ -257,5 +313,6 @@ Stated plainly, because the honest answer is not "it doesn't work":
 | Does it break the filter? | No — conflict 0.955 vs control 0.604, separation AUC **1.0000** | `item06_geometry_percentiles.csv` |
 | What does it force? | a high absolute threshold (`cos_pair = 0.90`) and an adaptive `tau_t`; no threshold transfer between encoders | `read_gate.py`; `geometry.py:110-120` |
 | Is ABTT implemented? | Yes, tested, with an explicit refusal below 200 rows | `geometry.py:54-113` |
-| Does it help? | cosine AUC +0.019 / +0.003; `r_min` AUC +0.099 / +0.066 but **still ≤ 0.5 at sh_6k** | `stage1_calibration.json → provenance.abtt_ab` |
-| Is it used? | **No.** Logged only; every reported number is raw cosine. | artifact `note`; `stage1_operating_point.json` |
+| Does it help detection? | **Yes, substantially.** Recall at precision 1.000: 0.0750 → 0.5125 (sh_6k), 0.0072 → 0.2910 (sh_32k) | `stage0_results/abtt/G1_GATE_REPORT.md` |
+| Does it help accuracy? | **No.** sh_64k conflicted 37/66 in both arms; net 0, not one question differs | `stage0_results/abtt/ABTT_REPORT.md` |
+| Is it used? | **No** — and now for a measured reason, not a presumed one: armed and fired on sh_64k, it changed no answer. | `ABTT_REPORT.md`; `stage1_operating_point.json` unchanged |
