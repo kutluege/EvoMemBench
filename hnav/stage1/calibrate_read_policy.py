@@ -218,6 +218,20 @@ def build_state(item, name, emb, cfg, args):
     fact_vecs = emb.encode([t for _, t in facts])
     chunk_vecs = None if page_source == "benchmark" else emb.encode(chunks)
 
+    # [ABTT] Whiten the fact vectors ONCE, here, so that every downstream
+    # consumer -- select_pool, the loose screen, sims, the leave-one-out span
+    # residual, ReadGate.decide -- operates in the corrected space without
+    # knowing it. ABTT renormalizes, so ``mat @ mat.T`` is still a cosine
+    # matrix and the gate needs no change.
+    #
+    # Chunk vectors are deliberately NOT whitened: the chunk ranking exists to
+    # reproduce what the benchmark's own index retrieves, and transforming
+    # H-Nav's copy would make it reproduce something else. On the confirmatory
+    # path ``page_source="benchmark"`` skips chunk embedding entirely.
+    whiten_space = getattr(args, "_whitener", None)
+    if whiten_space is not None and getattr(args, "whiten_scope", "pairs") == "all":
+        fact_vecs = whiten_space.transform(np.asarray(fact_vecs, dtype=np.float64))
+
     records = []
     for i, (s, t) in enumerate(facts):
         key, obj = fact_key(t)
@@ -253,11 +267,39 @@ def build_state(item, name, emb, cfg, args):
 
 
 # ── prepass ──────────────────────────────────────────────────────────────────
-def loose_components(pool, sims) -> list[list[int]]:
+def loose_components(pool, sims, cos_loose: float = COS_LOOSE) -> list[list[int]]:
+    """Connected components of the loose cosine screen.
+
+    ``cos_loose`` is a parameter because it is a *coordinate in the embedding
+    space*, not a constant of the method. Whitening moves the whole cosine
+    distribution down, so reusing the raw 0.90 in whitened space would admit
+    almost nothing and the prepass superset would no longer contain the pairs
+    the grid can select. [ABTT]
+    """
     n = len(pool)
     edges = [(i, j) for i in range(n) for j in range(i + 1, n)
-             if sims[i, j] >= COS_LOOSE]
+             if sims[i, j] >= cos_loose]
     return _rg._components(n, edges)
+
+
+# ── ABTT geometry space  [ABTT Phase 3] ──────────────────────────────────────
+def load_whitening(path):
+    """Load the offline-fitted whitening artifact, or None for the raw space.
+
+    Fitted offline on the calibration split by
+    ``hnav/stage0/fit_abtt_artifact.py`` so that nothing has to be estimated at
+    decision time, where the 50-fact pool is below ``min_fit_n``.
+    ``ABTTWhitening.from_dict`` re-checks the fingerprint, so a corrupt or
+    mismatched artifact raises here rather than silently scoring in a slightly
+    different space.
+    """
+    if path is None:
+        return None, None
+    art = json.loads(Path(path).read_text(encoding="utf-8"))
+    w = ABTTWhitening.from_dict(art["whitening"])
+    if not w.fitted:
+        raise SystemExit(f" REFUSED: {path} holds an unfitted whitener.")
+    return w, art
 
 
 def benchmark_top_ids(subset: str, path=None):
@@ -289,10 +331,19 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
                if st["chunk_store"] is not None else None)
     signals = RetrievalSignals(top_m=cfg.top_m, k=cfg.churn_k)
 
+    # [ABTT] When the vectors are ALREADY whitened by the offline artifact, the
+    # per-subset A/B whitener must not run: fitting it here would whiten twice
+    # and ``cos_w`` would describe a space nothing is scored in. Left unfitted
+    # it is a documented pass-through, so ``cos_w == cos`` and the stamped
+    # ``geometry_space`` tells a reader which space that is.
+    space_whitener = getattr(args, "_whitener", None)
+    scope = getattr(args, "whiten_scope", "pairs")
+    cos_loose = float(getattr(args, "cos_loose", None) or COS_LOOSE)
     whiten = ABTTWhitening(cfg.whiten_components, cfg.whiten_min_fit_n)
     fact_matrix = np.stack([np.asarray(r.vector, dtype=np.float64)
                             for r in st["records"]])
-    whiten.fit(fact_matrix)
+    if space_whitener is None:
+        whiten.fit(fact_matrix)
 
     out_qs = []
     nli_table: dict[str, tuple[float, float, float]] = {}
@@ -308,12 +359,19 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
             # null rather than fabricated.
             top_ids = list(bench_pages[q["index"]])
             qv = emb.encode([q["retrieval_query"]])[0]
+            # [ABTT] select_pool ranks facts by ``fact @ qv``; the facts are
+            # whitened in build_state, so an unwhitened query would score two
+            # different spaces against each other.
+            if space_whitener is not None and scope == "all":
+                qv = space_whitener.transform(np.asarray(qv, dtype=np.float64))
             nmargin = H_z = None
         else:
             view = replica.rank(st["chunk_store"], q["retrieval_query"],
                                 top_k=args.top_k)
             sig = signals.compute(view)
             top_ids, qv = list(view.top_ids), view.query_vector
+            if space_whitener is not None and scope == "all":   # [ABTT] see above
+                qv = space_whitener.transform(np.asarray(qv, dtype=np.float64))
             nmargin, H_z = float(sig.nmargin), float(sig.H_z)
         # Adapter-faithful page-fact order: MABAdapter.facts_in iterates chunks
         # in ADMISSION (index) order filtered by the retrieved set — not in
@@ -326,11 +384,17 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
 
         mat = np.stack([np.asarray(r.vector, dtype=np.float64) for r in pool]) \
             if pool else np.zeros((0, 1))
+        # [ABTT] Under scope="pairs" the pool was selected in the RAW space
+        # (retrieval faithfulness) and only the fact-fact geometry the gate
+        # decides on is whitened here. Under scope="all" `mat` is already
+        # whitened in build_state, so it must not be transformed twice.
+        if space_whitener is not None and scope == "pairs" and len(pool):
+            mat = space_whitener.transform(mat)
         sims = mat @ mat.T
         mat_w = whiten.transform(mat) if whiten.fitted and len(pool) else mat
         sims_w = mat_w @ mat_w.T
 
-        comps = loose_components(pool, sims) if len(pool) >= 2 else []
+        comps = loose_components(pool, sims, cos_loose) if len(pool) >= 2 else []
         members = sorted({i for g in comps for i in g})
         loo, loo_w = {}, {}
         for i in members:
@@ -392,6 +456,11 @@ def prepass_subset(st, emb, nli, cfg, args) -> dict:
     }
 
     return {"subset": st["name"], "n_facts": len(st["facts"]),
+            "geometry_space": "abtt" if space_whitener is not None else "raw",
+            "whiten_scope": scope if space_whitener is not None else None,
+            "whitening_fingerprint": (space_whitener.fingerprint()
+                                      if space_whitener is not None else None),
+            "cos_loose_used": cos_loose,
             "n_chunks": len(st["chunks"]),
             "fallback_chunker": st["fallback_chunker"],
             # Stamped so no future reader can conflate the two page sources.
@@ -656,6 +725,28 @@ def main() -> int:
                          "pool from IT, so the facts the gate inspects are the "
                          "facts the model will see (pre-registration v2 "
                          "Amendment 3). Writes *_benchmarkpage.json.")
+    ap.add_argument("--geometry-space", choices=("raw", "abtt"), default="raw",
+                    help="'abtt' whitens fact AND query vectors with the offline "
+                         "artifact before any cosine is taken, so the gate "
+                         "decides in the isotropy-corrected space. Default 'raw' "
+                         "reproduces every committed number unchanged.")
+    ap.add_argument("--whitening-artifact", default=None,
+                    help="path to the artifact from fit_abtt_artifact.py; "
+                         "required by --geometry-space abtt")
+    ap.add_argument("--whiten-scope", choices=("pairs", "all"), default="pairs",
+                    help="'pairs' (default) whitens ONLY the fact-fact geometry "
+                         "the gate decides on, leaving query->fact retrieval "
+                         "raw; 'all' whitens the query too. Measured: 'all' "
+                         "costs ~27%% of reachable true-supersession pairs "
+                         "because select_pool then builds a worse pool.")
+    ap.add_argument("--cos-loose", type=float, default=None,
+                    help="loose-screen threshold. MUST be re-set for the abtt "
+                         "space: 0.90 is a raw-space coordinate.")
+    ap.add_argument("--dry-run-lo", type=float, default=0.30,
+                    help="lowest threshold in the --dry-run-pairs grid")
+    ap.add_argument("--dry-run-pairs", action="store_true",
+                    help="report loose-pair counts and NLI-cache coverage over a "
+                         "threshold grid, then stop. No NLI, no writes.")
     ap.add_argument("--top-k", type=int, default=10)
     ap.add_argument("--chunk-size", type=int, default=4096)
     ap.add_argument("--max-questions", type=int, default=0)
@@ -692,6 +783,26 @@ def main() -> int:
     if smoke:
         print(" *** SMOKE RUN — no number below may feed a threshold. ***")
 
+    if args.geometry_space == "abtt" and not args.whitening_artifact:
+        print(" REFUSED: --geometry-space abtt needs --whitening-artifact. "
+              "Fit one with hnav/stage0/fit_abtt_artifact.py (calibration "
+              "split only).")
+        return 2
+    args._whitener, whiten_art = load_whitening(
+        args.whitening_artifact if args.geometry_space == "abtt" else None)
+    if args._whitener is not None:
+        if args.cos_loose is None:
+            print(" REFUSED: --geometry-space abtt without --cos-loose. The "
+                  f"raw default {COS_LOOSE} is a coordinate in the RAW space; "
+                  "reusing it here would silently admit almost nothing. Run "
+                  "--dry-run-pairs to choose one.")
+            return 2
+        print(f" ABTT space: D={args._whitener.components.shape[0]}"
+              f"  fingerprint={args._whitener.fingerprint()[:16]}..."
+              f"  fit_on={whiten_art['fit_subsets']}"
+              f"  cos_loose={args.cos_loose}")
+    tag = tag + ("_abtt" if args._whitener is not None else "")
+
     emb = make_embedder(args, cfg)
     data = json.load(open(DATA, encoding="utf-8"))
     states = {}
@@ -700,6 +811,59 @@ def main() -> int:
         if name in args.subsets:
             print(f" building {name} ...", flush=True)
             states[name] = build_state(item, name, emb, cfg, args)
+
+    if args.dry_run_pairs:
+        # [ABTT Phase 3b] The cached NLI table covers pairs the RAW loose screen
+        # admitted. Whitening changes which pairs are components, so the sweep
+        # cost is the pairs that are NEW -- measure it before paying it.
+        cached = set()
+        for name in states:
+            for suffix in (tag, tag.replace("_abtt", "")):
+                pth = cfg.out_dir / f"stage1_prepass_{name}{suffix}.json"
+                if pth.exists():
+                    cached |= set(json.loads(pth.read_text()).get("nli_table", {}))
+        print(f" NLI cache holds {len(cached)} directed scores")
+        # the same grid in both spaces, so the RAW ceiling is a control for the
+        # whitened one: a difference in reachable true pairs is then a property
+        # of the pool select_pool built, not of the threshold sweep
+        grid = [round(x, 2) for x in np.arange(args.dry_run_lo, 0.99, 0.05)]
+        for name, st in states.items():
+            print()
+            print(f" {name} (facts={len(st['facts'])})")
+            print(f"   {'cos_loose':>10s} {'pairs':>8s} {'directed':>9s} "
+                  f"{'cached':>8s} {'NEW':>8s} {'true_sup':>9s}")
+            for thr in grid:
+                pairs, directed = 0, set()
+                n_true = 0
+                for q in st["qs"]:
+                    qv = emb.encode([q["retrieval_query"]])[0]
+                    # mirror the real path exactly: scope decides whether the
+                    # QUERY is whitened (pool composition) as well as the pair
+                    # geometry, or only the pair geometry
+                    if args._whitener is not None and args.whiten_scope == "all":
+                        qv = args._whitener.transform(np.asarray(qv, dtype=np.float64))
+                    pool = select_pool(list(st["records"]), qv, cfg.top_m)
+                    if len(pool) < 2:
+                        continue
+                    mat = np.stack([np.asarray(r.vector, dtype=np.float64) for r in pool])
+                    if args._whitener is not None:
+                        mat = args._whitener.transform(mat)
+                    sims = mat @ mat.T
+                    for g in loose_components(pool, sims, thr):
+                        for a in range(len(g)):
+                            for b in range(a + 1, len(g)):
+                                ra, rb = pool[g[a]], pool[g[b]]
+                                pairs += 1
+                                ka, kb = ra.metadata.get("key"), rb.metadata.get("key")
+                                oa, ob = ra.metadata.get("object"), rb.metadata.get("object")
+                                if ka is not None and ka == kb and oa != ob:
+                                    n_true += 1
+                                directed.add(f"{_sha(ra.text)}|{_sha(rb.text)}")
+                                directed.add(f"{_sha(rb.text)}|{_sha(ra.text)}")
+                new = len(directed - cached)
+                print(f"   {thr:10.2f} {pairs:8d} {len(directed):9d} "
+                      f"{len(directed) - new:8d} {new:8d} {n_true:9d}")
+        return 0
 
     if args.prepass:
         nli = StubNLI() if args.stub_nli else build_nli(cfg)

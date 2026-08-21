@@ -533,8 +533,14 @@ class ReadGate:
             if name in pol:
                 raise ValueError(f"forbidden signal {name!r} may not reach the gate")
 
-        nm = float(pol.get("nmargin", float("nan")))
-        hz = float(pol.get("H_z", float("nan")))
+        # A signal can be ABSENT (key missing) or PRESENT-BUT-UNAVAILABLE (key
+        # present, value None) — the latter is what --page-source benchmark
+        # records, because there is no chunk ranking to derive it from. Both
+        # mean "no evidence", so both become NaN and the isfinite guards below
+        # treat them as not-firing. ``float(None)`` would raise instead.
+        nm_raw, hz_raw = pol.get("nmargin", None), pol.get("H_z", None)
+        nm = float("nan") if nm_raw is None else float(nm_raw)
+        hz = float("nan") if hz_raw is None else float(hz_raw)
         flags = []
         nm_flag = hz_flag = False
         if thr.nmargin is not None:

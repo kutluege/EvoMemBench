@@ -89,6 +89,46 @@ class ABTTWhitening:
         self.fitted, self.refused = True, False
         return self
 
+    # -- persistence ---------------------------------------------------------
+    # Fitting offline once and shipping (mean, components) as constants is what
+    # makes whitening usable at decision time: the read pool is 50 facts, far
+    # below ``min_fit_n``, but a *pre-fitted* whitener has nothing left to
+    # estimate and simply applies. The fingerprint exists so a consumer can
+    # prove the vectors it is scoring were produced by the artifact it thinks
+    # they were - the same guarantee the embedding cache namespace gives.
+    def to_dict(self) -> dict:
+        return {"n_components": self.n_components, "min_fit_n": self.min_fit_n,
+                "fitted": self.fitted, "refused": self.refused,
+                "n_fit": self.n_fit,
+                "mean": None if self.mean is None else self.mean.tolist(),
+                "components": None if self.components is None
+                else self.components.tolist(),
+                "fingerprint": self.fingerprint()}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "ABTTWhitening":
+        w = cls(int(d["n_components"]), int(d["min_fit_n"]))
+        w.fitted, w.refused, w.n_fit = bool(d["fitted"]), bool(d["refused"]), int(d["n_fit"])
+        w.mean = None if d.get("mean") is None else np.asarray(d["mean"], dtype=np.float64)
+        w.components = (None if d.get("components") is None
+                        else np.asarray(d["components"], dtype=np.float64))
+        stamped = d.get("fingerprint")
+        if stamped is not None and stamped != w.fingerprint():
+            raise ValueError(
+                f"whitening artifact fingerprint mismatch: file says {stamped}, "
+                f"loaded parameters hash to {w.fingerprint()}. The artifact is "
+                f"corrupt or was written by a different implementation.")
+        return w
+
+    def fingerprint(self) -> str | None:
+        """sha256 over the exact bytes of (mean, components). None when unfitted."""
+        if not self.fitted or self.mean is None or self.components is None:
+            return None
+        h = hashlib.sha256()
+        h.update(np.ascontiguousarray(self.mean, dtype=np.float64).tobytes())
+        h.update(np.ascontiguousarray(self.components, dtype=np.float64).tobytes())
+        return h.hexdigest()
+
     def transform(self, vectors: np.ndarray) -> np.ndarray:
         """Whiten and re-normalize. A pass-through when not fitted."""
         v = np.asarray(vectors, dtype=np.float64)

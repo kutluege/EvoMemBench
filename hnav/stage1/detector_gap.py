@@ -287,9 +287,18 @@ def cosine_error(vecs: np.ndarray, order: list[str], prepasses) -> float:
     return worst if n else float("inf")
 
 
-def load_fact_vectors(cfg, order, texts, prepasses) -> tuple[np.ndarray, str, float]:
+def load_fact_vectors(cfg, order, texts, prepasses,
+                      whitener=None) -> tuple[np.ndarray, str, float]:
     """Fact vectors from the shared cache, under whichever namespace the prepass
-    was written with — auto-detected, then proven by :func:`cosine_error`."""
+    was written with — auto-detected, then proven by :func:`cosine_error`.
+
+    [ABTT] ``whitener`` is applied immediately after the cache read and BEFORE
+    the proof, so the guard keeps its full force: it now shows that the cache
+    namespace *and* the whitening artifact together reproduce the geometry the
+    prepass measured. Skipping the guard for whitened runs, or comparing raw
+    cosines against a whitened prepass, would reintroduce exactly the T12
+    failure this function exists to prevent.
+    """
     from hnav.core.embedding import DiskCachedEmbedder, cache_key
     keys = [f"{cfg.embed_model}|{cfg.embed_dtype}".replace("/", "_"),
             cache_key(cfg.embed_model, cfg.embed_dtype, 512),
@@ -300,6 +309,8 @@ def load_fact_vectors(cfg, order, texts, prepasses) -> tuple[np.ndarray, str, fl
             emb = DiskCachedEmbedder(_FailOnMiss(), cfg.emb_cache_dir, key,
                                      persist=False)
             vecs = emb.encode(list(texts))
+            if whitener is not None:
+                vecs = whitener.transform(np.asarray(vecs, dtype=np.float64))
         except Exception as e:  # noqa: BLE001
             errors.append(f"{key}: {str(e)[:120]}")
             continue
@@ -483,18 +494,31 @@ def finish_metrics(m: dict) -> dict:
 
 
 # ── the grid and the pre-registered choice ───────────────────────────────────
-def grid_cells() -> list[dict]:
+def grid_cells(cos_grid=None) -> list[dict]:
     """The SAME axes ``calibrate_read_policy`` declared for the rerank
     calibration — reused rather than redeclared so the two searches cannot
-    silently diverge."""
+    silently diverge.
+
+    [ABTT] ``cos_grid`` overrides the cosine axis, because 0.90/0.92/0.94 are
+    coordinates in the RAW space. When it is overridden the ``loose`` r_min is
+    also re-derived per cell as ``sqrt(1 - cos^2)`` — the documented coupling
+    (HNAV_HOW_IT_WORKS §11.5) that keeps the residual screen a pass-through for
+    whatever the cosine screen admitted. The frozen constant R_LOOSE=0.44 is
+    that same quantity evaluated at cos=0.90 and is meaningless at cos=0.30.
+    The raw path is untouched: with no override the constant is used verbatim.
+    """
+    custom = cos_grid is not None and tuple(cos_grid) != tuple(COS_GRID)
     cells = []
-    for cos in COS_GRID:
+    for cos in (COS_GRID if cos_grid is None else tuple(cos_grid)):
         for rlab in R_MIN_GRID_LABELS:
+            r = r_min_of(rlab)
+            if custom and rlab == "loose":
+                r = float(np.sqrt(max(0.0, 1.0 - cos * cos)))
             for amb in AMB_GRID:
                 for tau in NLI_GRID:
                     for filt in FILTER_GRID:
                         cells.append({"cos_pair": cos, "r_min_label": rlab,
-                                      "r_min": r_min_of(rlab),
+                                      "r_min": r,
                                       "ambiguity_mode": amb,
                                       "nli_contradiction": tau,
                                       "pair_filter": filt})
@@ -1388,7 +1412,8 @@ def subset_of(item: dict) -> str:
         .replace("factconsolidation_", "")
 
 
-def prepass_path(cfg, subset: str, page_source: str | None):
+def prepass_path(cfg, subset: str, page_source: str | None,
+                 geometry_space: str = "raw"):
     """Where the prepass for this page source lives.
 
     Two page sources means two prepasses, and they are NOT interchangeable: the
@@ -1397,6 +1422,10 @@ def prepass_path(cfg, subset: str, page_source: str | None):
     stop that by accident; the stamped ``page_source`` stops it on purpose.
     """
     suffix = "_benchmarkpage" if page_source == "benchmark" else ""
+    # [ABTT] the geometry space is part of the identity of a prepass for the
+    # same reason the page source is: the pairs and the cosines differ, so a
+    # raw prepass replayed into a whitened gate would be a silent mismatch.
+    suffix += "_abtt" if geometry_space == "abtt" else ""
     return cfg.out_dir / f"stage1_prepass_{subset}{suffix}.json"
 
 
@@ -1418,7 +1447,8 @@ def load_context(cfg, subsets, args) -> dict:
     want_source = getattr(args, "page_source", None)
     prepasses, unstamped = {}, []
     for s in subsets:
-        p = prepass_path(cfg, s, want_source)
+        p = prepass_path(cfg, s, want_source,
+                         getattr(args, "geometry_space", "raw"))
         if not p.exists():
             extra = (" --page-source benchmark"
                      if want_source == "benchmark" else "")
@@ -1448,6 +1478,18 @@ def load_context(cfg, subsets, args) -> dict:
                     "accept it (the artifact records that you did).")
         elif stamp.get("stub"):
             raise SystemExit(f" REFUSED: {p.name} was scored with a STUB NLI.")
+        want_space = getattr(args, "geometry_space", "raw")
+        got_space = pp.get("geometry_space", "raw")
+        if got_space != want_space:
+            raise SystemExit(
+                f" REFUSED: {p.name} was written in the {got_space!r} geometry "
+                f"space but this run scores in {want_space!r}.")
+        w = getattr(args, "_whitener", None)
+        if w is not None and pp.get("whitening_fingerprint") != w.fingerprint():
+            raise SystemExit(
+                f" REFUSED: {p.name} was written with whitening fingerprint "
+                f"{pp.get('whitening_fingerprint')}, this run loaded "
+                f"{w.fingerprint()}. Different artifact, different space.")
         prepasses[s] = pp
 
     tables = {s: fact_table(items[s]) for s in subsets}
@@ -1457,7 +1499,8 @@ def load_context(cfg, subsets, args) -> dict:
         table = tables[s]
         order = sorted(table["by_id"], key=lambda f: table["by_id"][f][0])
         texts = [table["by_id"][f][1] for f in order]
-        vecs, key, err = load_fact_vectors(cfg, order, texts, [prepasses[s]])
+        vecs, key, err = load_fact_vectors(cfg, order, texts, [prepasses[s]],
+                                           whitener=getattr(args, "_whitener", None))
         records[s] = build_records(order, texts, table, vecs)
         namespaces.add(key)
         cos_err = max(cos_err, err)
@@ -1512,7 +1555,7 @@ AMBIGUITY_NOTE = (
     "revisit this.")
 
 
-def freeze(chosen, ctx, subsets) -> Path:
+def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
     art = {
         "task": "T13",
         "thresholds": {
@@ -1534,22 +1577,35 @@ def freeze(chosen, ctx, subsets) -> Path:
             "git_head": _git_head(),
             "fit_subsets": sorted(subsets),
             "confirmatory_refused": list(CONFIRMATORY),
-            "prepass": {s: str(prepass_path(cfg, s, getattr(args, "page_source", None)))
-                        for s in subsets},
+            "prepass": {s: prepass_path(cfg, s,
+                                        getattr(args, "page_source", None),
+                                        getattr(args, "geometry_space", "raw")).name
+                        for s in subsets} if cfg is not None else None,
             "prepass_unstamped_nli_config": ctx["unstamped"],
             "embed_cache_namespace": ctx["embed_namespaces"],
             "max_pair_cosine_error_vs_prepass": ctx["max_cosine_error"],
-            "grid": {"cos_pair": list(COS_GRID),
+            "geometry_space": getattr(args, "geometry_space", "raw"),
+            "whitening_artifact": getattr(args, "whitening_artifact", None),
+            "whitening_fingerprint": (args._whitener.fingerprint()
+                                      if getattr(args, "_whitener", None)
+                                      is not None else None),
+            "grid": {"cos_pair": list(getattr(args, "cos_grid", None)
+                                      or COS_GRID),
                      "r_min": list(R_MIN_GRID_LABELS),
                      "ambiguity_mode": list(AMB_GRID),
                      "nli_contradiction": list(NLI_GRID),
                      "pair_filter": list(FILTER_GRID)},
         },
     }
-    OPERATING_POINT.parent.mkdir(parents=True, exist_ok=True)
-    OPERATING_POINT.write_text(json.dumps(art, indent=1, default=str),
-                               encoding="utf-8")
-    return OPERATING_POINT
+    # The SHIPPED operating point is never overwritten by an alternative
+    # geometry: a reader finding whitened thresholds in the file the thesis
+    # cites would have no way to tell. The ABTT point gets its own artifact.
+    dest = OPERATING_POINT
+    if getattr(args, "geometry_space", "raw") == "abtt":
+        dest = REPO / "stage0_results" / "abtt" / "abtt_operating_point.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(art, indent=1, default=str), encoding="utf-8")
+    return dest
 
 
 def frozen_cell() -> dict:
@@ -1619,11 +1675,37 @@ def main() -> int:
                          "and only with --harness retrieval --page-source "
                          "benchmark. sh_262k stays refused. Use with --dry-run "
                          "first to produce the guard pre-flight evidence.")
+    ap.add_argument("--geometry-space", choices=("raw", "abtt"), default="raw",
+                    help="'abtt' scores the gate in the ABTT-whitened space; "
+                         "the prepass must have been produced the same way.")
+    ap.add_argument("--whitening-artifact", default=None)
+    ap.add_argument("--cos-grid", nargs="+", type=float, default=None,
+                    help="override the cosine axis (required for abtt: the "
+                         "default 0.90/0.92/0.94 are raw-space coordinates)")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
     cfg = _config.get_config()
     cfg.require_not_live()
+
+    # [ABTT] Resolve the geometry space before anything reads a prepass or a
+    # vector, so every later guard compares like with like.
+    args._whitener = None
+    if args.geometry_space == "abtt":
+        if not args.whitening_artifact:
+            print(" REFUSED: --geometry-space abtt needs --whitening-artifact "
+                  "(fit one with hnav/stage0/fit_abtt_artifact.py).")
+            return 2
+        if args.select and not args.cos_grid:
+            print(" REFUSED: --select in the abtt space needs --cos-grid. The "
+                  "default 0.90/0.92/0.94 are RAW-space coordinates and would "
+                  "search a region the whitened distribution barely reaches.")
+            return 2
+        from hnav.stage1.calibrate_read_policy import load_whitening
+        args._whitener, _art = load_whitening(args.whitening_artifact)
+        print(f" ABTT space: D={args._whitener.components.shape[0]}  "
+              f"fingerprint={args._whitener.fingerprint()[:16]}...  "
+              f"fit_on={_art['fit_subsets']}")
 
     if args.confirmatory:
         if args.select:
@@ -1675,7 +1757,7 @@ def main() -> int:
         if sorted(subsets) != sorted(CALIBRATION):
             print(f" NOTE: fitting on {subsets}, not the full calibration split "
                   f"{list(CALIBRATION)}. Recorded in the artifact.")
-        cells = grid_cells()
+        cells = grid_cells(args.cos_grid)
         measure_grid(ctx, subsets, cells)
         chosen = select(cells)
         print(format_detection(cells, chosen))
@@ -1687,7 +1769,7 @@ def main() -> int:
         if chosen is None:
             return 3
         print(f"\n froze operating point -> "
-              f"{_rel(freeze(chosen, ctx, subsets))}")
+              f"{_rel(freeze(chosen, ctx, subsets, cfg, args))}")
         return 0
 
     cell = frozen_cell()
