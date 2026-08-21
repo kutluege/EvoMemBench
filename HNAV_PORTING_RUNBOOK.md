@@ -318,6 +318,24 @@ Recommended: **re-freeze per model, and report both.** Then state which claim
 you are making. Do not silently re-tune per model and then claim threshold
 transfer.
 
+**Do not reach for isotropy correction to make thresholds transfer.** It is the
+obvious idea and we tested it. ABTT (all-but-the-top) removes this encoder's
+anisotropy completely — unrelated-pair mean cosine 0.604 → ~0.000 — and it does
+improve detection quality a lot (recall at precision 1.000 rises 6.8× and 40×
+on the two calibration subsets). But it did **not** buy threshold portability:
+with only one usable transfer direction and a band-normalised threshold spread
+that slightly favoured raw, we explicitly declined to claim it. And on held-out
+sh_64k it changed no answer at all — 37/66 conflicted in both arms, not one
+question different. See `stage0_results/abtt/ABTT_REPORT.md`.
+
+Two transferable lessons if you try it anyway: fit the whitening **offline on
+the calibration split** and ship (mean, components) as a fingerprinted constant
+— that removes the "cannot fit on a small decision pool" problem entirely — and
+whiten **only the fact-fact comparison**. Whitening the query vector too cost
+27% of the reachable true pairs, because the pool selector then ranks a question
+against facts in a space that has had the shared "factual English" directions
+removed. ABTT helps symmetric comparison and hurts asymmetric retrieval.
+
 ### 8.3 Analysis for a multi-model study
 
 - **Stratify by model and by question stratum.** Never pool across models — the
@@ -404,6 +422,8 @@ listed so you do not rediscover them.
 | **Page selection not reproducible by re-encoding** | your arms use a different page than the benchmark would | read the page from the benchmark's own index, not from re-embedded vectors |
 | **Pool built from the wrong page** | the policy names a fact absent from the page → edit fails → silent fallback to baseline → **looks exactly like a null result** | assert `named_ids ⊆ page_ids`; make the fallback counter a void condition |
 | **NLI alone as a conflict verifier** | 33–93% false verifications; same-template/different-subject pairs score contradiction at 0.999 | require parsed subject+relation identity as a screen |
+| **Fixing the stage that is not the bottleneck** | a large, real improvement in one component (ABTT: screen precision 5.3% → 51.3%) moves the end metric by exactly zero | measure where precision actually comes from before optimising a component; ours came from the regex screen and NLI, not from cosine |
+| **Judging a detector by AUC** | AUC is dominated by the easy bulk and moved only +0.002 where recall-at-precision-1.000 moved 6.8× | report the statistic your operating point is selected on, not the one that is conventional |
 | **Harm cap below the noise floor** | no intervention can pass, however good | set harm criteria above the measured A/A floor |
 | **Pooled percentile across unlike subsets** | a threshold that describes no subset and is unreachable on one | fit and report per subset |
 | **Chunk-granularity intervention** | helps a little, harms twice as much | act at the granularity of the conflict (facts) |

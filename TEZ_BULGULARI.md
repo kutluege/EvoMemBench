@@ -440,6 +440,37 @@ yeniden chunk'lıyor.
    Ayrıca pooled percentile ile fit edilmiş, deponun kendi "stratify, never
    pool" kuralına aykırı. Yeniden türetme sırada, **subset başına**.
 
+6. **ABTT anizotropi düzeltmesi doğruluğu değiştirmedi (kesin sıfır).**
+   Kosinüs ekranından **önce** ABTT uygulandı, eşikler düzeltilmiş uzayda
+   sıfırdan yeniden fit edildi (`cos_pair` 0.90 → 0.30), sh_64k'da ön-kayıtlı
+   olarak atıldı. Sonuç: **her iki kolda da çakışan katmanda 37/66 — tek bir
+   soru bile farklı değil** (%95 GA [0, 0], McNemar p = 1), eşit zarar ve eşit
+   token maliyetiyle.
+   - **Geometri gerçekten düzeldi:** anizotropi 0.6024 → ~0.000; aday-çift
+     tabanı 0.5815 → 0.083; eşit duyarlılıkta ekran kesinliği %5.3 → **%51.3**;
+     kesinlik 1.000'de duyarlılık 0.0750 → **0.5125** (sh_6k) ve 0.0072 →
+     **0.2910** (sh_32k).
+   - **Sonuç güçsüzlükten değil:** ham kol, §A4'teki doğrulama kampanyasını
+     **500/500 aynı sonuç ve sıfır farklı model çıktısıyla** yeniden üretti;
+     A/A tabanı gerçek 0/0. Ölçüm gürültüsü yok — sınırlama 66 soruluk
+     genellenebilirlik.
+   - **Etkisiz de değil:** iki kol **100 sorunun 12'sinde** farklı bastırma
+     planı üretti (16 fakt farkı), model çıktısı tam **1** soruda değişti,
+     doğruluk **0** soruda değişti. İki geometrinin anlaşamadığı faktlar,
+     hiçbir sorunun bağlı olmadığı faktlar.
+   - **Yorum:** ABTT, darboğaz olmayan aşamayı iyileştiriyor. Bu hattın
+     kesinliği regex `pair_filter` + NLI'dan geliyor, kosinüsten değil.
+     Mekanizmayı **sınırlar, çürütmez**: ölçülen kazanımlar tam olarak
+     kosinüsün kesinliği **tek başına** taşımak zorunda olduğu rejimde yaşıyor
+     — yani ayrıştırılabilir şablonu olmayan her arenada. Belirleyici devam
+     deneyi: regex ekranını kaldırıp iki geometriyi yeniden koşturmak.
+   - **Ek ölçüm:** sorgu vektörünü de beyazlatmak **zararlı** — erişilebilir
+     gerçek-supersession çiftleri sh_6k'da 1,443 → 1,048 (−%27) düşüyor, çünkü
+     `select_pool` daha kötü bir havuz kuruyor. ABTT simetrik fakt–fakt
+     karşılaştırmasına yardım eder, asimetrik soru–fakt erişimine zarar verir.
+   - Kanıt: `stage0_results/abtt/` (ön-kayıt `dd4439b`, analiz kodu `132a532`,
+     sonuçlar `5917fa1`), `ABTT_REPORT.md`.
+
 ---
 
 ## G. Bugün iddia EDİLEMEYENLER

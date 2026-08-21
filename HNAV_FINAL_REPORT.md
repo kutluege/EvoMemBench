@@ -47,9 +47,10 @@ conclusion, written before the data existed, therefore stands: **effective, but
 not yet safe.**
 
 **What we ruled out, and reported as negative:** write-side intervention
-(headroom ≈ 0), chunk-level reranking (actively harmful), and — in the secondary
+(headroom ≈ 0), chunk-level reranking (actively harmful), — in the secondary
 arena — the conversion of measured redundancy into accuracy (unproven and
-currently unmeasurable).
+currently unmeasurable), and **ABTT anisotropy correction applied before the
+cosine screen** (fixes the geometry completely, changes no answer; §8b).
 
 ---
 
@@ -409,6 +410,61 @@ model's own 512-position limit, and truncation can only *remove* text, so 0.0129
 is a **lower bound whose true value can only be higher**. The
 redundancy-not-conflict characterisation therefore rests on the untruncated
 fact-level `critical delta = 0.0000`, with NLI as corroboration.
+
+---
+
+## 8b. Anisotropy and ABTT whitening — a measured null
+
+The detector thresholds raw cosine in a space we measured to be strongly
+anisotropic: two facts with nothing in common sit at cosine **≈ 0.604**, and no
+candidate pair at sh_262k falls below **0.65**, so roughly the bottom three
+quarters of the nominal cosine range is never used (§3;
+`presentation_evidence/GEOMETRY_AND_ANISOTROPY.md`). The standard remedy —
+All-But-The-Top (Mu & Viswanath, ICLR 2018) — had been implemented and tested
+since Stage 0 but never armed. In August 2026 it was armed and fired.
+
+**Design.** The whitening parameters (mean and 128 principal directions) were
+fitted **offline, once, on the calibration split only** and shipped as a frozen
+artifact with a sha256 fingerprint. That dissolves the standing objection that
+ABTT cannot run at decision time because the 50-fact read pool is below
+`min_fit_n = 200`: a pre-fitted whitener has nothing left to estimate. Whitening
+was confined to the **fact–fact geometry the gate decides on**; whitening the
+query as well was measured to be actively harmful, costing 27% of the reachable
+true-supersession pairs because `select_pool` then builds a worse pool. ABTT
+helps symmetric fact–fact comparison and hurts asymmetric question–fact
+retrieval. Thresholds were re-fitted from scratch in the corrected space on
+detection quality alone (`cos_pair` 0.90 → 0.30), and the run was
+pre-registered before grading.
+
+**What it changed — substantially:**
+
+| property | raw | ABTT |
+|---|---|---|
+| anisotropy (unrelated-pair mean cos) | 0.6024 / 0.6026 | ≈ 0.000 |
+| candidate-pair floor | 0.5815 / 0.6130 | 0.083 / 0.081 |
+| screen precision at equal recall (sh_32k) | 5.3% | **51.3%** |
+| recall at precision 1.000 (sh_6k / sh_32k) | 0.0750 / 0.0072 | **0.5125 / 0.2910** |
+
+**What it changed in accuracy — nothing.** On held-out sh_64k, conflicted
+stratum: **37/66 in both arms. Not one question differs** (95% CI [0, 0],
+McNemar p = 1), at equal harm and equal token cost.
+
+The null is exact rather than underpowered: the raw arm reproduced the
+confirmatory campaign of §7 with **500/500 identical graded outcomes and zero
+differing model outputs**, and the A/A floor was a true 0/0. Nor is it inert —
+the two arms produced different suppression plans on **12 of 100 questions** and
+differed by 16 suppressed facts, changing the model's output text exactly once
+and its correctness never.
+
+**Interpretation.** ABTT improves the stage that was not the bottleneck. This
+pipeline buys its precision from the parsed subject+relation screen and
+bidirectional NLI, not from cosine, so a cleaner cosine screen has nothing left
+to contribute. That bounds the mechanism rather than dismissing it: the measured
+gains live precisely where cosine must carry precision *alone*, which is the
+situation in any arena without a parseable fact template. The decisive follow-up
+is to remove the regex screen and re-run both geometries.
+
+Full campaign, pre-registration and artifacts: `stage0_results/abtt/`.
 
 ---
 
