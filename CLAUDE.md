@@ -160,6 +160,11 @@ These four import torch at module level (they are benchmark code) and are theref
 - **`StoreView.with_provisional(cand)` must stay non-mutating.** Returning a new view is what makes
   `dH` and churn computable before a write commits.
 - **Report stratified, never pooled across subsets.** Store sizes span 455 → 18,332 facts.
+- **New-model pipeline runs (`pipelines/`) use sh_6k + sh_32k + sh_64k — never sh_262k.**
+  User decision 2026-08-24, applies identically to every model in the series: sh_262k's contexts
+  would exceed smaller answering models' context windows, turning a memory comparison into a
+  context-length comparison. Enforced by `ALLOWED_SUBSETS` in `pipelines/_shared/runner.py`;
+  do not widen it per model.
 - **Cluster CrossEp-Know by `context_id`.** ICC = 0.346, design effect 3.20, effective N ≈ 276 of 884.
 - **`mh_*` (multi-hop) subsets are exploratory only** — question→fact mapping is not 1:1.
 - **Check `"fallback_chunker": false` in M2 output.** `true` means nltk/punkt is missing and the

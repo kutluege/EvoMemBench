@@ -57,10 +57,17 @@ operating point was selected on their fact geometry — detection quality only,
 no LLM, no gold answers in the objective), sh_64k is **held-out**. For a *new
 answering model* all three are honest accuracy measurements — the selection
 objective never saw any LLM's behaviour — but the labels should still appear,
-and sh_64k remains the headline. sh_262k is excluded by design:
-`detector_gap` refuses it (never part of the registered campaign, no prepass,
-no NLI table) and the thesis should state it was not measured rather than
-extrapolate.
+and sh_64k remains the headline.
+
+**RULE (user decision, 2026-08-24): every subsequent model runs this same
+protocol — sh_6k + sh_32k + sh_64k, stratified, one shot each. sh_262k is
+excluded permanently**, for two reasons: its contexts would most likely
+exceed the context window of the smaller answering models this folder exists
+to test, so including it would silently turn a memory comparison into a
+context-length comparison; and it was never part of the registered campaign
+(`detector_gap` refuses it, no prepass, no NLI table). The runner's
+`ALLOWED_SUBSETS` enforces this — do not widen it per model. The thesis
+states sh_262k was not measured rather than extrapolating to it.
 
 One shot per model per subset. The runner refuses to overwrite an existing
 results folder; a void run is reported as void, not re-rolled.

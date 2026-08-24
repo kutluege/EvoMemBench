@@ -43,6 +43,13 @@ from hnav.config import get_config                                     # noqa: E
 from hnav.stage1.stale_suppression_probe import mcnemar_exact_p        # noqa: E402
 
 MECHANISM = "detector_suppress"          # the shipped mechanism; others are logged
+# RULE (user decision, 2026-08-24): every model runs exactly these three,
+# stratified, one shot each. sh_262k is excluded PERMANENTLY - its contexts
+# would exceed the context window of the smaller answering models this runner
+# exists to test (turning a memory comparison into a context-length
+# comparison), and it was never part of the registered campaign. Do not widen
+# this tuple per model; the same list must apply to every model so results
+# stay comparable across the whole series.
 ALLOWED_SUBSETS = ("sh_6k", "sh_32k", "sh_64k")
 SUBSET_ROLE = {"sh_6k": "calibration split", "sh_32k": "calibration split",
                "sh_64k": "held-out"}
