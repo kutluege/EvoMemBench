@@ -1,2 +1,4 @@
 audit_candidates_cos080.jsonl
 !audit_candidates_cos080.jsonl.gz
+audit_results_gpt5mini.jsonl
+!audit_results_gpt5mini.jsonl.gz
