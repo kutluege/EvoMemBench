@@ -1334,16 +1334,21 @@ def format_detection(cells, chosen) -> str:
     lines = ["", "=" * 100,
              " DETECTOR OPERATING-POINT SELECTION (detection quality only - "
              "no LLM, no gold)", "=" * 100,
-             f"{'cos':>5}{'r_min':>8}{'amb':>6}{'nli':>6}{'filt':>6}"
+             f"{'cos':>5}{'r_min':>8}{'amb':>6}{'nli':>6}{'filt':>9}"
              f"{'prec':>8}{'rec_pool':>10}{'rec_page':>10}{'sup':>7}"
              f"{'harm':>6}{'q_rec':>8}{'cover':>7}"]
-    top = sorted([c for c in cells if c["pair_filter"]],
+    # [E2E] all cells, not only pair_filter-truthy ones: the 'none' screen's
+    # grid is entirely False and used to render an empty table.
+    top = sorted(cells,
                  key=lambda c: -(c["metrics"]["pair_recall_pool"] or 0))[:12]
     for c in top:
         m = c["metrics"]
+        filt = str(c["pair_filter"])
+        if c.get("ces_tau") is not None:
+            filt += f"@{c['ces_tau']:g}"
         lines.append(
             f"{c['cos_pair']:>5}{c['r_min_label']:>8}{c['ambiguity_mode']:>6}"
-            f"{c['nli_contradiction']:>6}{str(c['pair_filter']):>6}"
+            f"{c['nli_contradiction']:>6}{filt:>9}"
             f"{_fmt(m['pair_precision']):>8}{_fmt(m['pair_recall_pool']):>10}"
             f"{_fmt(m['pair_recall_page']):>10}"
             f"{m['n_suppressed']:>7}{m['n_suppressed_harmful']:>6}"
@@ -1356,10 +1361,12 @@ def format_detection(cells, chosen) -> str:
                   f"r_min={chosen['r_min_label']} "
                   f"ambiguity={chosen['ambiguity_mode']} "
                   f"nli={chosen['nli_contradiction']} "
-                  f"pair_filter={chosen['pair_filter']}",
-                  f"   pair precision {m['pair_precision']:.4f}  "
-                  f"recall(pool) {m['pair_recall_pool']:.4f}  "
-                  f"recall(page) {m['pair_recall_page']:.4f}",
+                  f"pair_filter={chosen['pair_filter']}"
+                  + (f" ces_tau={chosen['ces_tau']}"
+                     if chosen.get("ces_tau") is not None else ""),
+                  f"   pair precision {_fmt(m['pair_precision'])}  "
+                  f"recall(pool) {_fmt(m['pair_recall_pool'])}  "
+                  f"recall(page) {_fmt(m['pair_recall_page'])}",
                   f"   suppressed {m['n_suppressed']} facts "
                   f"({m['n_suppressed_superseded']} superseded, "
                   f"{m['n_suppressed_same_value']} same-value duplicates, "
@@ -1936,13 +1943,14 @@ def main() -> int:
         check_cos_floor(min(c["cos_pair"] for c in cells))
         measure_grid(ctx, subsets, cells, args._ces)
         chosen = select(cells, args.pair_screen)
-        print(format_detection(cells, chosen))
+        # write BEFORE printing: a formatting hiccup must not lose the grid
         (cfg.out_dir / "detector_gap_selection.json").write_text(
             json.dumps({"cells": cells, "chosen": chosen,
                         "selection_rule": selection_rule_for(args.pair_screen),
                         "pair_screen": args.pair_screen,
                         "fit_subsets": subsets}, indent=1, default=str),
             encoding="utf-8")
+        print(format_detection(cells, chosen))
         if chosen is None:
             return 3
         print(f"\n froze operating point -> "
