@@ -340,15 +340,31 @@ def build_records(order, texts, table, vecs) -> dict[str, MemoryRecord]:
     return out
 
 
-def make_gate(cell, replay) -> ReadGate:
+def make_gate(cell, replay, ces=None) -> ReadGate:
+    """[E2E] ``cell["pair_filter"]`` is the identity screen: ``True`` = the
+    parser's same-key check (the shipped arms), ``"ces"`` = the frozen CES
+    artifact at ``cell["ces_tau"]`` (relation from the parser, subject identity
+    from geometry), ``False`` = no identity screen at all (the known-dangerous
+    setting the Faz A audit measured — allowed only for the preregistered
+    abtt_noparser arm, where measuring that danger IS the experiment)."""
+    pf = cell["pair_filter"]
+    if pf == "ces":
+        if ces is None:
+            raise SystemExit(" REFUSED: this operating point uses the CES "
+                             "screen; pass --pair-screen ces --ces-artifact.")
+        pair_filter = ces.pair_filter(float(cell["ces_tau"]))
+    elif pf:
+        pair_filter = MABAdapter.same_key_pair
+    else:
+        pair_filter = None
     return ReadGate(replay, GateThresholds(
         cos_pair=cell["cos_pair"], r_min=cell["r_min"],
         ambiguity_mode=cell["ambiguity_mode"],
         nli_contradiction=cell["nli_contradiction"]),
-        pair_filter=MABAdapter.same_key_pair if cell["pair_filter"] else None)
+        pair_filter=pair_filter)
 
 
-def decide_all(prepass, recs, cells, replay):
+def decide_all(prepass, recs, cells, replay, ces=None):
     """``{question index: {cell index: GateDecision}}`` for one subset.
 
     Questions outer, cells inner, with ``_CachedQR`` installed exactly as
@@ -356,7 +372,7 @@ def decide_all(prepass, recs, cells, replay):
     identical leave-one-out QR is computed once per question rather than once
     per (question, cell).
     """
-    gates = [make_gate(c, replay) for c in cells]
+    gates = [make_gate(c, replay, ces) for c in cells]
     qr_cache = _CachedQR()
     real_qr = _rg.qr_residual
     _rg.qr_residual = qr_cache
@@ -494,7 +510,11 @@ def finish_metrics(m: dict) -> dict:
 
 
 # ── the grid and the pre-registered choice ───────────────────────────────────
-def grid_cells(cos_grid=None) -> list[dict]:
+CES_TAU_GRID = (-0.05, 0.0, 0.05, 0.10)   # preregistered 2026-08-27
+
+
+def grid_cells(cos_grid=None, pair_screen: str = "parser",
+               ces_grid=None) -> list[dict]:
     """The SAME axes ``calibrate_read_policy`` declared for the rerank
     calibration — reused rather than redeclared so the two searches cannot
     silently diverge.
@@ -508,6 +528,19 @@ def grid_cells(cos_grid=None) -> list[dict]:
     The raw path is untouched: with no override the constant is used verbatim.
     """
     custom = cos_grid is not None and tuple(cos_grid) != tuple(COS_GRID)
+    # [E2E] the identity-screen axis depends on which arm is being selected:
+    #   parser  -> the shipped grid (True, False), unchanged;
+    #   none    -> pinned False (the abtt_noparser arm: no identity screen);
+    #   ces     -> pinned "ces", crossed with the preregistered tau grid.
+    if pair_screen == "parser":
+        filter_axis = [(f, None) for f in FILTER_GRID]
+    elif pair_screen == "none":
+        filter_axis = [(False, None)]
+    elif pair_screen == "ces":
+        taus = tuple(ces_grid) if ces_grid else CES_TAU_GRID
+        filter_axis = [("ces", float(t)) for t in taus]
+    else:
+        raise ValueError(f"unknown pair_screen {pair_screen!r}")
     cells = []
     for cos in (COS_GRID if cos_grid is None else tuple(cos_grid)):
         for rlab in R_MIN_GRID_LABELS:
@@ -516,12 +549,15 @@ def grid_cells(cos_grid=None) -> list[dict]:
                 r = float(np.sqrt(max(0.0, 1.0 - cos * cos)))
             for amb in AMB_GRID:
                 for tau in NLI_GRID:
-                    for filt in FILTER_GRID:
-                        cells.append({"cos_pair": cos, "r_min_label": rlab,
-                                      "r_min": r,
-                                      "ambiguity_mode": amb,
-                                      "nli_contradiction": tau,
-                                      "pair_filter": filt})
+                    for filt, ces_tau in filter_axis:
+                        cell = {"cos_pair": cos, "r_min_label": rlab,
+                                "r_min": r,
+                                "ambiguity_mode": amb,
+                                "nli_contradiction": tau,
+                                "pair_filter": filt}
+                        if ces_tau is not None:
+                            cell["ces_tau"] = ces_tau
+                        cells.append(cell)
     return cells
 
 
@@ -539,8 +575,28 @@ SELECTION_RULE = {
 }
 
 
-def select(cells: list[dict]) -> dict | None:
-    """Apply :data:`SELECTION_RULE`, which was frozen before any cell was scored.
+def selection_rule_for(pair_screen: str) -> dict:
+    """[E2E] The rule for an alternative identity screen. Documented method
+    change (2026-08-27): the shipped ``pair_filter is True`` requirement said
+    "the parser screen must be ON" — for the preregistered geometry arms the
+    identity screen is pinned by the arm itself, so the requirement becomes
+    membership in that arm's screen. ``n_suppressed_harmful == 0`` — the
+    information-loss veto — stays hard for every screen; a screen that cannot
+    reach it does not get an operating point, it gets a null result."""
+    if pair_screen == "parser":
+        return SELECTION_RULE
+    rule = dict(SELECTION_RULE)
+    rule["require"] = [f"pair_filter == {'False' if pair_screen == 'none' else pair_screen!r}"
+                       " (pinned by the arm)",
+                       "n_suppressed_harmful == 0"]
+    if pair_screen == "ces":
+        rule["tie_break"] = ["higher ces_tau (stricter identity screen)"] \
+            + list(SELECTION_RULE["tie_break"])
+    return rule
+
+
+def select(cells: list[dict], pair_screen: str = "parser") -> dict | None:
+    """Apply :func:`selection_rule_for`, frozen before any cell was scored.
 
     ``pair_filter is True`` is a REQUIREMENT, not a preference. The Faz A audit
     measured the NLI cross-encoder rubber-stamping same-template /
@@ -571,12 +627,15 @@ def select(cells: list[dict]) -> dict | None:
     by the identity screen and the bidirectional NLI at measured precision 1.00.
     A campaign that re-fits the embeddings must revisit this.
     """
+    want = {"parser": True, "none": False, "ces": "ces"}[pair_screen]
     feasible = [c for c in cells
-                if c["pair_filter"] and c["metrics"]["n_suppressed_harmful"] == 0
+                if c["pair_filter"] == want
+                and c["metrics"]["n_suppressed_harmful"] == 0
                 and c["metrics"]["pair_recall_pool"] is not None]
     if not feasible:
         return None
     feasible.sort(key=lambda c: (-c["metrics"]["pair_recall_pool"],
+                                 -(c.get("ces_tau") or 0.0),
                                  -c["cos_pair"], -c["nli_contradiction"],
                                  R_RANK[c["r_min_label"]],
                                  AMB_RANK[c["ambiguity_mode"]]))
@@ -1413,7 +1472,7 @@ def subset_of(item: dict) -> str:
 
 
 def prepass_path(cfg, subset: str, page_source: str | None,
-                 geometry_space: str = "raw"):
+                 geometry_space: str = "raw", prepass_tag: str = ""):
     """Where the prepass for this page source lives.
 
     Two page sources means two prepasses, and they are NOT interchangeable: the
@@ -1426,6 +1485,9 @@ def prepass_path(cfg, subset: str, page_source: str | None,
     # same reason the page source is: the pairs and the cosines differ, so a
     # raw prepass replayed into a whitened gate would be a silent mismatch.
     suffix += "_abtt" if geometry_space == "abtt" else ""
+    # [E2E] a screen that admits pairs below the raw loose bound needs its own
+    # prepass superset; the tag keeps it from colliding with the shipped one.
+    suffix += prepass_tag
     return cfg.out_dir / f"stage1_prepass_{subset}{suffix}.json"
 
 
@@ -1448,7 +1510,8 @@ def load_context(cfg, subsets, args) -> dict:
     prepasses, unstamped = {}, []
     for s in subsets:
         p = prepass_path(cfg, s, want_source,
-                         getattr(args, "geometry_space", "raw"))
+                         getattr(args, "geometry_space", "raw"),
+                         getattr(args, "prepass_tag", ""))
         if not p.exists():
             extra = (" --page-source benchmark"
                      if want_source == "benchmark" else "")
@@ -1520,7 +1583,7 @@ def page_fact_ids(prepass, table) -> list[str]:
 
 
 # ── selection driver ─────────────────────────────────────────────────────────
-def measure_grid(ctx, subsets, cells) -> None:
+def measure_grid(ctx, subsets, cells, ces=None) -> None:
     """Fill ``cell["metrics"]`` (pooled over the split) and ``cell["by_subset"]``."""
     for c in cells:
         c["metrics"] = blank_metrics()
@@ -1529,7 +1592,7 @@ def measure_grid(ctx, subsets, cells) -> None:
         pp, table, recs = ctx["prepasses"][s], ctx["tables"][s], ctx["records"][s]
         strata = {r["index"]: r for r in classify_questions(ctx["items"][s])}
         page_gt = count_gt_pairs(page_fact_ids(pp, table), table["by_id"])
-        decisions = decide_all(pp, recs, cells, ReplayNLI(pp["nli_table"]))
+        decisions = decide_all(pp, recs, cells, ReplayNLI(pp["nli_table"]), ces)
         for q in pp["questions"]:
             decs = decisions[q["index"]]
             pool = [f for f in q["pool"] if f in table["by_id"]]
@@ -1565,8 +1628,15 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
             "nli_contradiction": chosen["nli_contradiction"]},
         "r_min_label": chosen["r_min_label"],
         "pair_filter": chosen["pair_filter"],
+        "ces": ({"tau": chosen["ces_tau"],
+                 "artifact": getattr(args, "ces_artifact", None),
+                 "fingerprint": (args._ces.fingerprint()
+                                 if getattr(args, "_ces", None) is not None
+                                 else None)}
+                if chosen["pair_filter"] == "ces" else None),
         "mechanisms": ["suppress", "demote_late"],
-        "selection_rule": SELECTION_RULE,
+        "selection_rule": selection_rule_for(
+            getattr(args, "pair_screen", "parser")),
         "metrics": chosen["metrics"],
         "by_subset": chosen["by_subset"],
         "ambiguity_note": AMBIGUITY_NOTE if chosen["ambiguity_mode"] == "none"
@@ -1579,12 +1649,14 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
             "confirmatory_refused": list(CONFIRMATORY),
             "prepass": {s: prepass_path(cfg, s,
                                         getattr(args, "page_source", None),
-                                        getattr(args, "geometry_space", "raw")).name
+                                        getattr(args, "geometry_space", "raw"),
+                                        getattr(args, "prepass_tag", "")).name
                         for s in subsets} if cfg is not None else None,
             "prepass_unstamped_nli_config": ctx["unstamped"],
             "embed_cache_namespace": ctx["embed_namespaces"],
             "max_pair_cosine_error_vs_prepass": ctx["max_cosine_error"],
             "geometry_space": getattr(args, "geometry_space", "raw"),
+            "pair_screen": getattr(args, "pair_screen", "parser"),
             "whitening_artifact": getattr(args, "whitening_artifact", None),
             "whitening_fingerprint": (args._whitener.fingerprint()
                                       if getattr(args, "_whitener", None)
@@ -1594,31 +1666,55 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
                      "r_min": list(R_MIN_GRID_LABELS),
                      "ambiguity_mode": list(AMB_GRID),
                      "nli_contradiction": list(NLI_GRID),
-                     "pair_filter": list(FILTER_GRID)},
+                     "pair_filter": list(FILTER_GRID),
+                     "ces_tau": (list(getattr(args, "ces_grid", None)
+                                      or CES_TAU_GRID)
+                                 if getattr(args, "pair_screen", "parser")
+                                 == "ces" else None)},
         },
     }
     # The SHIPPED operating point is never overwritten by an alternative
-    # geometry: a reader finding whitened thresholds in the file the thesis
-    # cites would have no way to tell. The ABTT point gets its own artifact.
-    dest = OPERATING_POINT
-    if getattr(args, "geometry_space", "raw") == "abtt":
-        dest = REPO / "stage0_results" / "abtt" / "abtt_operating_point.json"
+    # geometry or an alternative identity screen: a reader finding foreign
+    # thresholds in the file the thesis cites would have no way to tell.
+    # Each preregistered arm gets its own artifact file.
+    dest = operating_point_path(getattr(args, "geometry_space", "raw"),
+                                getattr(args, "pair_screen", "parser"))
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(art, indent=1, default=str), encoding="utf-8")
     return dest
 
 
-def frozen_cell(geometry_space: str = "raw") -> dict:
+def operating_point_path(geometry_space: str, pair_screen: str) -> Path:
+    """[E2E] One frozen operating-point file per preregistered arm. Undefined
+    combinations are refused rather than given a default file — an arm that was
+    not preregistered must not silently acquire an operating point."""
+    if pair_screen == "parser":
+        if geometry_space == "abtt":
+            return REPO / "stage0_results" / "abtt" / "abtt_operating_point.json"
+        return OPERATING_POINT
+    gf = REPO / "stage0_results" / "geometry_filter"
+    if pair_screen == "ces" and geometry_space == "raw":
+        return gf / "ces_operating_point.json"
+    if pair_screen == "none" and geometry_space == "abtt":
+        return gf / "abtt_noparser_operating_point.json"
+    raise SystemExit(
+        f" REFUSED: no preregistered arm for pair_screen={pair_screen!r} with "
+        f"geometry_space={geometry_space!r}. The 2026-08-27 arms are "
+        "ces+raw and none+abtt (E2E plan); parser goes with either space.")
+
+
+def frozen_cell(geometry_space: str = "raw", pair_screen: str = "parser") -> dict:
     """The committed operating point, as a grid cell. Refuses to invent one.
 
     [ABTT] The whitened arm reads its OWN frozen artifact. Falling back to the
     shipped raw point here would score whitened vectors against thresholds
     calibrated in the raw space -- the arms would differ by two things at once
-    and the contrast would mean nothing.
+    and the contrast would mean nothing. [E2E] Same for the identity-screen
+    arms: each reads its own file, and the file's recorded screen must agree
+    with the one the caller asked for.
     """
     global OPERATING_POINT
-    if geometry_space == "abtt":
-        OPERATING_POINT = REPO / "stage0_results" / "abtt" / "abtt_operating_point.json"
+    OPERATING_POINT = operating_point_path(geometry_space, pair_screen)
     if not OPERATING_POINT.exists():
         raise SystemExit(
             f" REFUSED: {_rel(OPERATING_POINT)} does not exist. Run\n"
@@ -1626,12 +1722,22 @@ def frozen_cell(geometry_space: str = "raw") -> dict:
             " first: the operating point is frozen from DETECTION quality, "
             "before anything is graded.")
     art = json.loads(OPERATING_POINT.read_text(encoding="utf-8"))
+    got_screen = art.get("provenance", {}).get("pair_screen", "parser")
+    if got_screen != pair_screen:
+        raise SystemExit(
+            f" REFUSED: {_rel(OPERATING_POINT)} was frozen for the "
+            f"{got_screen!r} identity screen but this run asked for "
+            f"{pair_screen!r}.")
     thr = art["thresholds"]
-    return {"cos_pair": thr["cos_pair"], "r_min": thr["r_min"],
+    cell = {"cos_pair": thr["cos_pair"], "r_min": thr["r_min"],
             "r_min_label": art.get("r_min_label", "custom"),
             "ambiguity_mode": thr["ambiguity_mode"],
             "nli_contradiction": thr["nli_contradiction"],
             "pair_filter": art["pair_filter"], "artifact": art}
+    if art.get("ces"):
+        cell["ces_tau"] = art["ces"]["tau"]
+        cell["ces_fingerprint"] = art["ces"]["fingerprint"]
+    return cell
 
 
 def _rel(path: Path) -> str:
@@ -1691,6 +1797,22 @@ def main() -> int:
     ap.add_argument("--cos-grid", nargs="+", type=float, default=None,
                     help="override the cosine axis (required for abtt: the "
                          "default 0.90/0.92/0.94 are raw-space coordinates)")
+    ap.add_argument("--pair-screen", choices=("parser", "ces", "none"),
+                    default="parser",
+                    help="[E2E] identity screen: 'parser' = the shipped "
+                         "same-key check; 'ces' = the frozen contrastive-edit-"
+                         "subspace artifact (relation from the parser, subject "
+                         "identity from geometry); 'none' = no identity screen "
+                         "(the preregistered abtt_noparser arm only).")
+    ap.add_argument("--ces-artifact", default=None,
+                    help="path to ces_subspaces_k20.json (required for "
+                         "--pair-screen ces)")
+    ap.add_argument("--ces-grid", nargs="+", type=float, default=None,
+                    help="tau axis for --select with --pair-screen ces "
+                         "(default: the preregistered CES_TAU_GRID)")
+    ap.add_argument("--prepass-tag", default=None,
+                    help="extra prepass filename suffix; defaults to '_ces' "
+                         "for --pair-screen ces and '' otherwise")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -1715,6 +1837,36 @@ def main() -> int:
         print(f" ABTT space: D={args._whitener.components.shape[0]}  "
               f"fingerprint={args._whitener.fingerprint()[:16]}...  "
               f"fit_on={_art['fit_subsets']}")
+
+    # [E2E] Resolve the identity screen the same way: before any prepass read.
+    args._ces = None
+    if args.prepass_tag is None:
+        args.prepass_tag = "_ces" if args.pair_screen == "ces" else ""
+    if args.pair_screen == "ces":
+        if args.geometry_space != "raw":
+            print(" REFUSED: the CES artifact is fit in the RAW space; "
+                  "--pair-screen ces cannot be combined with another "
+                  "geometry space.")
+            return 2
+        if not args.ces_artifact:
+            print(" REFUSED: --pair-screen ces needs --ces-artifact "
+                  "(fit one with python -m hnav.geometry_filter.ces_artifact).")
+            return 2
+        if args.select and not args.cos_grid:
+            print(" REFUSED: --select with --pair-screen ces needs --cos-grid. "
+                  "The CES validation frame is cos >= 0.80 (the gold dataset "
+                  "says nothing below it); pass the frame explicitly, e.g. "
+                  "--cos-grid 0.80.")
+            return 2
+        from hnav.geometry_filter.ces_artifact import CESArtifact
+        args._ces, _ces_man = CESArtifact.load(args.ces_artifact)
+        print(f" CES screen: k={args._ces.k} relations={len(args._ces.relations)}"
+              f"  fingerprint={args._ces.fingerprint()[:16]}...  "
+              f"fit_on={_ces_man['provenance']['fit_subsets']}")
+    elif args.pair_screen == "none" and args.geometry_space != "abtt":
+        print(" REFUSED: --pair-screen none is preregistered only as the "
+              "abtt_noparser arm (--geometry-space abtt).")
+        return 2
 
     if args.confirmatory:
         if args.select:
@@ -1762,17 +1914,33 @@ def main() -> int:
         print(f" NOTE: prepass for {ctx['unstamped']} predates NLI-config "
               "stamping; accepted under --allow-unstamped-prepass.")
 
+    # [E2E] The prepass NLI table only covers pairs inside its loose
+    # components. A gate cosine below the prepass's own cos_loose would ask
+    # ReplayNLI about pairs it never scored — that is a hard KeyError three
+    # layers down; refuse it here with the fix in the message instead.
+    def check_cos_floor(min_cos: float) -> None:
+        for s in subsets:
+            used = ctx["prepasses"][s].get("cos_loose_used")
+            if used is not None and min_cos < float(used) - 1e-9:
+                raise SystemExit(
+                    f" REFUSED: gate cos_pair {min_cos} is below the prepass "
+                    f"loose bound {used} for {s}: the NLI replay table cannot "
+                    f"cover the admitted pairs. Rebuild that prepass with "
+                    f"--cos-loose {min_cos} (or lower).")
+
     if args.select:
         if sorted(subsets) != sorted(CALIBRATION):
             print(f" NOTE: fitting on {subsets}, not the full calibration split "
                   f"{list(CALIBRATION)}. Recorded in the artifact.")
-        cells = grid_cells(args.cos_grid)
-        measure_grid(ctx, subsets, cells)
-        chosen = select(cells)
+        cells = grid_cells(args.cos_grid, args.pair_screen, args.ces_grid)
+        check_cos_floor(min(c["cos_pair"] for c in cells))
+        measure_grid(ctx, subsets, cells, args._ces)
+        chosen = select(cells, args.pair_screen)
         print(format_detection(cells, chosen))
         (cfg.out_dir / "detector_gap_selection.json").write_text(
             json.dumps({"cells": cells, "chosen": chosen,
-                        "selection_rule": SELECTION_RULE,
+                        "selection_rule": selection_rule_for(args.pair_screen),
+                        "pair_screen": args.pair_screen,
                         "fit_subsets": subsets}, indent=1, default=str),
             encoding="utf-8")
         if chosen is None:
@@ -1781,18 +1949,32 @@ def main() -> int:
               f"{_rel(freeze(chosen, ctx, subsets, cfg, args))}")
         return 0
 
-    cell = frozen_cell(getattr(args, "geometry_space", "raw"))
+    cell = frozen_cell(getattr(args, "geometry_space", "raw"), args.pair_screen)
+    check_cos_floor(cell["cos_pair"])
+    if cell["pair_filter"] == "ces":
+        if args._ces is None or \
+                args._ces.fingerprint() != cell.get("ces_fingerprint"):
+            print(" REFUSED: the frozen CES operating point was selected with "
+                  f"fingerprint {str(cell.get('ces_fingerprint'))[:16]}... but "
+                  "this run loaded "
+                  + (args._ces.fingerprint()[:16] + "..." if args._ces else
+                     "no artifact")
+                  + ". Different artifact, different screen.")
+            return 2
     print(f" harness: {args.harness}"
           + (f" (page source: {args.page_source})"
              if args.harness == "retrieval" else ""))
     print(f" operating point: cos_pair={cell['cos_pair']} "
           f"r_min={cell['r_min_label']} ambiguity={cell['ambiguity_mode']} "
-          f"nli={cell['nli_contradiction']} pair_filter={cell['pair_filter']}")
+          f"nli={cell['nli_contradiction']} pair_filter={cell['pair_filter']}"
+          + (f" ces_tau={cell['ces_tau']}" if cell["pair_filter"] == "ces"
+             else ""))
 
     plans = []
     for s in subsets:
         pp, table, recs = ctx["prepasses"][s], ctx["tables"][s], ctx["records"][s]
-        decisions = decide_all(pp, recs, [cell], ReplayNLI(pp["nli_table"]))
+        decisions = decide_all(pp, recs, [cell], ReplayNLI(pp["nli_table"]),
+                               args._ces)
         plans.append(plan_subset(ctx["items"][s], s, pp, decisions, 0, table,
                                  args.max_questions, harness=args.harness,
                                  page_source=args.page_source))

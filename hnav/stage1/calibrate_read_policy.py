@@ -739,6 +739,10 @@ def main() -> int:
                          "raw; 'all' whitens the query too. Measured: 'all' "
                          "costs ~27%% of reachable true-supersession pairs "
                          "because select_pool then builds a worse pool.")
+    ap.add_argument("--prepass-tag", default="",
+                    help="[E2E] extra output-filename suffix (e.g. '_ces') so "
+                         "a raw-space prepass with a lowered --cos-loose does "
+                         "not collide with the shipped raw prepass")
     ap.add_argument("--cos-loose", type=float, default=None,
                     help="loose-screen threshold. MUST be re-set for the abtt "
                          "space: 0.90 is a raw-space coordinate.")
@@ -801,7 +805,7 @@ def main() -> int:
               f"  fingerprint={args._whitener.fingerprint()[:16]}..."
               f"  fit_on={whiten_art['fit_subsets']}"
               f"  cos_loose={args.cos_loose}")
-    tag = tag + ("_abtt" if args._whitener is not None else "")
+    tag = tag + ("_abtt" if args._whitener is not None else "") + args.prepass_tag
 
     emb = make_embedder(args, cfg)
     data = json.load(open(DATA, encoding="utf-8"))

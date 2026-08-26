@@ -62,6 +62,10 @@ def main() -> int:
     ap.add_argument("--cos-loose", type=float, default=None,
                     help="loose-screen threshold; required for abtt (0.90 is a "
                          "raw-space coordinate)")
+    ap.add_argument("--prepass-tag", default="",
+                    help="[E2E] extra output-filename suffix (e.g. '_ces') so "
+                         "a raw-space prepass with a lowered --cos-loose does "
+                         "not collide with the shipped raw prepass")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--stub-nli", action="store_true",
                     help="SMOKE ONLY: writes *_SMOKE and may not feed a run.")
@@ -126,7 +130,8 @@ def main() -> int:
     print(f" prepass {args.subset} ...", flush=True)
     pp = prepass_subset(st, emb, nli, cfg, opts)
 
-    tag = ("_abtt" if whitener is not None else "")         + ("_SMOKE" if args.stub_nli else "")
+    tag = ("_abtt" if whitener is not None else "") + args.prepass_tag \
+        + ("_SMOKE" if args.stub_nli else "")
     out = cfg.out_dir / f"stage1_prepass_{args.subset}_benchmarkpage{tag}.json"
     out.write_text(json.dumps(pp), encoding="utf-8")
     npairs = sum(len(q["pairs"]) for q in pp["questions"])

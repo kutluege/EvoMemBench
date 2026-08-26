@@ -1,0 +1,15 @@
+{
+ "name": "hnav_ces",
+ "description": "H-Nav read-time conflict detector with the CES screen: raw cosine >= 0.80 frame + contrastive-edit-subspace identity decision (relation from the parser, subject identity from geometry) replacing the parser same-key filter",
+ "geometry_space": "raw",
+ "pair_screen": "ces",
+ "operating_point": "stage0_results/geometry_filter/ces_operating_point.json",
+ "operating_point_sha256": "PIN_AFTER_SELECT",
+ "ces_artifact": "stage0_results/geometry_filter/ces_subspaces_k20.json",
+ "ces_fingerprint": "34e3abc10168444a6c9275773e85c2231595a3394f4346035dac3f11ccda05ab",
+ "prepass_tag": "_ces",
+ "prepass_cos_loose": 0.8,
+ "embed_model": "Qwen/Qwen3-Embedding-4B",
+ "subsets": ["sh_6k", "sh_32k", "sh_64k"],
+ "preregistration": "stage0_results/geometry_filter/NEXT_GOAL.md + the approved 2026-08-27 plan: cos_pair frame fixed 0.80 (the CES validation frame), ces_tau selected from {-0.05, 0, 0.05, 0.10} on sh_6k+sh_32k only"
+}

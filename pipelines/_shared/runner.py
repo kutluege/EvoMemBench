@@ -88,7 +88,11 @@ def verify_frozen(spec: dict) -> list[str]:
     if space != spec["geometry_space"]:
         bad.append(f"operating point is for geometry '{space}', pipeline says "
                    f"'{spec['geometry_space']}'")
-    if spec["geometry_space"] == "abtt":
+    screen = art.get("provenance", {}).get("pair_screen", "parser")
+    if screen != spec.get("pair_screen", "parser"):
+        bad.append(f"operating point is for pair_screen '{screen}', pipeline "
+                   f"says '{spec.get('pair_screen', 'parser')}'")
+    if "whitening_artifact" in spec:
         wa = REPO / spec["whitening_artifact"]
         if not wa.exists():
             bad.append(f"whitening artifact missing: {spec['whitening_artifact']}")
@@ -101,6 +105,19 @@ def verify_frozen(spec: dict) -> list[str]:
             if op_fp != spec["whitening_fingerprint"]:
                 bad.append("operating point was frozen against a DIFFERENT "
                            f"whitening ({str(op_fp)[:12]}…)")
+    if "ces_artifact" in spec:
+        ca = REPO / spec["ces_artifact"]
+        if not ca.exists():
+            bad.append(f"CES artifact missing: {spec['ces_artifact']}")
+        else:
+            fp = json.loads(ca.read_text(encoding="utf-8"))["fingerprint"]
+            if fp != spec["ces_fingerprint"]:
+                bad.append("CES artifact fingerprint mismatch: "
+                           f"{fp[:12]}… != pinned {spec['ces_fingerprint'][:12]}…")
+            op_fp = (art.get("ces") or {}).get("fingerprint")
+            if op_fp != spec["ces_fingerprint"]:
+                bad.append("operating point was frozen against a DIFFERENT "
+                           f"CES artifact ({str(op_fp)[:12]}…)")
     cfg = get_config()
     if cfg.mode == "live":
         bad.append("HNAV_MODE=live is refused for pipeline runs")
@@ -111,25 +128,36 @@ def verify_frozen(spec: dict) -> list[str]:
     return bad
 
 
-def prepass_file(cfg, subset: str, space: str) -> pathlib.Path:
-    suffix = "_benchmarkpage" + ("_abtt" if space == "abtt" else "")
+def prepass_file(cfg, subset: str, spec: dict) -> pathlib.Path:
+    suffix = ("_benchmarkpage"
+              + ("_abtt" if spec["geometry_space"] == "abtt" else "")
+              + spec.get("prepass_tag", ""))
     return cfg.out_dir / f"stage1_prepass_{subset}{suffix}.json"
+
+
+def _prepass_build_extra(spec: dict) -> str:
+    extra = ""
+    if spec["geometry_space"] == "abtt":
+        extra += (f" --geometry-space abtt --whitening-artifact "
+                  f"{spec['whitening_artifact']}")
+    if spec.get("prepass_cos_loose") is not None:
+        extra += f" --cos-loose {spec['prepass_cos_loose']}"
+    if spec.get("prepass_tag"):
+        extra += f" --prepass-tag {spec['prepass_tag']}"
+    return extra
 
 
 def verify_prepasses(spec: dict, subsets: list[str]) -> list[str]:
     cfg = get_config()
     bad = []
     for s in subsets:
-        p = prepass_file(cfg, s, spec["geometry_space"])
+        p = prepass_file(cfg, s, spec)
         if not p.exists():
-            extra = (f" --geometry-space abtt --whitening-artifact "
-                     f"{spec['whitening_artifact']}"
-                     if spec["geometry_space"] == "abtt" else "")
             bad.append(
                 f"prepass missing for {s}: {p}\n"
                 f"    build it ONCE (LLM-independent, reused for every model):\n"
                 f"    python hnav/stage1/confirmatory_prepass.py --subset {s}"
-                f"{extra}")
+                f"{_prepass_build_extra(spec)}")
     return bad
 
 
@@ -142,6 +170,12 @@ def detector_gap_cmd(spec: dict, subset: str, out: pathlib.Path,
     if spec["geometry_space"] == "abtt":
         cmd += ["--geometry-space", "abtt",
                 "--whitening-artifact", str(REPO / spec["whitening_artifact"])]
+    if spec.get("pair_screen", "parser") != "parser":
+        cmd += ["--pair-screen", spec["pair_screen"]]
+    if "ces_artifact" in spec:
+        cmd += ["--ces-artifact", str(REPO / spec["ces_artifact"])]
+    if spec.get("prepass_tag"):
+        cmd += ["--prepass-tag", spec["prepass_tag"]]
     if subset == "sh_64k":
         cmd.append("--confirmatory")
     if dry_run:
@@ -280,6 +314,7 @@ def main(pipeline_dir: pathlib.Path) -> int:
                HNAV_LLM_BASE_URL=args.llm_base_url,
                PYTHONIOENCODING="utf-8")
     manifest = {"pipeline": spec["name"], "geometry_space": spec["geometry_space"],
+                "pair_screen": spec.get("pair_screen", "parser"),
                 "llm_model": args.llm_model, "llm_base_url": args.llm_base_url,
                 "subsets": args.subsets, "mechanism": MECHANISM,
                 "operating_point_sha256": spec["operating_point_sha256"],
