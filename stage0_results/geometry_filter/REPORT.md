@@ -191,6 +191,10 @@ exists in this model, but nothing here depends on fixed dimension indices.
    - **Drop: RCED** (dominated by RCESP), **LDA** (worse than RCESP),
      **signed-feature probes** (provably unlearnable for unordered pairs).
 
+**Addendum:** §7 (experiment 4, run after this verdict) revises point 8 — the
+contrastive edit subspace (CES) supersedes RCESP as the best difference-vector
+method and beats ABTT-cosine on the balanced eval set and overlap band.
+
 The thesis-grade claim supported by the evidence: *object-slot factual updates
 occupy relation-conditioned low-rank edit subspaces in sentence-embedding
 space; a lightweight subspace detector separates conflicts from
@@ -199,5 +203,66 @@ subspaces are substantially transition-specific, and a calibration-fit ABTT
 whitening followed by plain cosine remains the strongest and most
 transferable pairwise geometric screen in this arena.*
 
-Follow-on plan: `NEXT_GOAL.md` (benchmark the winning screen + NLI against the
-committed hnav_raw / hnav_abtt pipeline results).
+## 7. Experiment 4 — dimension-level detectors (`dimension_ideas.json`, `.png`)
+
+Prompted by the question whether the "certain dimensions" observations had
+been cashed in as detectors. The dimension examination first (calibration
+only, gold vs hard negatives, |Cohen d| of `|d_hat_i|`): **no single conflict
+dimension exists** — max effect 0.41 (best single-dim AUROC 0.40), 74 dims
+above 0.2, and an unweighted top-496-dim energy mask saturates at cal AUROC
+0.91. The signal is distributed, so three combining detectors were built
+(all calibration-fit, all sign-invariant):
+
+- `axis_lr` — logistic regression on the full `|d_hat|` axis-energy profile;
+- `ces` — **contrastive edit subspace**: per relation, the object-edit
+  subspace (top-20 SVD of gold `d_hat`, = RCESP's) *and* the subject-edit
+  subspace (top-20 SVD of hard-negative `d_hat`); score
+  `||U_obj_r^T d̂||² − ||U_subj_r^T d̂||²`;
+- `topdim` — energy fraction in the frozen top-m positive-effect mask
+  (m* = 1024 → 496 dims kept).
+
+Held-out results (sh_64k; hard task 1,681 pos / 39,215 neg):
+
+| method | hard AUROC [CI95] | hard AUPRC | inverted-win | balanced AUROC | band AUROC | trans-disjoint | subj-disjoint |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ABTT cosine | 0.9991 [0.9988–0.9993] | 0.979 | 0.927 | 0.9648 | 0.9516 | 0.999 | 1.000 |
+| **CES** | **0.9810 [0.9784–0.9835]** | 0.847 | **0.980** | **0.9756** | **0.9690** | **0.963** | **0.974** |
+| axis_lr | 0.9469 | 0.663 | 0.906 | 0.9131 | 0.9020 | 0.889 | 0.915 |
+| RCESP (§3) | 0.9120 | 0.778 | 0.896 | 0.9305 | 0.9095 | 0.768 | 0.833 |
+| campaign cosine | 0.9920 | 0.916 | 0.000 | 0.8930 | 0.8498 | 0.990 | 0.992 |
+| topdim | 0.8745 | 0.447 | 0.793 | 0.8261 | 0.8054 | 0.811 | 0.852 |
+
+Paired bootstrap (confirmatory hard task): CES − ABTT-cos = −0.018
+[−0.021, −0.016]; CES − RCESP = +0.069 [+0.061, +0.078].
+
+**What changed vs the §6 verdict:**
+
+1. **CES supersedes RCESP** as the difference-vector method. Modeling what a
+   *non-conflict* edit looks like (the subject-identity subspace) is what was
+   missing: transition-disjoint transfer jumps 0.768 → 0.963 — the
+   subject-edit geometry generalizes even where the object-edit geometry is
+   transition-bound.
+2. **On the mandated arena, CES now beats ABTT-cosine**: balanced sh_64k
+   0.9756 vs 0.9648 and overlap band 0.9690 vs 0.9516 — the first
+   non-cosine-family method to win the arena CLAUDE.md defines as the fair
+   test. It also dominates the cosine-inverted comparisons (0.980).
+3. ABTT-cosine still wins the aggregate hard task (0.999 vs 0.981) — the two
+   are complementary: cosine-family strength where similarity is informative,
+   CES strength exactly where it is not.
+4. The score has an interpretable natural threshold at 0 (more object-edit
+   than subject-edit energy — see panel C of `dimension_ideas.png`); its
+   held-out class separation is wide.
+5. `axis_lr` is respectable but dominated by CES; `topdim` confirms hard
+   coordinate masks are the wrong abstraction (below campaign cosine) —
+   consistent with brief §12's warning against coordinate-identity methods.
+
+Caveats that stand: CES uses parser relation identity (global-subspace
+fallback untested as a headline number here — the per-relation path scored
+99%+ of pairs); the subject-edit subspace was fit from same-relation
+different-subject negatives, so its coverage of *other* negative types rests
+on the balanced-set result (0.9756, where most negatives are other types —
+it held). LDA/covariance extensions remain unjustified (§11).
+
+Follow-on plan: `NEXT_GOAL.md` (benchmark the winning screens + NLI against
+the committed hnav_raw / hnav_abtt pipeline results — CES is now the primary
+candidate for the non-cosine arm).

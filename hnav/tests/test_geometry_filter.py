@@ -183,6 +183,44 @@ def test_unknown_relation_falls_back_to_global_and_is_counted():
     assert info["n_relation_fallback"] == 1
 
 
+# ── contrastive subspace (experiment 4) closed forms ─────────────────────────
+def test_contrastive_subspace_is_positive_for_object_edits_and_negative_for_subject_edits():
+    from hnav.geometry_filter.run_dimension_ideas import ContrastiveSubspace
+    dim = 16
+    obj_basis, subj_basis = np.eye(dim)[:2], np.eye(dim)[4:6]
+    D_pos = RNG.normal(size=(10, 2)) @ obj_basis
+    D_neg = RNG.normal(size=(10, 2)) @ subj_basis
+    D_pos /= np.linalg.norm(D_pos, axis=1, keepdims=True)
+    D_neg /= np.linalg.norm(D_neg, axis=1, keepdims=True)
+    m = ContrastiveSubspace(k=2, min_pairs=2).fit(
+        D_pos, ["R"] * 10, D_neg, ["R"] * 10)
+    Va = np.zeros((2, dim)); Va[:, 9] = 1.0
+    Vb = Va.copy(); Vb[0] += obj_basis[0]; Vb[1] += subj_basis[0]
+    pv, V = _view_from_vectors(Va, Vb)
+    s = m.score(pv, V)
+    assert s[0] > 0.9 and s[1] < -0.9  # +||.||^2 in-object, -||.||^2 in-subject
+    # sign-invariant: reversing the pair changes nothing
+    pv2, V2 = _view_from_vectors(Vb, Va)
+    assert np.allclose(s, m.score(pv2, V2))
+
+
+def test_topdim_energy_fraction_recovers_planted_discriminative_dimensions():
+    # gold edits live on dims {0,1}; negative edits on dims {5,6}
+    dim, n = 12, 60
+    P = np.zeros((n, dim)); P[:, :2] = np.abs(RNG.normal(1, 0.1, (n, 2)))
+    N = np.zeros((n, dim)); N[:, 5:7] = np.abs(RNG.normal(1, 0.1, (n, 2)))
+    d_eff = (P.mean(0) - N.mean(0)) / np.sqrt(
+        0.5 * (P.std(0) ** 2 + N.std(0) ** 2) + 1e-12)
+    order = np.argsort(-np.abs(d_eff))
+    top4 = set(int(i) for i in order[:4])
+    assert top4 == {0, 1, 5, 6}
+    pos_dims = order[:4][d_eff[order[:4]] > 0]
+    assert set(int(i) for i in pos_dims) == {0, 1}
+    sc_p = (P[:, pos_dims] ** 2).sum(1)
+    sc_n = (N[:, pos_dims] ** 2).sum(1)
+    assert auroc(sc_p, sc_n) == 1.0
+
+
 # ── null machinery on informative vs null synthetic regimes ──────────────────
 def test_stats_separate_an_informative_regime_from_an_isotropic_null():
     dim, n = 32, 40
