@@ -12,8 +12,9 @@ Two things layered on top of each other:
    (`mem0`, `A-mem`, `MemOS`, `MemoryOS`, `MemoBrain`, `memagent`) are vendored under
    `EvoMemBench-Memory-Systems/` and installed editable. See `README.md` for the dataset/path table.
 
-2. **`hnav/`** (this branch, `claude/evomembench-hnav-analysis-nfwl9z`) — an H-Nav Stage-0
-   measurement campaign built *on* the benchmark. This is where nearly all active work happens.
+2. **`hnav/`** — an H-Nav Stage-0 measurement campaign built *on* the benchmark, followed by the
+   conflict-label audit and the gold conflict dataset (current work, branch
+   `claude/hnav-presentation-evidence`). This is where nearly all active work happens.
    H-Nav is a governance layer for evolving vector memory: it inspects candidate memory writes and
    retrievals using embedding geometry and retrieval-side signals.
 
@@ -67,7 +68,7 @@ looks valid and isn't.
 Everything below runs from the repo root (`EvoMemBench/`).
 
 ```bash
-# Full test suite — no torch, no GPU, no network required. ~253 tests.
+# Full test suite — no torch, no GPU, no network required. ~550 tests.
 pytest hnav/tests/ -q
 
 # One file / one test
@@ -78,6 +79,11 @@ pytest hnav/tests/test_geometry.py::test_qr_residual_is_zero_inside_the_span_and
 python3 hnav/labeling/conflict_analysis.py     # expect sh_262k: 11,037 keys / 7,197 conflicted (65.2%)
 python3 hnav/labeling/gold_rule.py             # expect 77% of sh_262k questions conflicted, 73/77 gold-is-LATEST
 python3 hnav/labeling/marginal_diff.py         # lexical proxy only — no threshold may be derived from it
+
+# Gold conflict dataset — rebuild is deterministic from committed inputs; the builder
+# asserts the frozen tier counts (core 2,388 / fork 282 / rejected 12 / discovered 105 /
+# negative 51,782) and fails loudly on drift. Never re-baseline those numbers.
+python3 hnav/labeling/build_gold_conflict_dataset.py
 ```
 
 GPU-box setup and the Stage-0 pipeline, in order (see `hnav/BUILD_NOTES.md` §6):
@@ -115,7 +121,8 @@ hnav/adapters/   the only place that knows a benchmark exists.
                  mab_adapter (primary arena), clbench_adapter (secondary).
 hnav/labeling/   offline. May read questions/answers. conflict_analysis (the
                  validated fact parser), conflict_index, labels, counterfactual,
-                 gold_rule, marginal_diff.
+                 gold_rule, marginal_diff, plus the audit chain: export_conflict_pairs,
+                 export_audit_candidates, audit_runner, build_gold_conflict_dataset.
 hnav/stage0/     the measurements M1/M1b/M2/M3/M4 + report.py. May read gold.
 hnav/config.py   every setting; read from repo-root .env, os.environ wins.
 hnav/deploy/     .env.template, check_env.py, setup_remote.sh, run_t1.sh
@@ -145,6 +152,50 @@ Four benchmark files carry guarded edits, all no-ops when `HNAV_MODE=off`. Grep 
 
 These four import torch at module level (they are benchmark code) and are therefore checked by
 `ast.parse` and marker assertions rather than by import.
+
+### The conflict-label audit chain (`stage0_results/conflict_pairs/`, all committed)
+
+Provenance is a strict pipeline; each stage reads only the previous stage's committed file:
+
+```
+export_conflict_pairs.py        conflict_pairs.json — the 2,682 parser-tagged pairs
+export_audit_candidates.py      audit_candidates_cos080.jsonl.gz — all 87,102 pairs at
+                                cos ≥ 0.80 under the campaign embeddings
+                                (Qwen3-Embedding-4B float32 L8192)
+audit_runner.py                 audit_results_gpt5mini.jsonl.gz — GPT-5-mini verdicts for
+                                54,569 pairs ($20 budget stop; tagged pairs 100% covered)
+build_gold_conflict_dataset.py  gold_conflict_dataset.jsonl.gz + summaries — the gold set
+```
+
+Rules baked into the gold dataset (user decisions 2026-08-26 — do not relitigate):
+
+- **Dual labels, `gold_update` is THE default.** `gold_update` follows the benchmark convention
+  (later serial supersedes the same key); `gold_strict` means values logically cannot coexist and
+  always implies `gold_update`. The `update_only_fork` tier (282 pairs) is gold under update
+  semantics only and carries `disputed_by_judge` — it is a definitional fork, not a parser error.
+- **Triage keys on the judge's recorded alignment flags, never on `reason_code`.** The reason
+  taxonomy is noisy (`relation_paraphrase` was used for *value* paraphrases on pairs whose relation
+  template is identical by construction). Fork = alignment held but values judged compatible;
+  `rejected` (12 pairs) = the judge refuted the slot alignment itself.
+- **`discovered_unverified` (105 single-judge positives) stays quarantined** — never gold, never in
+  the negative pool, until independently adjudicated. Known judge errors live there (e.g. the
+  Galileo two-books pair).
+- **The eval set is balanced 1:1 per subset and cosine-matched** (0.01 bins, seed 20260824,
+  fallback distance recorded per record). Matching cannot fully remove the cosine signal — verified
+  non-conflicts above cos 0.95 barely exist — so the summary reports `cosine_only_auc`
+  (0.96 / 0.91 / 0.89 for sh_6k / sh_32k / sh_64k). **Any geometry filter must be scored against
+  that baseline**, or inside the ~0.87–0.97 overlap band where cosine is uninformative; a headline
+  AUC alone is meaningless on this set.
+- **Selection frame is cos ≥ 0.80; the 32,533 unaudited candidates are excluded entirely.** The
+  dataset says nothing about conflicts below that similarity, and prevalence claims from the
+  negative pool must weight for the 34.5%-audited bulk tail.
+- Records carry `split` (sh_6k + sh_32k calibration, sh_64k confirmatory) — fit filter thresholds
+  on calibration only, same as everywhere else in H-Nav.
+- The repo-root `*.gz` ignore rule swallows new archives here: any new `.gz` needs a `!name.gz`
+  line in `stage0_results/conflict_pairs/.gitignore` or it silently never lands in a commit.
+
+`hnav/tests/test_gold_conflict_dataset.py` re-derives tiers, labels, balance, bin matching and the
+AUC from the raw audit files — deliberately not from the builder's own expectation table.
 
 ### Conventions that bite
 
@@ -192,4 +243,6 @@ tests.
 ## Commit convention
 
 Commit after each task with the task ID in the message (`T5: retrieval signals and M2 retrieval
-calibration`). Work lands on `claude/evomembench-hnav-analysis-nfwl9z` (PR #1).
+calibration`); audit-chain work uses an `Audit:` prefix instead. Stage-0 landed on
+`claude/evomembench-hnav-analysis-nfwl9z` (PR #1); current work lands on
+`claude/hnav-presentation-evidence`.
