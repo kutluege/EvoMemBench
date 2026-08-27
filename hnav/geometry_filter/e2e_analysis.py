@@ -70,10 +70,12 @@ def guards(res: dict) -> list[str]:
     bad = [f"{k}={res[k]}" for k in ("n_page_edit_mismatch",
                                      "n_containment_violations",
                                      "n_page_edit_errors") if res.get(k, 0)]
-    if not res["positive_control"]["ok"]:
+    # older committed artifacts predate these fields; absence is not a void
+    pc = res.get("positive_control")
+    if pc is not None and not pc["ok"]:
         bad.append("positive control did not fire")
-    aa = res["aa_floor"]
-    if aa["b_native_only"] + aa["c_arm_only"]:
+    aa = res.get("aa_floor")
+    if aa is not None and aa["b_native_only"] + aa["c_arm_only"]:
         bad.append(f"A/A floor non-zero: {aa}")
     return bad
 

@@ -1,5 +1,11 @@
 # Next goal — a geometry+NLI conflict detector, benchmarked like H-Nav
 
+> **STATUS (2026-08-27): DONE.** Executed as `pipelines/hnav_ces` (relation-aware CES —
+> the parser-free global variant failed its pair-level gate) and `pipelines/hnav_abtt_noparser`.
+> Held-out sh_64k: parser arms 64/100 · noparser 59/100 · CES 55/100 (native 45).
+> Full results and interpretation: `E2E_REPORT.md`. The rest of this file is the
+> original plan, kept for provenance.
+
 *(User directive, 2026-08-26: if a truly promising method emerges from the
 geometry-filter experiments — "like hnav but without hnav's cosine and
 parser" — build a conflict detector by running NLI on top of it, benchmark it
