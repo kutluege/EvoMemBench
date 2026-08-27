@@ -266,3 +266,26 @@ it held). LDA/covariance extensions remain unjustified (§11).
 Follow-on plan: `NEXT_GOAL.md` (benchmark the winning screens + NLI against
 the committed hnav_raw / hnav_abtt pipeline results — CES is now the primary
 candidate for the non-cosine arm).
+
+## 8. Experiment 5 — nuisance geometry (`nuisance_analysis.json`, 2026-08-27)
+
+Post-E2E mathematical analysis of why CES failed to transfer, run after the
+benchmark campaign. Verified: (Q1) the subject-variation subspace is
+label-free identifiable — unsupervised same-object/different-subject pairs
+recover the labeled U_subj at principal-angle cosines 0.997–0.973; (Q2) the
+transition-boundedness measured directly as energy: confirmatory gold edits
+carry mean U_obj energy 0.388 when their transition was seen in calibration
+vs 0.197 unseen, while hard negatives put only 0.238 of their energy in the
+k=20 subject basis — subject space is high-rank; (Q5) growing the subject
+basis (k 20→400) captures more negative energy (0.238→0.779) but gold bleed
+grows almost in lockstep (0.158→0.666): S and O overlap beyond leading
+order, so nuisance-rank expansion buys ~0.05 of margin at best; (Q6) the
+elegant store-adaptive object estimator (S-complement of within-relation
+fact variation, fit unsupervised on the sh_64k store) FAILS (hard AUROC
+0.685) — only same-subject pairing annihilates S exactly; any unpaired
+estimator inherits the S/O entanglement. New positive finding: at the
+extreme-tail operating regime pipelines actually need (FPR 1e-4), CES has
+the BEST TPR on seen-transition data (0.598 vs ABTT-cos 0.468) and the
+worst on unseen (0.208 vs 0.404) — the two signals are tail-complementary,
+which is the concrete improvement path (fusion), not a better subspace
+estimator.
