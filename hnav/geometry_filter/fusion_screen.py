@@ -63,9 +63,9 @@ class FusionScreen:
             "artifact": "CES + ABTT-cosine fusion screen (logistic)",
             "mu": self.mu.tolist(), "sd": self.sd.tolist(),
             "w": self.w.tolist(), "b": self.b,
-            "ces_artifact": str(CES_JSON.relative_to(REPO)),
+            "ces_artifact": CES_JSON.relative_to(REPO).as_posix(),
             "ces_fingerprint": self.ces.fingerprint(),
-            "whitening_artifact": str(WHITENING_JSON.relative_to(REPO)),
+            "whitening_artifact": WHITENING_JSON.relative_to(REPO).as_posix(),
             "whitening_fingerprint": self._wh_fingerprint(),
             "fingerprint": self.fingerprint(),
             "provenance": provenance,
@@ -81,6 +81,9 @@ class FusionScreen:
     @classmethod
     def load(cls, path: pathlib.Path = FUSION_JSON) -> tuple["FusionScreen", dict]:
         blob = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+        # tolerate manifests written before path normalization
+        for k in ("ces_artifact", "whitening_artifact"):
+            blob[k] = blob[k].replace("\\", "/")
         ces, _ = CESArtifact.load(REPO / blob["ces_artifact"])
         if ces.fingerprint() != blob["ces_fingerprint"]:
             raise ValueError("fusion screen: CES artifact fingerprint mismatch")
