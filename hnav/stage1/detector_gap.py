@@ -348,10 +348,10 @@ def make_gate(cell, replay, ces=None) -> ReadGate:
     setting the Faz A audit measured — allowed only for the preregistered
     abtt_noparser arm, where measuring that danger IS the experiment)."""
     pf = cell["pair_filter"]
-    if pf == "ces":
+    if pf in ("ces", "fusion"):
         if ces is None:
-            raise SystemExit(" REFUSED: this operating point uses the CES "
-                             "screen; pass --pair-screen ces --ces-artifact.")
+            raise SystemExit(f" REFUSED: this operating point uses the {pf!r} "
+                             "screen; pass --pair-screen and its artifact.")
         pair_filter = ces.pair_filter(float(cell["ces_tau"]))
     elif pf:
         pair_filter = MABAdapter.same_key_pair
@@ -511,6 +511,9 @@ def finish_metrics(m: dict) -> dict:
 
 # ── the grid and the pre-registered choice ───────────────────────────────────
 CES_TAU_GRID = (-0.05, 0.0, 0.05, 0.10)   # preregistered 2026-08-27
+# fusion thresholds are LOGITS of the calibration-fit logistic screen;
+# preregistered 2026-08-27 (E2E-2)
+FUSION_TAU_GRID = (0.0, 2.0, 4.0, 6.0, 8.0)
 
 
 def grid_cells(cos_grid=None, pair_screen: str = "parser",
@@ -536,9 +539,10 @@ def grid_cells(cos_grid=None, pair_screen: str = "parser",
         filter_axis = [(f, None) for f in FILTER_GRID]
     elif pair_screen == "none":
         filter_axis = [(False, None)]
-    elif pair_screen == "ces":
-        taus = tuple(ces_grid) if ces_grid else CES_TAU_GRID
-        filter_axis = [("ces", float(t)) for t in taus]
+    elif pair_screen in ("ces", "fusion"):
+        taus = tuple(ces_grid) if ces_grid else (
+            CES_TAU_GRID if pair_screen == "ces" else FUSION_TAU_GRID)
+        filter_axis = [(pair_screen, float(t)) for t in taus]
     else:
         raise ValueError(f"unknown pair_screen {pair_screen!r}")
     cells = []
@@ -627,7 +631,8 @@ def select(cells: list[dict], pair_screen: str = "parser") -> dict | None:
     by the identity screen and the bidirectional NLI at measured precision 1.00.
     A campaign that re-fits the embeddings must revisit this.
     """
-    want = {"parser": True, "none": False, "ces": "ces"}[pair_screen]
+    want = {"parser": True, "none": False, "ces": "ces",
+            "fusion": "fusion"}[pair_screen]
     feasible = [c for c in cells
                 if c["pair_filter"] == want
                 and c["metrics"]["n_suppressed_harmful"] == 0
@@ -1636,11 +1641,13 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
         "r_min_label": chosen["r_min_label"],
         "pair_filter": chosen["pair_filter"],
         "ces": ({"tau": chosen["ces_tau"],
-                 "artifact": getattr(args, "ces_artifact", None),
+                 "artifact": (getattr(args, "fusion_artifact", None)
+                              if chosen["pair_filter"] == "fusion"
+                              else getattr(args, "ces_artifact", None)),
                  "fingerprint": (args._ces.fingerprint()
                                  if getattr(args, "_ces", None) is not None
                                  else None)}
-                if chosen["pair_filter"] == "ces" else None),
+                if chosen["pair_filter"] in ("ces", "fusion") else None),
         "mechanisms": ["suppress", "demote_late"],
         "selection_rule": selection_rule_for(
             getattr(args, "pair_screen", "parser")),
@@ -1702,12 +1709,14 @@ def operating_point_path(geometry_space: str, pair_screen: str) -> Path:
     gf = REPO / "stage0_results" / "geometry_filter"
     if pair_screen == "ces" and geometry_space == "raw":
         return gf / "ces_operating_point.json"
+    if pair_screen == "fusion" and geometry_space == "raw":
+        return gf / "fusion_operating_point.json"
     if pair_screen == "none" and geometry_space == "abtt":
         return gf / "abtt_noparser_operating_point.json"
     raise SystemExit(
         f" REFUSED: no preregistered arm for pair_screen={pair_screen!r} with "
-        f"geometry_space={geometry_space!r}. The 2026-08-27 arms are "
-        "ces+raw and none+abtt (E2E plan); parser goes with either space.")
+        f"geometry_space={geometry_space!r}. The preregistered arms are "
+        "ces+raw, fusion+raw and none+abtt; parser goes with either space.")
 
 
 def frozen_cell(geometry_space: str = "raw", pair_screen: str = "parser") -> dict:
@@ -1804,16 +1813,20 @@ def main() -> int:
     ap.add_argument("--cos-grid", nargs="+", type=float, default=None,
                     help="override the cosine axis (required for abtt: the "
                          "default 0.90/0.92/0.94 are raw-space coordinates)")
-    ap.add_argument("--pair-screen", choices=("parser", "ces", "none"),
+    ap.add_argument("--pair-screen", choices=("parser", "ces", "fusion", "none"),
                     default="parser",
                     help="[E2E] identity screen: 'parser' = the shipped "
                          "same-key check; 'ces' = the frozen contrastive-edit-"
                          "subspace artifact (relation from the parser, subject "
-                         "identity from geometry); 'none' = no identity screen "
-                         "(the preregistered abtt_noparser arm only).")
+                         "identity from geometry); 'fusion' = the calibration-"
+                         "fit logistic over (CES, ABTT-cosine); 'none' = no "
+                         "identity screen (the abtt_noparser arm only).")
     ap.add_argument("--ces-artifact", default=None,
                     help="path to ces_subspaces_k20.json (required for "
                          "--pair-screen ces)")
+    ap.add_argument("--fusion-artifact", default=None,
+                    help="path to fusion_screen.json (required for "
+                         "--pair-screen fusion)")
     ap.add_argument("--ces-grid", nargs="+", type=float, default=None,
                     help="tau axis for --select with --pair-screen ces "
                          "(default: the preregistered CES_TAU_GRID)")
@@ -1848,7 +1861,26 @@ def main() -> int:
     # [E2E] Resolve the identity screen the same way: before any prepass read.
     args._ces = None
     if args.prepass_tag is None:
-        args.prepass_tag = "_ces" if args.pair_screen == "ces" else ""
+        # fusion shares CES's raw cos>=0.80 frame and therefore its prepasses
+        args.prepass_tag = "_ces" if args.pair_screen in ("ces", "fusion") else ""
+    if args.pair_screen == "fusion":
+        if args.geometry_space != "raw":
+            print(" REFUSED: the fusion screen scores raw-space vectors "
+                  "internally; --pair-screen fusion needs the raw space.")
+            return 2
+        if not args.fusion_artifact:
+            print(" REFUSED: --pair-screen fusion needs --fusion-artifact "
+                  "(fit one with python -m hnav.geometry_filter.fusion_screen).")
+            return 2
+        if args.select and not args.cos_grid:
+            print(" REFUSED: --select with --pair-screen fusion needs "
+                  "--cos-grid (the fusion frame is cos >= 0.80).")
+            return 2
+        from hnav.geometry_filter.fusion_screen import FusionScreen
+        args._ces, _f_man = FusionScreen.load(args.fusion_artifact)
+        print(f" FUSION screen: w={np.round(args._ces.w, 3).tolist()} "
+              f"b={args._ces.b:.3f}  fingerprint="
+              f"{args._ces.fingerprint()[:16]}...")
     if args.pair_screen == "ces":
         if args.geometry_space != "raw":
             print(" REFUSED: the CES artifact is fit in the RAW space; "
@@ -1959,7 +1991,7 @@ def main() -> int:
 
     cell = frozen_cell(getattr(args, "geometry_space", "raw"), args.pair_screen)
     check_cos_floor(cell["cos_pair"])
-    if cell["pair_filter"] == "ces":
+    if cell["pair_filter"] in ("ces", "fusion"):
         if args._ces is None or \
                 args._ces.fingerprint() != cell.get("ces_fingerprint"):
             print(" REFUSED: the frozen CES operating point was selected with "
@@ -1975,8 +2007,8 @@ def main() -> int:
     print(f" operating point: cos_pair={cell['cos_pair']} "
           f"r_min={cell['r_min_label']} ambiguity={cell['ambiguity_mode']} "
           f"nli={cell['nli_contradiction']} pair_filter={cell['pair_filter']}"
-          + (f" ces_tau={cell['ces_tau']}" if cell["pair_filter"] == "ces"
-             else ""))
+          + (f" ces_tau={cell['ces_tau']}"
+             if cell["pair_filter"] in ("ces", "fusion") else ""))
 
     plans = []
     for s in subsets:

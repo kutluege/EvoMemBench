@@ -105,19 +105,23 @@ def verify_frozen(spec: dict) -> list[str]:
             if op_fp != spec["whitening_fingerprint"]:
                 bad.append("operating point was frozen against a DIFFERENT "
                            f"whitening ({str(op_fp)[:12]}…)")
-    if "ces_artifact" in spec:
-        ca = REPO / spec["ces_artifact"]
+    for key, label in (("ces_artifact", "CES"), ("fusion_artifact", "fusion")):
+        if key not in spec:
+            continue
+        ca = REPO / spec[key]
+        pin = spec[f"{label.lower()}_fingerprint"] if label == "fusion" \
+            else spec["ces_fingerprint"]
         if not ca.exists():
-            bad.append(f"CES artifact missing: {spec['ces_artifact']}")
+            bad.append(f"{label} artifact missing: {spec[key]}")
         else:
             fp = json.loads(ca.read_text(encoding="utf-8"))["fingerprint"]
-            if fp != spec["ces_fingerprint"]:
-                bad.append("CES artifact fingerprint mismatch: "
-                           f"{fp[:12]}… != pinned {spec['ces_fingerprint'][:12]}…")
+            if fp != pin:
+                bad.append(f"{label} artifact fingerprint mismatch: "
+                           f"{fp[:12]}… != pinned {pin[:12]}…")
             op_fp = (art.get("ces") or {}).get("fingerprint")
-            if op_fp != spec["ces_fingerprint"]:
+            if op_fp != pin:
                 bad.append("operating point was frozen against a DIFFERENT "
-                           f"CES artifact ({str(op_fp)[:12]}…)")
+                           f"{label} artifact ({str(op_fp)[:12]}…)")
     cfg = get_config()
     if cfg.mode == "live":
         bad.append("HNAV_MODE=live is refused for pipeline runs")
@@ -174,6 +178,8 @@ def detector_gap_cmd(spec: dict, subset: str, out: pathlib.Path,
         cmd += ["--pair-screen", spec["pair_screen"]]
     if "ces_artifact" in spec:
         cmd += ["--ces-artifact", str(REPO / spec["ces_artifact"])]
+    if "fusion_artifact" in spec:
+        cmd += ["--fusion-artifact", str(REPO / spec["fusion_artifact"])]
     if spec.get("prepass_tag"):
         cmd += ["--prepass-tag", spec["prepass_tag"]]
     if subset == "sh_64k":

@@ -99,7 +99,7 @@ def test_make_gate_builds_the_right_identity_screen_per_cell():
     e = np.eye(DIM)
     assert gate.pair_filter(_rec("a", base, ("R", "s1")),
                             _rec("b", base + e[2], ("R", "s2"))) is True
-    with pytest.raises(SystemExit, match="CES"):
+    with pytest.raises(SystemExit, match="'ces' screen"):
         D.make_gate(_cell("ces", ces_tau=0.0), StubNLI(), None)
 
 
@@ -158,6 +158,55 @@ def test_prepass_path_carries_the_tag():
     assert a.name == "stage1_prepass_sh_6k_benchmarkpage_ces.json"
     b = D.prepass_path(Cfg, "sh_6k", "benchmark", "raw")
     assert b.name == "stage1_prepass_sh_6k_benchmarkpage.json"
+
+
+# ── fusion screen ────────────────────────────────────────────────────────────
+def test_fusion_screen_score_is_the_documented_logistic_and_filter_thresholds():
+    from hnav.geometry_filter.fusion_screen import FusionScreen
+    ces = _artifact()
+    wh_mean = np.zeros(DIM)
+    wh_comp = np.eye(DIM)[10:11]          # remove e10 only
+    mu, sd = np.array([0.0, 0.0]), np.array([1.0, 1.0])
+    w, b = np.array([2.0, 1.0]), -1.0
+    f = FusionScreen(ces, wh_mean, wh_comp, mu, sd, w, b)
+    base = np.zeros(DIM); base[9] = 1.0
+    e = np.eye(DIM)
+    va, vb = base, base + e[0]            # object edit in ces terms
+    expect = 2.0 * ces.score_pair(va, vb, None) + 1.0 * float(
+        f._whiten(va) @ f._whiten(vb)) - 1.0
+    assert f.score_pair(va, vb, None) == pytest.approx(expect)
+    # filter thresholds on the logit
+    s = f.score_pair(va, vb, None)
+    ra, rb = _rec("a", va, None), _rec("b", vb, None)
+    assert f.pair_filter(s - 0.1)(ra, rb) is True
+    assert f.pair_filter(s + 0.1)(ra, rb) is False
+    # whitening inside the screen: a shared e10 component is removed
+    va2, vb2 = va + 5 * e[10], vb + 5 * e[10]
+    assert f.score_pair(va2, vb2, None) == pytest.approx(
+        f.score_pair(va, vb, None), abs=1e-9)
+
+
+def test_committed_fusion_screen_loads_and_matches_its_pins():
+    from hnav.geometry_filter.fusion_screen import FUSION_JSON, FusionScreen
+    if not FUSION_JSON.exists():
+        pytest.skip("committed fusion screen not present")
+    f, blob = FusionScreen.load(FUSION_JSON)
+    assert blob["fingerprint"] == f.fingerprint()
+    spec = json.loads((REPO / "pipelines" / "hnav_fusion" / "pipeline.json")
+                      .read_text(encoding="utf-8"))
+    assert spec["fusion_fingerprint"] == blob["fingerprint"]
+    assert blob["provenance"]["fit_subsets"] == ["sh_6k", "sh_32k"]
+
+
+def test_fusion_grid_and_operating_point_path():
+    cells = D.grid_cells(cos_grid=[0.80], pair_screen="fusion",
+                         ces_grid=[0.0, 4.0])
+    assert {c["pair_filter"] for c in cells} == {"fusion"}
+    assert {c["ces_tau"] for c in cells} == {0.0, 4.0}
+    assert D.operating_point_path("raw", "fusion").name == \
+        "fusion_operating_point.json"
+    with pytest.raises(SystemExit):
+        D.operating_point_path("abtt", "fusion")
 
 
 # ── runner spec plumbing ─────────────────────────────────────────────────────
