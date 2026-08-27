@@ -1719,7 +1719,8 @@ def operating_point_path(geometry_space: str, pair_screen: str) -> Path:
         "ces+raw, fusion+raw and none+abtt; parser goes with either space.")
 
 
-def frozen_cell(geometry_space: str = "raw", pair_screen: str = "parser") -> dict:
+def frozen_cell(geometry_space: str = "raw", pair_screen: str = "parser",
+                override: str | None = None) -> dict:
     """The committed operating point, as a grid cell. Refuses to invent one.
 
     [ABTT] The whitened arm reads its OWN frozen artifact. Falling back to the
@@ -1730,7 +1731,15 @@ def frozen_cell(geometry_space: str = "raw", pair_screen: str = "parser") -> dic
     with the one the caller asked for.
     """
     global OPERATING_POINT
-    OPERATING_POINT = operating_point_path(geometry_space, pair_screen)
+    if override is not None:
+        # [EXPLORATORY] an explicitly-supplied operating-point file. The screen
+        # and fingerprint checks below still apply; the caller announces the
+        # deviation, this function only refuses to let it be silent.
+        OPERATING_POINT = Path(override)
+        print(f" NOTE: OPERATING-POINT OVERRIDE -> {_rel(OPERATING_POINT)} "
+              "(exploratory run; not the preregistered arm artifact)")
+    else:
+        OPERATING_POINT = operating_point_path(geometry_space, pair_screen)
     if not OPERATING_POINT.exists():
         raise SystemExit(
             f" REFUSED: {_rel(OPERATING_POINT)} does not exist. Run\n"
@@ -1833,6 +1842,11 @@ def main() -> int:
     ap.add_argument("--prepass-tag", default=None,
                     help="extra prepass filename suffix; defaults to '_ces' "
                          "for --pair-screen ces and '' otherwise")
+    ap.add_argument("--operating-point", default=None,
+                    help="[EXPLORATORY] read this operating-point file instead "
+                         "of the arm's frozen one. For explicitly-labeled "
+                         "deviation runs only; screen/fingerprint checks still "
+                         "apply and the artifact records the override.")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -1989,7 +2003,8 @@ def main() -> int:
               f"{_rel(freeze(chosen, ctx, subsets, cfg, args))}")
         return 0
 
-    cell = frozen_cell(getattr(args, "geometry_space", "raw"), args.pair_screen)
+    cell = frozen_cell(getattr(args, "geometry_space", "raw"), args.pair_screen,
+                       override=args.operating_point)
     check_cos_floor(cell["cos_pair"])
     if cell["pair_filter"] in ("ces", "fusion"):
         if args._ces is None or \
