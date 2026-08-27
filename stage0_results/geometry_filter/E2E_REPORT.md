@@ -70,6 +70,17 @@ evidence remains what the pair-level report concluded: ABTT whitening *inside* t
 (committed hnav_abtt) and CES as complementary analysis — not as a replacement identity
 screen at benchmark prevalence.
 
+## Addendum (2026-08-28): the fusion arm
+
+The CES + ABTT-cosine fusion screen (experiment 5's tail-complementarity result) **FAILS the
+preregistered zero-harm rule** — no non-vacuous operating point exists (calibration harm
+plateaus at ~305; the vacuous zero-harm cell is pinned in `pipelines/hnav_fusion`). A
+user-directed **exploratory relaxed-harm** analysis (thresholds predefined on calibration,
+four one-shot sh_64k runs) measured a completely flat curve at **61/100** overall
+(+16 vs native, −3 vs the parser arms, best of all geometry arms) — details, protocol and
+caveats in `FUSION_TRADEOFF.md`. Final ranking with all evidence: parser 64 >
+fusion (relaxed, exploratory) 61 > abtt_noparser 59 > hnav_ces 55 > native 45.
+
 ## Reproducibility
 
 Operating points: `ces_operating_point.json` (sha256 `1b96d100…`),
