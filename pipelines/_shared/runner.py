@@ -105,12 +105,13 @@ def verify_frozen(spec: dict) -> list[str]:
             if op_fp != spec["whitening_fingerprint"]:
                 bad.append("operating point was frozen against a DIFFERENT "
                            f"whitening ({str(op_fp)[:12]}…)")
-    for key, label in (("ces_artifact", "CES"), ("fusion_artifact", "fusion")):
+    for key, label in (("ces_artifact", "CES"), ("fusion_artifact", "fusion"),
+                       ("geo_artifact", "geo")):
         if key not in spec:
             continue
         ca = REPO / spec[key]
-        pin = spec[f"{label.lower()}_fingerprint"] if label == "fusion" \
-            else spec["ces_fingerprint"]
+        pin = spec["ces_fingerprint"] if label == "CES" \
+            else spec[f"{label}_fingerprint"]
         if not ca.exists():
             bad.append(f"{label} artifact missing: {spec[key]}")
         else:
@@ -180,6 +181,8 @@ def detector_gap_cmd(spec: dict, subset: str, out: pathlib.Path,
         cmd += ["--ces-artifact", str(REPO / spec["ces_artifact"])]
     if "fusion_artifact" in spec:
         cmd += ["--fusion-artifact", str(REPO / spec["fusion_artifact"])]
+    if "geo_artifact" in spec:
+        cmd += ["--geo-artifact", str(REPO / spec["geo_artifact"])]
     if spec.get("prepass_tag"):
         cmd += ["--prepass-tag", spec["prepass_tag"]]
     if subset == "sh_64k":
