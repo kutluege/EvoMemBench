@@ -211,12 +211,27 @@ anticonservative by half an order of magnitude. Conformal or nothing.
    fingerprinted should the norm-term fusion ever be pursued; the conformal
    V2/V4 thresholds above are the only calibrated operating points.
 
-## 9. Pipeline permutation null
+## 9. Pipeline permutation null (merged into `eval.json`)
 
-Running separately (200 label-shuffle repeats, whole pipeline refit,
-inner parallel-analysis at 50 perms, hard task on a fixed seed-7 subsample
-of 4,000 negatives — preregistered compute deviations). This section is
-updated when it lands; `eval.json` carries the merged block.
+200 label-shuffle repeats, the WHOLE pipeline refit each time (halving, LW,
+whitening, trace-normalized rank selection, weights); inner
+parallel-analysis at 50 perms and the null hard task on a fixed seed-7
+subsample of 4,000 negatives — the preregistered compute deviations.
+
+- Real balanced sh_64k AUROC 0.8687 (in-harness recompute; headline 0.8695)
+  vs null max 0.8209 / q95 0.8190 / mean 0.8160 → **p = 1/201 = 0.005**,
+  the add-one minimum. Hard-subsample: real 0.9242 vs null max 0.8932 →
+  p = 1/201.
+- Two structural reads. First, the learned spectrum is real: 199 of 200
+  shuffled refits selected k_obj = 0 (mean 0.115) — rank selection
+  correctly finds nothing when the labels are noise — and no shuffled
+  pipeline reaches the real AUROC. Second, the null does NOT sit at 0.5: a
+  label-shuffled fit degenerates to a signed whitened-norm score, and that
+  alone gets ~0.816 balanced AUROC. That elevated floor is an independent,
+  label-free confirmation of the §4 norm finding, and it bounds what the
+  covariance structure itself contributes: about +0.05 AUROC over the
+  norm-only floor — real (p = 0.005), but far short of CES's relation-aware
+  subspaces.
 
 ## 10. Runtime and memory
 

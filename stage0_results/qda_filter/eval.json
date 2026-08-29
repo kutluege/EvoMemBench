@@ -757,7 +757,26 @@
   ]
  },
  "pipeline_permutation_null": {
-  "status": "run separately: python -m hnav.qda_filter.run_all --only-null"
+  "n_repeats": 200,
+  "n_perm_inner": 50,
+  "neg_subsample": 4000,
+  "neg_subsample_seed": 7,
+  "real_balanced_sh64k_auroc": 0.8687249204727505,
+  "real_hard_subsample_auroc": 0.9241571980963712,
+  "real_run_note": "recomputed inside this harness (n_perm_inner envelopes) so real vs null share one code path; the headline uses the full 200-perm envelopes",
+  "null_balanced": {
+   "max": 0.8209363778465341,
+   "q95": 0.8189869914688468,
+   "mean": 0.8159690239195743
+  },
+  "null_hard": {
+   "max": 0.8932065734681737,
+   "q95": 0.8924660916121356,
+   "mean": 0.8910949672813802
+  },
+  "null_k_obj_mean": 0.115,
+  "p_balanced": 0.004975124378109453,
+  "p_hard": 0.004975124378109453
  },
  "relation_disjoint_4b": {
   "n_pos": 989,
