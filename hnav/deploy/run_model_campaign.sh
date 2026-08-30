@@ -64,7 +64,11 @@ stop_server() {
     SERVER_PID=""
 }
 cleanup() { stop_server; rmdir "$LOCK" 2>/dev/null; }
-trap cleanup EXIT INT TERM
+# INT/TERM must EXIT, not just clean up: bash defers the signal until the
+# running arm returns and then continues the loop, so a non-exiting handler
+# makes `kill` a no-op and the next arm starts anyway.
+trap cleanup EXIT
+trap 'log "[signal] aborting ${MODEL_KEY}"; cleanup; exit 130' INT TERM
 
 source hnav/deploy/_activate.sh || { log "FAILED conda activate"; exit 2; }
 

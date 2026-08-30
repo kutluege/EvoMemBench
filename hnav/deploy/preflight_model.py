@@ -29,6 +29,20 @@ model silently ruins the experiment:
 6. ``short_prompt``  An sh_6k question end-to-end, so a failure that only shows
                      on small contexts is caught too.
 7. ``one_shot``      No results folder for this model may exist yet.
+8. ``no_degenerate`` A model whose numerics are broken still emits fluent,
+                     non-empty, deterministic, reasoning-free text. gemma-3-4b
+                     under ``--kv-cache-dtype fp8`` answered "United States of
+                     United States of United States of United" and passed
+                     checks 1-7 unharmed. Repetition is the signature.
+9. ``answer_sanity`` The same failure also shows as an accuracy floor: on the
+                     UNIQUE stratum - single-fact retrieval, no conflict,
+                     nothing for H-Nav to do - a working model of this class
+                     scores near ceiling (Phi-4-mini: 26/26). The fp8 gemma-3
+                     scored 4/26. This probes ten unique-stratum questions and
+                     requires 3. It is an instrument-health tripwire, not a
+                     capability gate: a genuinely weak model can be run anyway
+                     with HNAV_PREFLIGHT_ALLOW_LOW_ACCURACY=1, which records
+                     that the override was used.
 
 Tool-call formatting is deliberately NOT checked: this benchmark is plain
 question answering, the harness never sends a ``tools`` array, and no tool-call
@@ -45,6 +59,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 import time
@@ -64,6 +79,29 @@ ARMS_DIRS = ("hnav_raw", "hnav_idonly", "hnav_geo")
 # reasoning, not on the answer.
 THINK_MARKERS = ("<think>", "</think>", "<reasoning>", "<|thinking|>",
                  "<seed:think>", "◁think▷")
+
+# Instrument-health thresholds. Set after watching gemma-3-4b fail under fp8 KV
+# while passing every other check; they are deliberately far from any plausible
+# model's real behaviour, so they separate a broken server from a weak model
+# rather than ranking models.
+SANITY_N = 10           # unique-stratum questions probed
+SANITY_FLOOR = 3        # a working model of this class scores 9-10
+REPEAT_NGRAM = 2        # an n-gram repeated this many times is degenerate
+REPEAT_LIMIT = 3
+
+
+def degenerate(text: str) -> list[str]:
+    """N-grams repeated to the point of looping. Ten output tokens is not much
+    room, so a 2-gram appearing three times is already pathological."""
+    w = text.lower().split()
+    out = []
+    for i in range(len(w) - REPEAT_NGRAM + 1):
+        g = tuple(w[i:i + REPEAT_NGRAM])
+        n = sum(1 for j in range(len(w) - REPEAT_NGRAM + 1)
+                if tuple(w[j:j + REPEAT_NGRAM]) == g)
+        if n >= REPEAT_LIMIT and " ".join(g) not in out:
+            out.append(" ".join(g))
+    return out
 
 
 def _plan(subset: str) -> dict:
@@ -264,6 +302,27 @@ def main(argv=None) -> int:
     gate("short_prompt", bool(s["content"].strip()),
          output=s["content"][:120], truths=q0["truths"],
          latency_s=s["latency_s"])
+
+    # ── 8. degenerate generation ─────────────────────────────────────────────
+    loops = {k: degenerate(v) for k, v in
+             (("longest", a["content"]), ("short", s["content"]))}
+    gate("no_degenerate", not any(loops.values()), repeats=loops)
+
+    # ── 9. the accuracy floor on questions with no conflict in them ──────────
+    from hnav.labeling.counterfactual import substring_exact_match  # noqa: PLC0415
+    probe = [q for q in small["questions"] if q["stratum"] == "unique"][:SANITY_N]
+    hits, sample = 0, []
+    for q in probe:
+        r = ask(client, args.served_name, q["arms"]["native"]["prompt"])
+        ok = any(substring_exact_match(r["content"], t) for t in q["truths"])
+        hits += bool(ok)
+        sample.append({"index": q["index"], "out": r["content"][:40],
+                       "truth": q["truths"][0], "ok": bool(ok)})
+    override = os.environ.get("HNAV_PREFLIGHT_ALLOW_LOW_ACCURACY") == "1"
+    rec["sanity_probe"] = sample
+    gate("answer_sanity", hits >= SANITY_FLOOR or override,
+         correct=hits, n=len(probe), floor=SANITY_FLOOR,
+         override_used=bool(override and hits < SANITY_FLOOR))
 
     rec["ok"] = all(c["ok"] for c in checks.values())
     _write(rec, args)

@@ -32,7 +32,14 @@ if ! mkdir "$LOCK" 2>/dev/null; then
     echo "REFUSED: $LOCK exists - a multi-model campaign is already running."
     exit 9
 fi
-trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
+# The handler MUST exit. bash defers a signal until the foreground child (a
+# multi-hour model campaign) returns, then runs the handler and CARRIES ON with
+# the loop - so a trap that only cleans up turns `kill` into a no-op and the
+# next model launches anyway. Observed on 2026-08-30: SIGTERM to this script
+# left it queued to start gemma4 with the serving config that had just been
+# found defective. Only SIGKILL stopped it.
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+trap 'echo "[signal] stopping after the current model"; rmdir "$LOCK" 2>/dev/null; exit 130' INT TERM
 
 ONLY="$*"
 CONFS=$(ls hnav/deploy/models.d/*.env 2>/dev/null | sort)
