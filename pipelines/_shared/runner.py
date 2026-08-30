@@ -232,6 +232,15 @@ def analyse_artifact(path: pathlib.Path) -> dict:
             fails.append(f"{k}={res[k]}")
     if not res["positive_control"]["ok"]:
         fails.append("positive control did not fire")
+    # [E2E-4 fix] the preregistered void conditions that void the RUN are the
+    # authority on validity; reading only the mechanical guards above let the
+    # hnav_geo and hnav_abtt_noparser sh_64k runs print "VALID" while their own
+    # artifacts recorded condition 4 (harmful suppressions) as failed.
+    for name, vc in (res.get("void_conditions") or {}).items():
+        if isinstance(vc, dict) and vc.get("voids") == "run" \
+                and vc.get("status") == "fail":
+            fails.append(f"preregistered void condition {name}: "
+                         f"{json.dumps(vc.get('observed', {}))}")
     aa = res["aa_floor"]
     if aa["b_native_only"] + aa["c_arm_only"] != 0:
         fails.append(f"A/A floor non-zero: {aa}")

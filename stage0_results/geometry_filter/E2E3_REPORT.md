@@ -7,14 +7,46 @@ embeddings only? Preregistration `GEO_PREREG.md`; screen
 `pipelines/hnav_geo/results/Qwen_Qwen3-4B-Instruct-2507_2026-08-29/`
 (+ `e2e3_comparison.json` recomputed from per-question records).
 
+> ## CORRECTION (2026-08-30, E2E-4 adversarial review)
+>
+> **This run is VOID by its own preregistered void condition 4.** The
+> artifact records `void_conditions.4_no_harmful_suppression =
+> {status: "fail", voids: "run", n_suppressed_harmful: 8}`. The original
+> version of this report called the run "valid" because it checked only the
+> mechanical guards (page-edit mismatch, containment, positive control, A/A
+> floor) — the same blind spot that made `pipelines/_shared/runner.py` print
+> "VALID" (fixed in E2E-4; the runner now reads the preregistered void
+> conditions). **The 56/100 below must be quoted as coming from a void run.**
+>
+> The same defect voids the committed **hnav_abtt_noparser** arm
+> (`n_suppressed_harmful = 5`), whose 59/100 in `E2E_REPORT.md` is likewise
+> from a void run. `hnav_raw`, `hnav_abtt` and `hnav_ces` pass condition 4.
+>
+> **What went wrong is the finding, not a footnote.** Geometry has no
+> same-key guarantee, so a geometric group can merge two different keys;
+> suppression then deletes *every* member of one of them. All 8 harmful drops
+> are key erasures: `official language of Italy` (q19, q48),
+> `type of music that The Game plays` (q58, q73),
+> `outfielder · associated with the sport` (q83). And the coincidence is
+> exact: **the five suppressions geometry made that the parser did not are
+> precisely the five that erased a key — 5 for 5.** Geometry's entire unique
+> contribution over symbolic identity was information loss.
+>
+> Zero harm was observed for this screen on calibration and **did not
+> transfer**. That is the structural difference E2E-4 proves: a screen built
+> on `same_key` has zero harm *by construction* at any threshold; a geometric
+> screen has only an empirical, split-specific zero.
+
 **The preregistered primary endpoint FAILS. hnav_geo scores 56/100 on
 sh_64k** — +11 over native (17→29 conflicted, exact p = 0.0018; overall
 p = 0.0074), statistically level with the other parser-free arms (vs
 hnav_ces +1, p = 1.0; vs hnav_abtt_noparser −3, p = 0.45), and **−8 vs the
 parser arms (p = 0.021)**. GG2 (> 64) is not met; GG1 was met and the shot
-was spent per the rules. All guards clean (page-edit mismatch/containment/
-errors 0, positive control ok, A/A floor 0/0); run valid; protective claim
-void via the same q77 refusal that voids it for the committed parser arms.
+was spent per the rules. Mechanical guards were clean (page-edit
+mismatch/containment/errors 0, positive control ok, A/A floor 0/0), but see
+the correction above: void condition 4 failed, so the run is void and the
+accuracy figure is reported for attribution only. Protective claim also void
+via the same q77 refusal that voids it for the committed parser arms.
 
 ## What the campaign established on the way
 
