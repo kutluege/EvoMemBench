@@ -26,6 +26,18 @@ source "$CONF"
 KV_CACHE_DTYPE="${KV_CACHE_DTYPE:-fp8}"
 EXTRA_SERVE_FLAGS="${EXTRA_SERVE_FLAGS:-}"
 
+# ── explicit overrides, applied AFTER the source ─────────────────────────────
+# `source "$CONF"` overwrites the caller's environment, so `KV_CACHE_DTYPE=auto
+# bash serve_campaign_model.sh conf` silently served fp8 anyway. The KV-dtype
+# A/B would have compared fp8 against fp8 and "proved" the dtype innocent.
+# Diagnostics therefore set HNAV_FORCE_*, which nothing in a config file can
+# clobber, and the resolved values are echoed below so the log is the record.
+VLLM_ENV="${HNAV_FORCE_VLLM_ENV:-$VLLM_ENV}"
+KV_CACHE_DTYPE="${HNAV_FORCE_KV_DTYPE:-$KV_CACHE_DTYPE}"
+MAX_MODEL_LEN="${HNAV_FORCE_MAX_MODEL_LEN:-$MAX_MODEL_LEN}"
+GPU_MEM_UTIL="${HNAV_FORCE_GPU_MEM_UTIL:-$GPU_MEM_UTIL}"
+EXTRA_SERVE_FLAGS="${HNAV_FORCE_EXTRA_SERVE_FLAGS-$EXTRA_SERVE_FLAGS}"
+
 NVME="${HNAV_NVME:-/mnt/nvmes/nvme1/egekutlu}"
 export HF_HOME="${HF_HOME:-$NVME/hf_cache}"
 export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_HOME/hub}"
