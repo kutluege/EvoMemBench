@@ -41,12 +41,22 @@ modelin zayıflığı tam olarak budur ve tezin hedeflediği boşluk budur.
 
 ## 3. Çözüm ucuz — üç ayrı maliyet ekseninde
 
-### 3.1 Çıkarım anında ek LLM çağrısı: **sıfır**
-Denetçi, sayfayı düzenler ve **aynı tek üretim çağrısını** yapar. NLI çapraz
-kodlayıcı çevrimdışı ön-geçişte (prepass) bir kez çalışır, sonuç tablosu
-tekrar oynatılır (`hnav/stage1/calibrate_read_policy.py::prepass_subset`,
-`ReplayNLI`). Yeni bir cevaplayıcı model için **ön-geçiş yeniden
-kurulmaz** — LLM'den bağımsızdır (`pipelines/README.md`).
+### 3.1 Çıkarım anında ek üretim (generative) çağrısı: **tam olarak sıfır**
+Denetçi sayfayı düzenler ve **yerel RAG ile aynı tek sohbet çağrısını** yapar
+— sadece istem daha kısadır. Kanıt: çevrimiçi katmanda (`hnav/core/`,
+`hnav/adapters/`) hiçbir sohbet/completions çağrı yolu yoktur; oradaki tek
+ağ çağrısı gömme uç noktasıdır (`hnav/core/embedding.py:342-353`).
+
+**Bir kez, çevrimdışı ödenen bedel:**
+
+| kalem | miktar | not |
+| --- | --- | --- |
+| Olgu + sorgu gömmeleri | sh_64k için **4,680** vektör, çalışma anında **0 cache kaçağı** | `ABTT_REPORT.md:56`; gerçek dağıtımda bunu vektör deposu zaten yazma anında öder |
+| NLI ön-geçişi (çapraz kodlayıcı) | **410 / 4,868 / 8,956** ileri geçiş (sh_6k / sh_32k / sh_64k), 435M parametreli DeBERTa | 100 soru için; **tek bir sorunun cevaplayıcı-model ön-dolum maliyetinin ≈ %1.4'ü** |
+| Eşik kalibrasyonu | yalnızca sh_6k+sh_32k, **LLM'siz, altın cevapsız** | amaç fonksiyonu yalnız tespit kalitesi |
+
+Kritik olan: bu üç kalem de **cevaplayıcı modelden bağımsızdır**; yeni bir
+model denemek ön-geçişi yeniden kurmaz (`pipelines/README.md`).
 
 ### 3.2 İstem uzunluğu: **negatif maliyet** (kısalıyor)
 
