@@ -9,6 +9,21 @@
 set -u
 cd "$(dirname "$0")/../.."
 source hnav/deploy/_activate.sh
+ARM_NAME=geo_arm
+
+# [E2E-4] single-instance lock. Two launchers fired 8 s apart on 2026-08-30 and
+# both cleared the runner's one-shot guard, because that guard looks for
+# detector_gap_*.json which is only written when a subset FINISHES. Two
+# detector_gap processes then targeted the same output file. mkdir is atomic on
+# POSIX, so this is a real mutex, not a check-then-act race.
+LOCK="hnav/_out/${ARM_NAME}.lock"
+mkdir -p hnav/_out
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "REFUSED: $LOCK exists - another ${ARM_NAME} run is in flight (or a"
+  echo "previous one died; remove the directory by hand after checking)."
+  exit 9
+fi
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 PROG=hnav/_out/geo_arm_progress
 echo "start $(date -u +%FT%TZ)" >> "$PROG"
 
