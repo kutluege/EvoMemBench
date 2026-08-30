@@ -98,32 +98,57 @@ def longest_prompt(plan: dict) -> tuple[str, int]:
     return best, n
 
 
+# A prompt cannot plausibly tokenize to fewer than one token per 8 characters
+# of English. The first version of this function returned 2 for a 169,810-char
+# prompt, because transformers v5's apply_chat_template(tokenize=True) returns
+# a BatchEncoding and len() counted its KEYS. That would have sized every
+# server's context window from a number three orders of magnitude too small, and
+# nothing downstream would have caught it until the campaign died mid-run.
+MIN_CHARS_PER_TOKEN = 8.0
+
+
 def count_tokens(model_path: str, prompt: str) -> dict:
     """Tokens for the full chat-formatted request, with this model's own
-    tokenizer. Falls back to raw encoding plus a template allowance if the
-    installed transformers cannot render the model's chat template."""
+    tokenizer AND its own chat template.
+
+    Renders the template to text and then encodes it, rather than asking for
+    ids directly: that is what the server does, and it is the one form whose
+    return type has not changed across transformers versions.
+    """
     from transformers import AutoTokenizer                    # noqa: PLC0415
     tok = AutoTokenizer.from_pretrained(model_path, trust_remote_code=False)
     msgs = [{"role": "system", "content": SYSTEM_MESSAGE},
             {"role": "user", "content": prompt}]
+
+    def encode(text: str) -> int:
+        # the rendered template already carries its own control tokens as text
+        return len(tok.encode(text, add_special_tokens=False))
+
     try:
-        ids = tok.apply_chat_template(msgs, add_generation_prompt=True,
-                                      tokenize=True)
-        return {"n_tokens": len(ids), "method": "apply_chat_template",
-                "exact": True}
+        out = {"n_tokens": encode(tok.apply_chat_template(
+            msgs, add_generation_prompt=True, tokenize=False)),
+            "method": "chat_template", "exact": True}
     except Exception as exc:                                  # noqa: BLE001
         # Some templates reject a system turn; merging it into the user turn is
         # what those templates do internally anyway, so the count stays honest.
         try:
-            ids = tok.apply_chat_template(
+            out = {"n_tokens": encode(tok.apply_chat_template(
                 [{"role": "user", "content": SYSTEM_MESSAGE + "\n\n" + prompt}],
-                add_generation_prompt=True, tokenize=True)
-            return {"n_tokens": len(ids), "method": "chat_template_merged_system",
-                    "exact": True, "note": str(exc)[:200]}
+                add_generation_prompt=True, tokenize=False)),
+                "method": "chat_template_merged_system", "exact": True,
+                "note": str(exc)[:200]}
         except Exception as exc2:                             # noqa: BLE001
-            body = len(tok.encode(SYSTEM_MESSAGE + "\n\n" + prompt))
-            return {"n_tokens": body + 64, "method": "raw_encode_plus_64",
-                    "exact": False, "note": f"{str(exc)[:120]} | {str(exc2)[:120]}"}
+            out = {"n_tokens": encode(SYSTEM_MESSAGE + "\n\n" + prompt) + 64,
+                   "method": "raw_encode_plus_64", "exact": False,
+                   "note": f"{str(exc)[:120]} | {str(exc2)[:120]}"}
+
+    ratio = len(prompt) / max(out["n_tokens"], 1)
+    if ratio > MIN_CHARS_PER_TOKEN:
+        raise RuntimeError(
+            f"implausible token count for {model_path}: {out['n_tokens']} "
+            f"tokens for {len(prompt):,} chars ({ratio:.1f} chars/token). The "
+            f"tokenizer call returned something that is not a token sequence.")
+    return out
 
 
 def ask(client, model: str, prompt: str) -> dict:
