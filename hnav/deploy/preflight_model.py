@@ -61,6 +61,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import sys
 import time
 import types
@@ -218,6 +219,12 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-token-count", action="store_true",
                     help="advisory only; the served endpoint still reports its "
                          "own prompt_tokens for the longest prompt")
+    ap.add_argument("--probe-only", action="store_true",
+                    help="serving-health probe only (served name, generation, "
+                         "repetition, sh_6k accuracy floor). Skips the sh_64k "
+                         "plan build and the one-shot check, so it can be run "
+                         "repeatedly against a model whose campaign already "
+                         "exists - for diagnosing a serving configuration.")
     args = ap.parse_args(argv)
 
     cfg = get_config()
@@ -244,14 +251,21 @@ def main(argv=None) -> int:
     print(f"== preflight {args.model_key} ==")
 
     # ── 7. one shot ──────────────────────────────────────────────────────────
+    # Match on the tag the RUNNER builds from the served name, not on
+    # model_key: 'gemma3_4b' is not a substring of
+    # 'google_gemma-3-4b-it_2026-08-30', so keying on model_key made this
+    # guard incapable of firing - decoration, not a check.
+    tag_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", args.served_name).strip("_")
     existing = []
-    for arm in ARMS_DIRS:
-        res = REPO / "pipelines" / arm / "results"
-        if res.is_dir():
-            existing += [str(p.relative_to(REPO).as_posix()) for p in res.iterdir()
-                         if p.is_dir() and any(p.glob("detector_gap_*.json"))
-                         and args.model_key.lower() in p.name.lower()]
-    gate("one_shot", not existing, existing=existing)
+    if not args.probe_only:
+        for arm in ARMS_DIRS:
+            res = REPO / "pipelines" / arm / "results"
+            if res.is_dir():
+                existing += [str(p.relative_to(REPO).as_posix())
+                             for p in res.iterdir()
+                             if p.is_dir() and any(p.glob("detector_gap_*.json"))
+                             and p.name.startswith(tag_stem)]
+        gate("one_shot", not existing, tag_stem=tag_stem, existing=existing)
 
     # ── 1. the served name ───────────────────────────────────────────────────
     from openai import OpenAI                                 # noqa: PLC0415
@@ -267,33 +281,36 @@ def main(argv=None) -> int:
          served_max_model_len=ctx_len)
 
     # ── 2. does the longest real prompt fit ──────────────────────────────────
-    plan = _plan("sh_64k")
-    prompt64, chars = longest_prompt(plan)
-    tok = ({"n_tokens": None, "method": "skipped", "exact": False}
-           if args.skip_token_count else count_tokens(args.model_path, prompt64))
-    budget_ok = (ctx_len is None or tok["n_tokens"] is None
-                 or tok["n_tokens"] + GENERATION_MAX_TOKENS <= ctx_len)
-    gate("prompt_fits", budget_ok, longest_prompt_chars=chars,
-         tokens=tok, served_max_model_len=ctx_len,
-         headroom=(None if (ctx_len is None or tok["n_tokens"] is None)
-                   else ctx_len - tok["n_tokens"] - GENERATION_MAX_TOKENS))
+    a = None
+    if not args.probe_only:
+        plan = _plan("sh_64k")
+        prompt64, chars = longest_prompt(plan)
+        tok = ({"n_tokens": None, "method": "skipped", "exact": False}
+               if args.skip_token_count
+               else count_tokens(args.model_path, prompt64))
+        budget_ok = (ctx_len is None or tok["n_tokens"] is None
+                     or tok["n_tokens"] + GENERATION_MAX_TOKENS <= ctx_len)
+        gate("prompt_fits", budget_ok, longest_prompt_chars=chars,
+             tokens=tok, served_max_model_len=ctx_len,
+             headroom=(None if (ctx_len is None or tok["n_tokens"] is None)
+                       else ctx_len - tok["n_tokens"] - GENERATION_MAX_TOKENS))
 
-    # ── 3/4/5. the longest prompt, through the harness call, twice ───────────
-    try:
-        a = ask(client, args.served_name, prompt64)
-        b = ask(client, args.served_name, prompt64)
-    except Exception as exc:                                  # noqa: BLE001
-        gate("generates", False, error=str(exc)[:400])
-        _write(rec, args)
-        return 1
-    gate("generates", bool(a["content"].strip()), output=a["content"][:120],
-         finish_reason=a["finish_reason"], latency_s=a["latency_s"],
-         server_prompt_tokens=a["prompt_tokens"])
-    leaked = [m for m in THINK_MARKERS if m in a["content"]]
-    gate("no_reasoning", not leaked and not a["reasoning_content"],
-         markers=leaked, reasoning_content=a["reasoning_content"][:120])
-    gate("deterministic", a["content"] == b["content"],
-         first=a["content"][:80], second=b["content"][:80])
+        # ── 3/4/5. the longest prompt, through the harness call, twice ───────
+        try:
+            a = ask(client, args.served_name, prompt64)
+            b = ask(client, args.served_name, prompt64)
+        except Exception as exc:                              # noqa: BLE001
+            gate("generates", False, error=str(exc)[:400])
+            _write(rec, args)
+            return 1
+        gate("generates", bool(a["content"].strip()), output=a["content"][:120],
+             finish_reason=a["finish_reason"], latency_s=a["latency_s"],
+             server_prompt_tokens=a["prompt_tokens"])
+        leaked = [m for m in THINK_MARKERS if m in a["content"]]
+        gate("no_reasoning", not leaked and not a["reasoning_content"],
+             markers=leaked, reasoning_content=a["reasoning_content"][:120])
+        gate("deterministic", a["content"] == b["content"],
+             first=a["content"][:80], second=b["content"][:80])
 
     # ── 6. a short prompt too ────────────────────────────────────────────────
     small = _plan("sh_6k")
@@ -304,8 +321,9 @@ def main(argv=None) -> int:
          latency_s=s["latency_s"])
 
     # ── 8. degenerate generation ─────────────────────────────────────────────
-    loops = {k: degenerate(v) for k, v in
-             (("longest", a["content"]), ("short", s["content"]))}
+    loops = {"short": degenerate(s["content"])}
+    if a is not None:
+        loops["longest"] = degenerate(a["content"])
     gate("no_degenerate", not any(loops.values()), repeats=loops)
 
     # ── 9. the accuracy floor on questions with no conflict in them ──────────
@@ -332,8 +350,9 @@ def main(argv=None) -> int:
 
 
 def _write(rec: dict, args) -> None:
+    name = "probe.json" if getattr(args, "probe_only", False) else "preflight.json"
     out = pathlib.Path(args.out) if args.out else (
-        get_config().out_dir / "campaign" / args.model_key / "preflight.json")
+        get_config().out_dir / "campaign" / args.model_key / name)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(rec, indent=1, default=str), encoding="utf-8",
                    newline="\n")
