@@ -156,10 +156,14 @@ done
 
 log "stopping server for $MODEL_KEY"
 stop_server
-# let the card come back before the next model's guard runs
+# Let the card come back before the next model's guard runs. `grep -c .` on
+# empty input prints "0" AND exits 1, so `|| echo 0` made this "0\n0" and the
+# comparison never matched - the loop always burned its full five minutes.
+# `wc -l` always exits 0.
 for _ in $(seq 1 60); do
-    used=$(nvidia-smi --id=1 --query-compute-apps=pid --format=csv,noheader 2>/dev/null | grep -c . || echo 0)
-    [ "$used" = "0" ] && break
+    used=$(nvidia-smi --id=1 --query-compute-apps=pid --format=csv,noheader \
+           2>/dev/null | sed '/^$/d' | wc -l)
+    [ "$used" -eq 0 ] && break
     sleep 5
 done
 

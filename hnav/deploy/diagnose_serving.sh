@@ -49,10 +49,18 @@ if curl -sf --max-time 5 "http://localhost:${PORT}/v1/models" >/dev/null 2>&1; t
     exit 3
 fi
 
+# `grep -c .` on EMPTY input prints "0" and exits 1, so `|| echo 0` appends a
+# second "0" and the variable becomes "0\n0" - never equal to "0", so an idle
+# GPU reads as busy forever. This aborted the first 2x2 run after 7.5 minutes
+# with "GPU1 never freed" while GPU1 was sitting at 15 MiB. `wc -l` always
+# exits 0, and -eq compares numerically.
+gpu1_procs() {
+    nvidia-smi --id=1 --query-compute-apps=pid --format=csv,noheader 2>/dev/null \
+        | sed '/^$/d' | wc -l
+}
 wait_gpu_free() {
     for _ in $(seq 1 90); do
-        n=$(nvidia-smi --id=1 --query-compute-apps=pid --format=csv,noheader 2>/dev/null | grep -c . || echo 0)
-        [ "$n" = "0" ] && return 0
+        [ "$(gpu1_procs)" -eq 0 ] && return 0
         sleep 5
     done
     return 1
