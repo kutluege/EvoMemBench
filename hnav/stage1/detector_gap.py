@@ -348,7 +348,14 @@ def make_gate(cell, replay, ces=None) -> ReadGate:
     setting the Faz A audit measured — allowed only for the preregistered
     abtt_noparser arm, where measuring that danger IS the experiment)."""
     pf = cell["pair_filter"]
-    if pf in ("ces", "fusion", "geo"):
+    if pf == "idonly":
+        # [E2E-4] symbolic identity ALONE. Same screen as the shipped parser
+        # arm; what differs is the cell's nli_contradiction, which the idonly
+        # grid drives to 0 — the arm exists to measure whether the semantic
+        # contradiction gate is the binding constraint once identity is
+        # certified. Harm is structurally 0 (see SELECTION_RULE notes).
+        pair_filter = MABAdapter.same_key_pair
+    elif pf in ("ces", "fusion", "geo"):
         if ces is None:
             raise SystemExit(f" REFUSED: this operating point uses the {pf!r} "
                              "screen; pass --pair-screen and its artifact.")
@@ -523,7 +530,7 @@ GEO_TAU_GRID = (-0.75, -0.50, -0.25, -0.10, 0.0, 0.10, 0.25)
 
 
 def grid_cells(cos_grid=None, pair_screen: str = "parser",
-               ces_grid=None) -> list[dict]:
+               ces_grid=None, nli_grid=None) -> list[dict]:
     """The SAME axes ``calibrate_read_policy`` declared for the rerank
     calibration — reused rather than redeclared so the two searches cannot
     silently diverge.
@@ -543,6 +550,9 @@ def grid_cells(cos_grid=None, pair_screen: str = "parser",
     #   ces     -> pinned "ces", crossed with the preregistered tau grid.
     if pair_screen == "parser":
         filter_axis = [(f, None) for f in FILTER_GRID]
+    elif pair_screen == "idonly":
+        # [E2E-4] the same same-key screen, pinned on, as its own arm
+        filter_axis = [("idonly", None)]
     elif pair_screen == "none":
         filter_axis = [(False, None)]
     elif pair_screen in ("ces", "fusion", "geo"):
@@ -563,7 +573,7 @@ def grid_cells(cos_grid=None, pair_screen: str = "parser",
             if custom and rlab == "loose":
                 r = float(np.sqrt(max(0.0, 1.0 - cos * cos)))
             for amb in AMB_GRID:
-                for tau in NLI_GRID:
+                for tau in (NLI_GRID if nli_grid is None else tuple(nli_grid)):
                     for filt, ces_tau in filter_axis:
                         cell = {"cos_pair": cos, "r_min_label": rlab,
                                 "r_min": r,
@@ -643,7 +653,7 @@ def select(cells: list[dict], pair_screen: str = "parser") -> dict | None:
     A campaign that re-fits the embeddings must revisit this.
     """
     want = {"parser": True, "none": False, "ces": "ces",
-            "fusion": "fusion", "geo": "geo"}[pair_screen]
+            "fusion": "fusion", "geo": "geo", "idonly": "idonly"}[pair_screen]
     feasible = [c for c in cells
                 if c["pair_filter"] == want
                 and c["metrics"]["n_suppressed_harmful"] == 0
@@ -1703,7 +1713,8 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
                                       or COS_GRID),
                      "r_min": list(R_MIN_GRID_LABELS),
                      "ambiguity_mode": list(AMB_GRID),
-                     "nli_contradiction": list(NLI_GRID),
+                     "nli_contradiction": list(getattr(args, "nli_grid", None)
+                                               or NLI_GRID),
                      "pair_filter": list(FILTER_GRID),
                      "ces_tau": (list(getattr(args, "ces_grid", None)
                                       or CES_TAU_GRID)
@@ -1743,13 +1754,15 @@ def operating_point_path(geometry_space: str, pair_screen: str) -> Path:
         return gf / "fusion_operating_point.json"
     if pair_screen == "geo" and geometry_space == "raw":
         return gf / "geo_operating_point.json"
+    if pair_screen == "idonly" and geometry_space == "raw":
+        return REPO / "stage0_results" / "stage1" / "idonly_operating_point.json"
     if pair_screen == "none" and geometry_space == "abtt":
         return gf / "abtt_noparser_operating_point.json"
     raise SystemExit(
         f" REFUSED: no preregistered arm for pair_screen={pair_screen!r} with "
         f"geometry_space={geometry_space!r}. The preregistered arms are "
-        "ces+raw, fusion+raw, geo+raw and none+abtt; parser goes with either "
-        "space.")
+        "ces+raw, fusion+raw, geo+raw, idonly+raw and none+abtt; parser goes "
+        "with either space.")
 
 
 def frozen_cell(geometry_space: str = "raw", pair_screen: str = "parser",
@@ -1856,12 +1869,16 @@ def main() -> int:
                     help="override the cosine axis (required for abtt: the "
                          "default 0.90/0.92/0.94 are raw-space coordinates)")
     ap.add_argument("--pair-screen",
-                    choices=("parser", "ces", "fusion", "geo", "none"),
+                    choices=("parser", "idonly", "ces", "fusion", "geo",
+                             "none"),
                     default="parser",
                     help="[E2E] identity screen: 'parser' = the shipped "
                          "same-key check; 'ces' = the frozen contrastive-edit-"
                          "subspace artifact (relation from the parser, subject "
-                         "identity from geometry); 'fusion' = the calibration-"
+                         "identity from geometry); 'idonly' = the same "
+                         "same-key screen as its own arm, whose grid relaxes "
+                         "the NLI axis (E2E-4: is the semantic gate the "
+                         "binding constraint?); 'fusion' = the calibration-"
                          "fit logistic over (CES, ABTT-cosine); 'geo' = the "
                          "fully parser-free GEO identity screen (slot probe x "
                          "whitened cosine, E2E-3); 'none' = no identity screen "
@@ -1878,6 +1895,11 @@ def main() -> int:
     ap.add_argument("--ces-grid", nargs="+", type=float, default=None,
                     help="tau axis for --select with --pair-screen ces "
                          "(default: the preregistered CES_TAU_GRID)")
+    ap.add_argument("--nli-grid", nargs="+", type=float, default=None,
+                    help="override the bidirectional-NLI contradiction axis "
+                         "(default 0.5/0.9/0.99). Required for --pair-screen "
+                         "idonly, whose preregistered axis includes 0.0 = the "
+                         "gate off.")
     ap.add_argument("--geo-grid", default=None,
                     help="tau axis for --select with --pair-screen geo: ONE "
                          "comma-separated string of floats (diagonal family) "
@@ -2051,7 +2073,8 @@ def main() -> int:
         geo_taus = ([t.strip() for t in args.geo_grid.split(",") if t.strip()]
                     if (args.pair_screen == "geo" and args.geo_grid) else None)
         cells = grid_cells(args.cos_grid, args.pair_screen,
-                           geo_taus if geo_taus else args.ces_grid)
+                           geo_taus if geo_taus else args.ces_grid,
+                           nli_grid=args.nli_grid)
         check_cos_floor(min(c["cos_pair"] for c in cells))
         measure_grid(ctx, subsets, cells, args._ces)
         chosen = select(cells, args.pair_screen)
