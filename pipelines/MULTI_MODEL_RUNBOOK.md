@@ -30,11 +30,24 @@ wanted. `hnav_ces` and `hnav_fusion` are closed (superseded / failed gate).
   (it previously covered only `hnav_raw`/`hnav_abtt`, and the extension
   immediately caught two arms whose worktree bytes had drifted to CRLF while
   `git diff` stayed empty — `detector_gap.freeze` now writes LF explicitly).
-- **Answering-model context window ≥ ~48k tokens.** Measured from the
-  committed sh_64k artifact: max prompt 169,810 chars ≈ **42.5k tokens**,
-  mean 39.6k; sh_32k mean 34.3k. A model served with less cannot run sh_32k
-  or sh_64k. Set `HNAV_STAGE1_MAX_MODEL_LEN` if the model's own limit differs
-  from the frozen 65536.
+- **Answering-model context window ≥ ~52k tokens — not 48k.** The earlier
+  "≈42.5k tokens" here was a chars/4 estimate, and it was wrong.
+  `hnav/deploy/measure_prompt_tokens.py` counts the real longest sh_64k prompt
+  (169,810 chars) under each model's own tokenizer *and* chat template:
+
+  | model | tokens | chars/token |
+  | --- | --- | --- |
+  | Phi-4-mini-instruct | 43,321 | 3.92 |
+  | gemma-3-4b-it | 48,224 | 3.52 |
+  | gemma-4-E2B-it | 48,228 | 3.52 |
+  | Qwen3.5-9B | 49,195 | 3.45 |
+  | **Qwen3-4B-Instruct-2507 (reference)** | **49,623** | 3.42 |
+
+  Three of the four new models exceed 48k, and so does the reference model —
+  which is why the frozen substrate serves at 65536. A server sized from the
+  old estimate would have run for hours and then died on the longest question.
+  Per-model values live in `hnav/deploy/models.d/*.env`; set
+  `HNAV_STAGE1_MAX_MODEL_LEN` only for the frozen `serve_stage1_chat.sh` path.
 - **Serve the new model under its own name**: `HNAV_STAGE1_SERVED_NAME`
   (and `HNAV_STAGE1_MODEL` for the weights path). Without it vLLM advertises
   the reference model's name and every artifact mislabels the run.
