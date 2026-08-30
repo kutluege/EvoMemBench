@@ -25,9 +25,25 @@ wanted. `hnav_ces` and `hnav_fusion` are closed (superseded / failed gate).
 
 ## Preconditions (verified 2026-08-30)
 
-- All 7 arms' operating points match their pinned sha256 (`git`-normalized
-  blobs — the form the Linux box checks out). `pytest hnav/tests/test_pipelines.py`
-  asserts this.
+- All 7 arms' operating points match their pinned sha256.
+  `pytest hnav/tests/test_pipelines.py` now asserts this for **every** arm
+  (it previously covered only `hnav_raw`/`hnav_abtt`, and the extension
+  immediately caught two arms whose worktree bytes had drifted to CRLF while
+  `git diff` stayed empty — `detector_gap.freeze` now writes LF explicitly).
+- **Answering-model context window ≥ ~48k tokens.** Measured from the
+  committed sh_64k artifact: max prompt 169,810 chars ≈ **42.5k tokens**,
+  mean 39.6k; sh_32k mean 34.3k. A model served with less cannot run sh_32k
+  or sh_64k. Set `HNAV_STAGE1_MAX_MODEL_LEN` if the model's own limit differs
+  from the frozen 65536.
+- **Serve the new model under its own name**: `HNAV_STAGE1_SERVED_NAME`
+  (and `HNAV_STAGE1_MODEL` for the weights path). Without it vLLM advertises
+  the reference model's name and every artifact mislabels the run.
+- **Void condition 2 (`native_in_band`) is model-specific.** Its band
+  (0.30, 0.50) was fixed from m3's sh_64k measurement for Qwen3-4B; a
+  stronger model, or any model on sh_32k (native 0.53 today), leaves it
+  without anything being wrong. The runner reports it as a **WARNING**, not a
+  validity failure, and the band must be re-preregistered per model. Every
+  other run-voiding condition still fails the subset.
 - Prepasses required, **per subset**, already built on the box and reusable
   for every model:
   - `hnav_raw`, `hnav_idonly`, `hnav_geo` → `stage1_prepass_<subset>_benchmarkpage.json`
@@ -45,7 +61,7 @@ source hnav/deploy/_activate.sh
 
 # 1. serve the answering model on GPU1 (frozen flags for Qwen3-4B; adapt
 #    ONLY the model path/name and, if the model needs it, --max-model-len)
-nohup bash hnav/deploy/serve_stage1_chat.sh > hnav/_out/pipeline/chat.log 2>&1 &
+HNAV_STAGE1_MODEL=/path/to/new-model-weights HNAV_STAGE1_SERVED_NAME=<org>/<new-model-name> nohup bash hnav/deploy/serve_stage1_chat.sh > hnav/_out/pipeline/chat.log 2>&1 &
 until curl -sf http://localhost:8003/v1/models >/dev/null; do sleep 10; done
 
 # 2. pre-flight per arm — sends nothing, prints the budget and guards
@@ -72,6 +88,22 @@ set. Prompt sizes are the benchmark's own RAG prompts (~53k tokens on
 sh_64k); the detector arm's prompt is *shorter* than native
 (−0.31 % sh_64k, −2.87 % sh_6k). **No prepass rebuild, no embedding
 recompute, no extra generative call.**
+
+## Known sharp edges
+
+- `--dry-run` still writes `results/<tag>/run_manifest.json`; use a throwaway
+  `--tag` for pre-flights so a dry folder never blocks (or gets committed
+  alongside) the real one.
+- `--smoke-llm` through the runner writes production filenames into
+  `results/<tag>/`; use a distinct `--tag` for smoke runs.
+- `hnav_fusion` is NOT runnable — its frozen point is the vacuous zero-recall
+  cell, so the positive-control guard aborts before the dry-run returns.
+  Excluded by design.
+- `hnav_raw`/`hnav_abtt` have no `results/` folder for the reference model
+  (their numbers live in the older `stage0_results/` artifact format), so the
+  first new model must run `hnav_raw` itself to get a comparable baseline.
+- `e2e3_analysis.py`'s comparison baselines point at the Qwen3-4B artifacts;
+  for a different model, compare that model's own arms to each other.
 
 ## After the runs
 

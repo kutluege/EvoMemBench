@@ -20,8 +20,15 @@ def _spec(name):
     return runner.load_pipeline(REPO / "pipelines" / name)
 
 
+ALL_ARMS = sorted(d.name for d in (REPO / "pipelines").iterdir()
+                  if (d / "pipeline.json").exists())
+
+
 def test_pinned_hashes_match_the_committed_operating_points():
-    for name in ("hnav_raw", "hnav_abtt"):
+    # [E2E-4] every arm, not just the two originals: five arms (including both
+    # new ones) shipped with unverified pins while this test passed.
+    assert len(ALL_ARMS) >= 7, ALL_ARMS
+    for name in ALL_ARMS:
         spec = _spec(name)
         assert runner.sha256(REPO / spec["operating_point"]) == \
             spec["operating_point_sha256"], name
@@ -30,7 +37,7 @@ def test_pinned_hashes_match_the_committed_operating_points():
 def test_verify_frozen_passes_on_the_real_artifacts(monkeypatch):
     monkeypatch.delenv("HNAV_MODE", raising=False)
     monkeypatch.delenv("HNAV_EMBED_MODEL", raising=False)
-    for name in ("hnav_raw", "hnav_abtt"):
+    for name in ALL_ARMS:
         assert runner.verify_frozen(_spec(name)) == [], name
 
 

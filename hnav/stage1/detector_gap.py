@@ -1735,7 +1735,12 @@ def freeze(chosen, ctx, subsets, cfg=None, args=None) -> Path:
     dest = operating_point_path(getattr(args, "geometry_space", "raw"),
                                 getattr(args, "pair_screen", "parser"))
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(art, indent=1, default=str), encoding="utf-8")
+    # newline="\n": the operating point is pinned by sha256 in every
+    # pipeline.json, and those pins are the git-blob (LF) hashes the Linux box
+    # checks out. Letting Python's universal-newline translation write CRLF on
+    # Windows silently breaks every pin while `git diff` stays empty.
+    dest.write_text(json.dumps(art, indent=1, default=str), encoding="utf-8",
+                    newline="\n")
     return dest
 
 

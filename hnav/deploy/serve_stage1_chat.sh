@@ -35,6 +35,12 @@ mkdir -p hnav/_out/pipeline
 # history). We only READ the binary; we never touch the user's processes.
 VLLM_BIN="${HNAV_VLLM_BIN:-/mnt/nvmes/nvme1/egekutlu/programs/conda/vllm_0.9.1/bin/vllm}"
 MODEL="${HNAV_STAGE1_MODEL:-/mnt/nvmes/nvme1/egekutlu/models/Qwen3-4B-Instruct-2507}"
+# [multi-model] the advertised name must track the weights, or a new model is
+# served under the reference model's name and every artifact mislabels it.
+# Default preserves the frozen Stage-1 substrate exactly.
+SERVED_NAME="${HNAV_STAGE1_SERVED_NAME:-Qwen/Qwen3-4B-Instruct-2507}"
+# sh_64k prompts reach ~42.5k tokens; anything below ~48k cannot run it.
+MAXLEN="${HNAV_STAGE1_MAX_MODEL_LEN:-65536}"
 PORT="${HNAV_STAGE1_CHAT_PORT:-8003}"
 DEV="${HNAV_STAGE1_CHAT_DEVICE:-1}"
 
@@ -48,9 +54,9 @@ hnav_gpu_guard "$DEV" 13 || {
 
 echo "Stage-1 chat: $MODEL on :$PORT (GPU$DEV), frozen flags — see header."
 CUDA_VISIBLE_DEVICES="$DEV" exec "$VLLM_BIN" serve "$MODEL" \
-    --served-model-name "Qwen/Qwen3-4B-Instruct-2507" \
+    --served-model-name "$SERVED_NAME" \
     --port "$PORT" \
-    --max-model-len 65536 \
+    --max-model-len "$MAXLEN" \
     --kv-cache-dtype fp8 \
     --enforce-eager \
     --max-num-seqs 1 \
