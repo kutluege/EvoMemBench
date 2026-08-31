@@ -326,6 +326,15 @@ def main(argv=None) -> int:
         loops["longest"] = degenerate(a["content"])
     gate("no_degenerate", not any(loops.values()), repeats=loops)
 
+    # ── 4b. reasoning leakage, ALSO in probe-only mode ───────────────────────
+    # The full preflight checks this on the longest prompt, inside the block
+    # --probe-only skips. That left the probe unable to see reasoning leakage -
+    # exactly what a probe of a thinking-by-default model exists to catch.
+    if args.probe_only:
+        leaked_s = [m for m in THINK_MARKERS if m in s["content"]]
+        gate("no_reasoning", not leaked_s and not s["reasoning_content"],
+             markers=leaked_s, reasoning_content=s["reasoning_content"][:120])
+
     # ── 9. the accuracy floor on questions with no conflict in them ──────────
     from hnav.labeling.counterfactual import substring_exact_match  # noqa: PLC0415
     probe = [q for q in small["questions"] if q["stratum"] == "unique"][:SANITY_N]
