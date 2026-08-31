@@ -78,8 +78,16 @@ ARMS_DIRS = ("hnav_raw", "hnav_idonly", "hnav_geo")
 # The reasoning markers a chat model may emit into `content` when it is served
 # in thinking mode. Any of them means the ten-token budget is being spent on
 # reasoning, not on the answer.
+# Tag-shaped reasoning, plus the PROSE openings a thinking model emits when it
+# has no tags. The measured Qwen3.5 control (thinking left on) answered
+# "Thinking Process:\n\n1.  **Analyze" - no tag, empty reasoning_content, so
+# the marker list below passed it. It was the `answer_sanity` FLOOR that caught
+# it, at 0/10. Keep that in mind before trusting this list: markers are a
+# convenience, the accuracy floor is the guard that actually holds.
 THINK_MARKERS = ("<think>", "</think>", "<reasoning>", "<|thinking|>",
-                 "<seed:think>", "◁think▷")
+                 "<seed:think>", "◁think▷",
+                 "Thinking Process", "Thought Process", "Let me think",
+                 "Let's think", "First, I need to", "Step 1:")
 
 # Instrument-health thresholds. Set after watching gemma-3-4b fail under fp8 KV
 # while passing every other check; they are deliberately far from any plausible
