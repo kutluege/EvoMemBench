@@ -93,6 +93,7 @@ THINK_MARKERS = ("<think>", "</think>", "<reasoning>", "<|thinking|>",
 # while passing every other check; they are deliberately far from any plausible
 # model's real behaviour, so they separate a broken server from a weak model
 # rather than ranking models.
+VOID_MARK = "_VOID"     # in a results dir name: preserved evidence, not a shot
 SANITY_N = 10           # unique-stratum questions probed
 SANITY_FLOOR = 3        # a working model of this class scores 9-10
 REPEAT_NGRAM = 2        # an n-gram repeated this many times is degenerate
@@ -264,16 +265,27 @@ def main(argv=None) -> int:
     # 'google_gemma-3-4b-it_2026-08-30', so keying on model_key made this
     # guard incapable of firing - decoration, not a check.
     tag_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", args.served_name).strip("_")
-    existing = []
+    existing, voided = [], []
     if not args.probe_only:
         for arm in ARMS_DIRS:
             res = REPO / "pipelines" / arm / "results"
-            if res.is_dir():
-                existing += [str(p.relative_to(REPO).as_posix())
-                             for p in res.iterdir()
-                             if p.is_dir() and any(p.glob("detector_gap_*.json"))
-                             and p.name.startswith(tag_stem)]
-        gate("one_shot", not existing, tag_stem=tag_stem, existing=existing)
+            if not res.is_dir():
+                continue
+            for p in res.iterdir():
+                if not (p.is_dir() and any(p.glob("detector_gap_*.json"))
+                        and p.name.startswith(tag_stem)):
+                    continue
+                # A run VOIDED for a documented instrument defect is not a spent
+                # shot at a valid cell - it is preserved evidence that the
+                # instrument was broken, and re-running is the correct response.
+                # The marker must be EXPLICIT and in the directory name, so a
+                # real measured result can never be skipped silently: renaming a
+                # results folder is a deliberate act, not something this script
+                # can do to itself. (gemma-3's fp8 run is the case in point.)
+                (voided if VOID_MARK in p.name.upper() else existing).append(
+                    str(p.relative_to(REPO).as_posix()))
+        gate("one_shot", not existing, tag_stem=tag_stem, existing=existing,
+             ignored_voided=voided)
 
     # ── 1. the served name ───────────────────────────────────────────────────
     from openai import OpenAI                                 # noqa: PLC0415
