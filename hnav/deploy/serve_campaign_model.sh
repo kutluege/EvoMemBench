@@ -46,7 +46,23 @@ mkdir -p "$TMPDIR"
 
 case "$VLLM_ENV" in
   legacy) VLLM_BIN="${HNAV_VLLM_BIN:-$NVME/programs/conda/vllm_0.9.1/bin/vllm}" ;;
-  modern) VLLM_BIN="${HNAV_VLLM_MODERN_BIN:-$NVME/programs/venvs/vllm_modern/bin/vllm}" ;;
+  modern)
+    VLLM_BIN="${HNAV_VLLM_MODERN_BIN:-$NVME/programs/venvs/vllm_modern/bin/vllm}"
+    # This box has no CUDA toolkit (`nvcc` absent, /usr/local/cuda absent), and
+    # vLLM 0.28 reaches for FlashInfer in two independent places that both JIT-
+    # compile on first use: the attention backend and the SAMPLER. Either one
+    # aborts engine startup with
+    #   RuntimeError: Could not find nvcc and default cuda_home='/usr/local/cuda'
+    # so switching only the attention backend still died, in
+    # flashinfer/sampling.py::top_k_mask_logits.
+    #
+    # Disabling the FlashInfer sampler cannot change a single answer in this
+    # campaign: the harness fixes temperature at 0, so sampling is argmax, and
+    # argmax is argmax in either implementation. The attention backend is set
+    # per model in models.d/, where it is a serving choice that IS visible to
+    # the numerics and therefore probed before any measured cell.
+    export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
+    ;;
   *) echo "VLLM_ENV must be legacy|modern, got '$VLLM_ENV'"; exit 2 ;;
 esac
 [ -x "$VLLM_BIN" ] || { echo "vllm binary missing: $VLLM_BIN"; exit 2; }
