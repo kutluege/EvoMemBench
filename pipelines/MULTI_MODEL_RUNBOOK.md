@@ -4,6 +4,44 @@ Everything needed to run the frozen H-Nav arms against a **new answering
 model**. Only the answering LLM varies; the embedder, thresholds, artifacts
 and prepasses are frozen and LLM-independent.
 
+> **Read this first — the campaign of 2026-08-30/31 found that four serving
+> facts must be MEASURED per model, not inherited from the reference config.**
+> Inheriting one of them (`--kv-cache-dtype fp8`) silently destroyed a model's
+> entire run: gemma-3-4b scored 13/100 on sh_6k where the same weights, prompts
+> and suppression plan score 89/100 under BF16. It passed every preflight check
+> in force at the time, because none of them checked whether the answers were
+> *right*.
+>
+> | must be measured per model | how | tool |
+> | --- | --- | --- |
+> | context window | tokenize the real longest prompt with the model's own tokenizer **and chat template** | `measure_prompt_tokens.py` |
+> | which vLLM can load it | architecture registry check, not assumption | `setup_vllm_modern.sh` |
+> | thinking mode | 10 output tokens is the whole budget; a thinking model scores ~0 | `preflight_model.py` |
+> | **KV-cache dtype** | serve twice, vary only the dtype, probe | `diagnose_serving.sh` |
+>
+> Run `diagnose_serving.sh <models.d/*.env>` **before** any measured cell for a
+> new model. ~11 completions per variant against 1,500 for one wasted arm.
+
+## Per-model serving configurations actually used
+
+| model | KV | vLLM | attention | extra |
+| --- | --- | --- | --- | --- |
+| Qwen3-4B (reference) | fp8 | 0.9.1 | default | frozen substrate, 65536 ctx |
+| Phi-4-mini-instruct | fp8 | 0.9.1 | default | 49152 ctx |
+| gemma-3-4b-it | **BF16** | 0.9.1 | default | fp8 measured at 0/10 vs 9/10 |
+| gemma-4-E2B-it | **BF16** | 0.28.0 | TRITON_ATTN | `--language-model-only` |
+| Qwen3.5-9B | **BF16** | 0.28.0 | TRITON_ATTN | `--language-model-only`, thinking off |
+
+The dtype varies by model **by necessity**, and every within-model comparison
+— which is where the campaign's endpoints live — holds it fixed across all
+three arms. Record it per model; do not homogenise it back.
+
+On a box with **no CUDA toolkit**, vLLM 0.28 JIT-compiles FlashInfer for both
+attention *and* sampling. `serve_campaign_model.sh` sets
+`VLLM_USE_FLASHINFER_SAMPLER=0` (numerically irrelevant at temperature 0, where
+sampling is argmax); the attention backend is set per model because it is *not*
+numerically irrelevant.
+
 ## The three arms to run per model
 
 | arm | identity screen | semantic gate | why it is in the campaign |
@@ -16,12 +54,17 @@ and prepasses are frozen and LLM-independent.
 disagreements) and can be skipped unless a per-model geometry check is
 wanted. `hnav_ces` and `hnav_fusion` are closed (superseded / failed gate).
 
-> **Void-condition warning.** `hnav_geo` and `hnav_abtt_noparser` produced
-> harmful suppressions on sh_64k (8 and 5) and their runs are **void by
-> preregistered condition 4**. This is structural: only a `same_key`-based
-> screen has zero harm by construction. Expect the same on other models, and
-> report it rather than quoting the accuracy alone. `pipelines/_shared/runner.py`
-> now fails a subset on any run-voiding condition, so new runs surface it.
+> **Void-condition warning — now confirmed on five models.** `hnav_geo`
+> produced **exactly 8** harmful suppressions and **524** superseded ones on
+> sh_64k for *every* model tested (Qwen3-4B, Phi-4-mini, gemma-3-4b,
+> gemma-4-E2B, Qwen3.5-9B), byte-identical. `hnav_abtt_noparser` gave 5 on the
+> reference model. This is structural: suppression plans are computed from the
+> retrieved page and the screen with **no LLM involved**, so harm cannot vary
+> with the answering model, and only a `same_key`-based screen has zero harm by
+> construction. Running `hnav_geo` on a further model cannot produce a new harm
+> count — one demonstration is mathematically sufficient. Report the void;
+> never quote the accuracy alone. `pipelines/_shared/runner.py` fails a subset
+> on any run-voiding condition, so new runs surface it.
 
 ## Preconditions (verified 2026-08-30)
 

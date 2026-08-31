@@ -2,6 +2,45 @@
 
 Launched 2026-08-30 13:43 UTC, git `d34c10f`, branch
 `claude/hnav-presentation-evidence`.
+**Completed 2026-08-31 12:55 UTC.** Results: `MULTIMODEL_SUMMARY.md`
+(generated from the artifacts, never transcribed).
+
+## Outcome, against what this document predicted before the run
+
+| prediction made here, before any model ran | outcome |
+| --- | --- |
+| `hnav_geo`'s 8 harmful suppressions "will recur identically on every model" | **Confirmed 5/5.** `n_suppressed_harmful = 8` and `n_suppressed_superseded = 524`, byte-identical on Qwen3-4B, Phi-4-mini, gemma-3-4b, gemma-4-E2B, Qwen3.5-9B. VOID by condition 4 every time. |
+| the parser-only question set is identical across models if the edge is structural | **Confirmed, and it decomposes.** The set of sh_64k questions where `idonly` and `raw` prompts differ is byte-identical across models — 17 questions. Which of the 17 a model *converts* is model-dependent (0–2). |
+| governance gain replicates per model | **Confirmed.** 15 of 15 model-arm cells positive. |
+
+Two claims this document did **not** make, and one it should have avoided:
+
+- The campaign was framed around a capability ladder with the expectation
+  that weaker models benefit most. **That is false.** So is its opposite.
+  See `TEZ_HIKAYESI.md` §4: the gain is `final − native` and native varies
+  for its own reasons; what is monotone in model capability, at every
+  context length, is the **post-H-Nav accuracy**, not the gain.
+- Four serving facts had to be measured per model rather than inherited.
+  The context window, the vLLM/architecture support matrix, thinking mode,
+  and **the KV-cache dtype** — the last of which destroyed gemma-3-4b's
+  first run (13/100 vs 89/100 on sh_6k, same weights and prompts).
+
+## A comparability defect this campaign exposed in the older artifacts
+
+The reference model's `hnav_raw` numbers for sh_6k and sh_32k (94 and 86,
+quoted in `TEZ_HIKAYESI.md` before this campaign) came from runs with
+`page_source=None` — the prepass page. Every `pipelines/` arm and every new
+model uses `page_source=benchmark`. The native rows are the tell: 28 and 48
+there, against 30 and 53 for the same model at benchmark page. Each delta was
+internally valid; the *table* mixed two configurations across its columns.
+
+sh_64k was never affected — the confirmatory run already used benchmark page,
+which is why its native (45) agrees across both formats.
+`hnav_raw × Qwen3-4B × {sh_6k, sh_32k}` at `page_source=benchmark` was then
+measured as a new cell (94 and 83; note sh_32k differs from the old 86), and
+all 50 cells in `MULTIMODEL_SUMMARY.md` are now one configuration.
+`multimodel_summary.py` prints `page_source` per cell and warns on any mix,
+so this cannot recur silently.
 
 ## The experiment
 
