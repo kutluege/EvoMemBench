@@ -27,7 +27,8 @@ wherever they disagree**.
 ## Thesis framing — binding (user decisions 2026-09-17)
 
 **`THESIS_CLAIMS.md` is the binding statement of what the thesis claims.** Read it before
-touching any thesis-facing document. The decisions it records:
+touching any thesis-facing document. **`MANUSCRIPT_DRAFT.md`** is the journal-style draft written
+from it (2026-09-17; Related Work left blank by design, title provisional). The decisions it records:
 
 - **The thesis method is H-Nav-GEO** (`hnav/geometry_filter/geo_artifact.py`, arm
   `pipelines/hnav_geo/`): whitened cosine + slot probe on the edit direction, verified by a small
