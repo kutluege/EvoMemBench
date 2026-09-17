@@ -1,5 +1,17 @@
 # Tez hikâyesi — "Küçük modellerin RAG başarımını, çelişen belleği ucuza temizleyerek yükseltmek"
 
+> ## ⚠️ ÇERÇEVE AÇISINDAN AŞILMIŞTIR — 2026-09-17
+>
+> Tezin bağlayıcı çerçevesi artık **`THESIS_CLAIMS.md`**'dir (kullanıcı kararları,
+> 2026-09-17). Bu dosya, `hnav_idonly` etrafında kurulmuş tarihsel tez hikâyesidir
+> ve kayıt olarak korunur; aşağıdaki sayılar geçerlidir, ancak **tezin yöntemi
+> H-Nav-GEO**'dur (ayrıştırıcısız, çıkarım anında LLM'siz geometrik ekran + NLI) ve
+> tez karşılaştırması **yalnız native taban ile H-Nav-GEO** arasındadır. Beş model ×
+> üç bağlam boyutunda tam bir deneme koşusu yapılmış ve H-Nav-GEO 15 hücrenin
+> 15'inde tabanı geçmiştir; tezin manşeti budur. Çerçeve konusunda bu dosya ile
+> `THESIS_CLAIMS.md` çelişirse `THESIS_CLAIMS.md` geçerlidir.
+
+
 Bu belge, **hangi iddianın kurulabileceğini ve hangi kanıtla** kurulacağını
 gösterir. Her sayı, depodaki taahhüt edilmiş (committed) bir artefakttan
 gelir ve kaynağı yanında yazılıdır. Sonunda **iddia edilemeyecek** şeyler de

@@ -1,5 +1,14 @@
 # H-Nav — what worked in the latest tests, and how the two last filters work
 
+> **Thesis framing decided 2026-09-17 — see `THESIS_CLAIMS.md` (binding).** The
+> thesis method is **H-Nav-GEO** (§3.4, §4 below): parser-free, no LLM at
+> inference, geometry + NLI. The full five-model trial in §8 is the thesis
+> evidence, and its headline is that H-Nav-GEO surpasses the native baseline in
+> all 15 model × subset cells. The recommendation in §12 of this report (build
+> the story around the schema-keyed arm) is superseded by that decision; §12 is
+> kept as a dated record. Measured numbers and void records below are unchanged.
+
+
 Written 2026-09-03 from the committed artifacts on branch
 `claude/hnav-presentation-evidence` (HEAD `c93572b`). Every number below has a
 file next to it. Nothing was re-run on the GPU box for this report; the only

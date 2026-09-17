@@ -24,6 +24,33 @@ code. `hnav/BUILD_NOTES.md` records what was built and what is deliberately unte
 `hnav/NEXT_STEPS.md` is the operational checklist and **overrides `hnav/prompts/PROMPT_B_remote_run.md`
 wherever they disagree**.
 
+## Thesis framing — binding (user decisions 2026-09-17)
+
+**`THESIS_CLAIMS.md` is the binding statement of what the thesis claims.** Read it before
+touching any thesis-facing document. The decisions it records:
+
+- **The thesis method is H-Nav-GEO** (`hnav/geometry_filter/geo_artifact.py`, arm
+  `pipelines/hnav_geo/`): whitened cosine + slot probe on the edit direction, verified by a small
+  NLI cross-encoder, then fact-level deletion of superseded versions. No fact parser and no LLM call
+  at inference; the suppression plan is byte-identical across answering models.
+- **A full trial run was performed** — five answering models × three context sizes × five arms,
+  ~19,500 completions, one shot per cell, A/A floor 0 everywhere — and **the achievement to record
+  is that geometry + NLI surpasses the native baseline in all 15 model × subset cells** (significant
+  at 5 % in 11 of 15) while shortening the prompt. That is the headline; write from the strengths.
+- **The thesis comparison is native baseline vs H-Nav-GEO only.** The schema-keyed arms
+  (`hnav_raw`, `hnav_idonly`, `hnav_abtt`) stay in the repository as reference measurements but are
+  outside the thesis comparison; `THESIS_CLAIMS.md` §10 gives the reason (a template parser has no
+  counterpart in a real store) and uses them only as an oracle reference for that design decision.
+- No "harm-free" claim is made and harm is not a headline; the unique stratum is reported as the
+  do-no-harm check. One quantified limitation line stays (`THESIS_CLAIMS.md` §12).
+- Generality is claimed across all five measured models, with the embedder-agnostic-by-construction
+  argument and the real-agent-memory hypothesis stated as hypothesis; sh_262k is excluded with its
+  reason written.
+
+`LATEST_RESULTS_REPORT.md` §12 and the `hnav_idonly`-centred story in `TEZ_HIKAYESI.md` are
+superseded on framing and kept as dated records. Committed artifacts, void records and measured
+numbers are never edited to fit the framing; the framing selects and orders them.
+
 ## Hard invariants (from the brief §1)
 
 These are not style preferences. Each one exists because breaking it silently produces a number that
