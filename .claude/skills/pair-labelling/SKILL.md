@@ -15,6 +15,14 @@ Each rule says whether it was **observed** in the human's labels or **inferred**
 because the pilot had no such pair. Inferred rules come from the written rubric
 the human worked under (section 1) and are the weaker part of this guideline.
 
+Revision history. The first version was drafted from 40 of the 60 pilot pairs
+and checked blind on the other 20 (all six labels identical on 19 of 20, and
+`update_conflict` on 20 of 20). This version adds those 20 pairs as examples.
+The rules of section 2 are unchanged except in the `strict_conflict` table:
+"original language of" moved from single-valued to not single-valued, following
+the one pair on which the check disagreed (P059), and four rows that had been
+inferred are now marked observed, with the same answer as before.
+
 ## 1. The task and the rubric the human worked under
 
 A pair is two sentences from a fact store. Most sentences follow a template with
@@ -49,7 +57,7 @@ Answer `yes` or `no` for each of:
 - **Observed.** A historical state and the modern country or region are
   different entities: "Kingdom of England" and "England" are not the same
   referent (P004). Related places are different entities (Ireland / England,
-  P018; Paris / Germany, P029).
+  P018; Paris / Germany, P029; London / Great Britain, P020).
 - **Inferred.** Spelling variants and abbreviations of one name are the same
   referent.
 
@@ -60,7 +68,8 @@ Answer `yes` or `no` for each of:
   about the attribute only.
 - **Observed.** A paraphrase of the same attribute is the same relation: "The
   Prime Minister of Sweden is …" and "The name of the current head of the Sweden
-  government is …" (P053).
+  government is …" (P053); "was written in the language of" and "The original
+  language of … is" (P059).
 - **Observed.** `no` when the attributes differ, even with the same subject and
   a shared word: "was founded in the city of" vs "was founded by" (P000);
   "speaks the language of" vs "died in the city of" (P043).
@@ -97,9 +106,13 @@ independently of whether the subjects match.
   a kind, part, denomination or subgenre of the other, the values are
   compatible, `no`: "Catholic Church" and "Christianity" (P005, P010, P012,
   P017); "rock music" and "rap rock" (P055). Two values under a common parent
+  More of the same: "Christianity" and "Methodism" (P021); "rock music" and
+  "hardcore punk" (P058). Two values under a common parent
   that do not contain each other are incompatible, `yes`: "punk rock" and
   "alternative rock" (P035); "jazz" and "post-punk" (P039); "association
-  football" and "rugby union" (P032).
+  football" and "rugby union" (P032). A value that is not of the expected kind
+  is still just a different value: "Judaism" and "interdenominational
+  organization" are incompatible (P046).
 - **Inferred.** Two names for the same thing (alias, abbreviation, spelling
   variant) are compatible, `no`. A city and the country or region it lies in,
   where a template lets both appear, is containment, `no`.
@@ -125,9 +138,9 @@ not matter; the relation decides.
 | Relation | Single value? | Basis |
 |---|---|---|
 | headquarters located in the city of | yes | observed (P014) |
-| was created in the country of | yes | observed (P023, P025) |
+| was created in the country of | yes | observed (P023, P025, P040) |
 | head of government, Prime Minister of | yes | observed (P048, P053, P056) |
-| is associated with the sport of | no | observed (P001, P008, P032, P042) |
+| is associated with the sport of | no | observed (P001, P002, P008, P032, P036, P037, P042) |
 | is famous for | no | observed (P003, P022, P038) |
 | is a citizen of | no | observed (P006, P045) |
 | speaks the language of | no | observed (P007, P013, P024, P030, P041) |
@@ -142,18 +155,18 @@ not matter; the relation decides.
 | was founded in the city of | yes | inferred |
 | chief executive officer, chairperson, head coach, Governor, director of | yes | inferred, one office holder at a time |
 | original broadcaster of | yes | inferred |
-| original language of | yes | inferred |
 | is married to | yes | inferred, one at a time |
 | author of | no | inferred, like "was performed by" |
-| was founded by, was created by, was developed by | no | inferred, like "was performed by" |
+| was created by | no | observed (P015) |
+| was founded by, was developed by | no | inferred, like "was created by" |
 | company that produced | no | inferred |
 | university where educated | no | inferred |
 | plays the position of | no | inferred, like sport |
-| is employed by | no | inferred, like city worked in |
-| child | no | inferred |
+| is employed by | no | observed (P054) |
+| child | no | observed (P034) |
 | official language of | no | inferred, like language spoken |
-| was written in the language of | no | inferred |
-| is affiliated with the religion of | no | inferred |
+| was written in the language of, original language of | no | observed for the two paired with each other (P059); inferred for each alone |
+| is affiliated with the religion of | no | observed once, with an odd value (P046) |
 
 For a sentence that paraphrases one of these relations, use the row of the
 relation it paraphrases. For a relation not in the table, apply the same test
@@ -182,6 +195,8 @@ strict_conflict.
   ref=yes, rel=no, ctx=yes, incompat=no, update=no, strict=no.
 - **P001** A: "placekicker is associated with the sport of American football." / B: "placekicker is associated with the sport of rugby."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P002** A: "goalkeeper is associated with the sport of association football." / B: "goalkeeper is associated with the sport of Gaelic football."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P003** A: "João Gilberto is famous for The Girl from Ipanema." / B: "João Gilberto is famous for Angel."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P004** A: "Kingdom of England is located in the continent of North America." / B: "England is located in the continent of Europe."
@@ -198,12 +213,16 @@ strict_conflict.
   ref=no, rel=yes, ctx=yes, incompat=yes, update=no, strict=no.
 - **P010** A: "Kingdom of Etruria is affiliated with the religion of Catholic Church." / B: "Kingdom of Etruria is affiliated with the religion of Christianity."
   ref=yes, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P011** A: "Ken Burns speaks the language of English." / B: "Ken Burns speaks the language of German."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P012** A: "John E. Sununu is affiliated with the religion of Catholic Church." / B: "John E. Sununu is affiliated with the religion of Christianity."
   ref=yes, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
 - **P013** A: "Ronald D. Moore speaks the language of English." / B: "Ronald D. Moore speaks the language of Dutch."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P014** A: "The headquarters of Blizzard Entertainment is located in the city of Irvine." / B: "The headquarters of Blizzard Entertainment is located in the city of Knoxville."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=yes.
+- **P015** A: "Lord Voldemort was created by J. K. Rowling." / B: "Lord Voldemort was created by Wilbert Awdry."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P016** A: "William Shakespeare works in the field of playwright." / B: "William Shakespeare works in the field of businessperson."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P017** A: "John E. Sununu is affiliated with the religion of Catholic Church." / B: "John E. Sununu is affiliated with the religion of Christianity."
@@ -212,6 +231,10 @@ strict_conflict.
   ref=no, rel=yes, ctx=yes, incompat=yes, update=no, strict=no.
 - **P019** A: "Gladys George is a citizen of United States of America." / B: "Estelle Getty is a citizen of United States of America."
   ref=no, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P020** A: "London is located in the continent of Europe." / B: "Great Britain is located in the continent of Asia."
+  ref=no, rel=yes, ctx=yes, incompat=yes, update=no, strict=no.
+- **P021** A: "Leo I the Thracian is affiliated with the religion of Christianity." / B: "Leo I the Thracian is affiliated with the religion of Methodism."
+  ref=yes, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
 - **P022** A: "Allen Ginsberg is famous for Howl." / B: "Allen Ginsberg is famous for Natya Shastra."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P023** A: "Jump5 was created in the country of United States of America." / B: "Jump5 was created in the country of Republic of Cyprus."
@@ -222,40 +245,70 @@ strict_conflict.
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=yes.
 - **P026** A: "The author of The Call of Cthulhu is H. P. Lovecraft." / B: "The author of Little Women is H. P. Lovecraft."
   ref=no, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P027** A: "WWE Superstars was created by Vince McMahon." / B: "WWE Tough Enough was created by William Shakespeare."
+  ref=no, rel=yes, ctx=yes, incompat=yes, update=no, strict=no.
 - **P028** A: "Nature Boy was performed by Nat King Cole." / B: "Nature Boy was performed by Donovan."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P029** A: "Paris is located in the continent of Europe." / B: "Germany is located in the continent of Africa."
   ref=no, rel=yes, ctx=yes, incompat=yes, update=no, strict=no.
 - **P030** A: "Neil Simon speaks the language of English." / B: "Neil Simon speaks the language of Japanese."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P031** A: "Michael Lewis speaks the language of English." / B: "Michael Lewis speaks the language of French."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P032** A: "Antonio Conte is associated with the sport of association football." / B: "Antonio Conte is associated with the sport of rugby union."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P033** A: "Sam Robards speaks the language of English." / B: "Sam Robards speaks the language of German."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P034** A: "Ken Burns's child is Sarah Burns." / B: "Ken Burns's child is Louis Joseph, Prince of Condé."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P035** A: "The type of music that Mike Watt plays is punk rock." / B: "The type of music that Mike Watt plays is alternative rock."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P036** A: "Aníbal Sánchez is associated with the sport of baseball." / B: "Aníbal Sánchez is associated with the sport of association football."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P037** A: "outfielder is associated with the sport of baseball." / B: "outfielder is associated with the sport of cricket."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P038** A: "Hugh Hefner is famous for Playboy." / B: "Hugh Hefner is famous for The Vampyre."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P039** A: "The type of music that Michael Mantler plays is jazz." / B: "The type of music that Michael Mantler plays is post-punk."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P040** A: "The Man Show was created in the country of United States of America." / B: "The Man Show was created in the country of United Kingdom."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=yes.
 - **P041** A: "T. S. Eliot speaks the language of English." / B: "T. S. Eliot speaks the language of French."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P042** A: "Alta IF is associated with the sport of association football." / B: "Alta IF is associated with the sport of baseball."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P043** A: "Fyodor Dostoyevsky speaks the language of Russian." / B: "Fyodor Dostoyevsky died in the city of Los Angeles."
   ref=yes, rel=no, ctx=yes, incompat=no, update=no, strict=no.
+- **P044** A: "Shaun Udal is a citizen of United Kingdom." / B: "Shaun Udal is a citizen of Denmark."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P045** A: "Max Eastman is a citizen of United States of America." / B: "Max Eastman is a citizen of Austria."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
+- **P046** A: "Natalie Portman is affiliated with the religion of Judaism." / B: "Natalie Portman is affiliated with the religion of interdenominational organization."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P047** A: "Laurence Olivier worked in the city of London." / B: "Laurence Olivier worked in the city of Washington, D.C.."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P048** A: "The Prime Minister of Sweden is Stefan Löfven." / B: "The Prime Minister of Sweden is Pedro Pierluisi."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=yes.
+- **P049** A: "Kemba Walker plays the position of goaltender." / B: "Kenley Jansen plays the position of shooting guard."
+  ref=no, rel=yes, ctx=yes, incompat=yes, update=no, strict=no.
 - **P050** A: "2009 WNBA season is associated with the sport of association football." / B: "2004 NBA Draft is associated with the sport of association football."
+  ref=no, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P051** A: "Caesarius of Arles is affiliated with the religion of Catholic Church." / B: "Caesarius of Arles is affiliated with the religion of Christianity."
+  ref=yes, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P052** A: "The origianl broadcaster of Charlie's Angels is American Broadcasting Company." / B: "The origianl broadcaster of Soap is American Broadcasting Company."
   ref=no, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
 - **P053** A: "The Prime Minister of Sweden is Pedro Pierluisi." / B: "The name of the current head of the Sweden government is Gro Harlem Brundtland."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=yes.
+- **P054** A: "Derek Bok is employed by Harvard University." / B: "Derek Bok is employed by MI5."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 - **P055** A: "The type of music that John McVie plays is rock music." / B: "The type of music that John McVie plays is rap rock."
   ref=yes, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
 - **P056** A: "The Prime Minister of Malta is Joseph Muscat." / B: "The Prime Minister of Malta is Pietro Parolin."
   ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=yes.
 - **P057** A: "The origianl broadcaster of The Drew Carey Show is American Broadcasting Company." / B: "The origianl broadcaster of China Beach is American Broadcasting Company."
   ref=no, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P058** A: "The type of music that Josh Homme plays is rock music." / B: "The type of music that Josh Homme plays is hardcore punk."
+  ref=yes, rel=yes, ctx=yes, incompat=no, update=no, strict=no.
+- **P059** A: "The Sky at Night was written in the language of English." / B: "The original language of The Sky at Night is Filipino."
+  ref=yes, rel=yes, ctx=yes, incompat=yes, update=yes, strict=no.
 <!-- EXAMPLES:END -->

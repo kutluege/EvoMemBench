@@ -1,0 +1,21 @@
+review_id,same_referent,same_relation,context_overlap,values_incompatible,update_conflict,strict_conflict,notes
+h001,yes,yes,yes,yes,yes,no,
+h002,yes,yes,yes,yes,yes,no,
+h003,yes,yes,yes,yes,yes,no,
+h004,yes,yes,yes,yes,yes,no,second value is not a religion; treated as different value
+h005,yes,yes,yes,yes,yes,no,
+h006,yes,yes,yes,yes,yes,yes,
+h007,yes,yes,yes,no,no,no,
+h008,yes,yes,yes,yes,yes,yes,uncovered: written in vs original language read as paraphrase; strict from original language row
+h009,no,yes,yes,yes,no,no,
+h010,yes,yes,yes,yes,yes,no,
+h011,yes,yes,yes,yes,yes,no,
+h012,no,yes,yes,no,no,no,
+h013,no,yes,yes,yes,no,no,
+h014,yes,yes,yes,yes,yes,no,
+h015,no,yes,yes,yes,no,no,
+h016,yes,yes,yes,yes,yes,no,
+h017,yes,yes,yes,yes,yes,no,
+h018,yes,yes,yes,no,no,no,
+h019,yes,yes,yes,no,no,no,hardcore punk read as subgenre of rock music
+h020,yes,yes,yes,yes,yes,no,

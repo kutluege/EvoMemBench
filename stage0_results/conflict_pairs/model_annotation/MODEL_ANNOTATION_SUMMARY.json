@@ -1,0 +1,870 @@
+{
+ "annotator": "claude-fable-5-2, reasoning effort medium, Claude Code subagents (parallel workers)",
+ "n_labelled": 20,
+ "n_by_group": {
+  "heldout": 20
+ },
+ "heldout_vs_human": {
+  "same_referent": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": 1.0,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 16,
+    "TF": 0,
+    "FT": 0,
+    "FF": 4
+   }
+  },
+  "same_relation": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": null,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 20,
+    "TF": 0,
+    "FT": 0,
+    "FF": 0
+   }
+  },
+  "context_overlap": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": null,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 20,
+    "TF": 0,
+    "FT": 0,
+    "FF": 0
+   }
+  },
+  "values_incompatible": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": 1.0,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 16,
+    "TF": 0,
+    "FT": 0,
+    "FF": 4
+   }
+  },
+  "update_conflict": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": 1.0,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 13,
+    "TF": 0,
+    "FT": 0,
+    "FF": 7
+   }
+  },
+  "strict_conflict": {
+   "n": 20,
+   "agreement": 0.95,
+   "kappa": 0.6428571428571426,
+   "agree": {
+    "n": 20,
+    "k": 19,
+    "rate": 0.95,
+    "wilson95": [
+     0.763868806553258,
+     0.9911185511992047
+    ]
+   },
+   "table": {
+    "TT": 1,
+    "TF": 1,
+    "FT": 0,
+    "FF": 18
+   }
+  },
+  "all_six_fields_identical": {
+   "n": 20,
+   "k": 19,
+   "rate": 0.95,
+   "wilson95": [
+    0.763868806553258,
+    0.9911185511992047
+   ]
+  }
+ },
+ "heldout_gate": {
+  "criteria": {
+   "update_conflict": 0.85,
+   "each_other_field": 0.8
+  },
+  "n_scored": 20,
+  "n_heldout": 20,
+  "failed_fields": [],
+  "passed": true
+ },
+ "by_tier": {
+  "core": {
+   "n": 2,
+   "n_in_tier": 2388,
+   "model_update_yes": 2,
+   "model_strict_yes": 1,
+   "update_agrees_with_judge": {
+    "n": 2,
+    "k": 2,
+    "rate": 1.0,
+    "wilson95": [
+     0.34238022750665303,
+     1.0
+    ]
+   },
+   "update_agrees_with_parser": {
+    "n": 2,
+    "k": 2,
+    "rate": 1.0,
+    "wilson95": [
+     0.34238022750665303,
+     1.0
+    ]
+   },
+   "update_agrees_with_gold_update": {
+    "n": 2,
+    "k": 2,
+    "rate": 1.0,
+    "wilson95": [
+     0.34238022750665303,
+     1.0
+    ]
+   },
+   "strict_agrees_with_gold_strict": {
+    "n": 2,
+    "k": 1,
+    "rate": 0.5,
+    "wilson95": [
+     0.09453120573423074,
+     0.9054687942657693
+    ]
+   }
+  },
+  "update_only_fork": {
+   "n": 12,
+   "n_in_tier": 282,
+   "model_update_yes": 9,
+   "model_strict_yes": 0,
+   "update_agrees_with_judge": {
+    "n": 12,
+    "k": 3,
+    "rate": 0.25,
+    "wilson95": [
+     0.08894166839405471,
+     0.5323053349335657
+    ]
+   },
+   "update_agrees_with_parser": {
+    "n": 12,
+    "k": 9,
+    "rate": 0.75,
+    "wilson95": [
+     0.46769466506643426,
+     0.9110583316059453
+    ]
+   },
+   "update_agrees_with_gold_update": {
+    "n": 12,
+    "k": 9,
+    "rate": 0.75,
+    "wilson95": [
+     0.46769466506643426,
+     0.9110583316059453
+    ]
+   },
+   "strict_agrees_with_gold_strict": {
+    "n": 12,
+    "k": 12,
+    "rate": 1.0,
+    "wilson95": [
+     0.7575059933447592,
+     1.0
+    ]
+   }
+  },
+  "rejected": {
+   "n": 1,
+   "n_in_tier": 12,
+   "model_update_yes": 1,
+   "model_strict_yes": 0,
+   "update_agrees_with_judge": {
+    "n": 1,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.7934506856227626
+    ]
+   },
+   "update_agrees_with_parser": {
+    "n": 1,
+    "k": 1,
+    "rate": 1.0,
+    "wilson95": [
+     0.20654931437723745,
+     1.0
+    ]
+   },
+   "update_agrees_with_gold_update": {
+    "n": 1,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.7934506856227626
+    ]
+   },
+   "strict_agrees_with_gold_strict": {
+    "n": 1,
+    "k": 1,
+    "rate": 1.0,
+    "wilson95": [
+     0.20654931437723745,
+     1.0
+    ]
+   }
+  },
+  "discovered_unverified": {
+   "n": 4,
+   "n_in_tier": 105,
+   "model_update_yes": 1,
+   "model_strict_yes": 1,
+   "update_agrees_with_judge": {
+    "n": 4,
+    "k": 1,
+    "rate": 0.25,
+    "wilson95": [
+     0.04558726080970055,
+     0.6993581574175981
+    ]
+   },
+   "update_agrees_with_parser": {
+    "n": 4,
+    "k": 3,
+    "rate": 0.75,
+    "wilson95": [
+     0.30064184258240184,
+     0.9544127391902995
+    ]
+   },
+   "update_agrees_with_gold_update": {
+    "n": 4,
+    "k": 3,
+    "rate": 0.75,
+    "wilson95": [
+     0.30064184258240184,
+     0.9544127391902995
+    ]
+   },
+   "strict_agrees_with_gold_strict": {
+    "n": 4,
+    "k": 3,
+    "rate": 0.75,
+    "wilson95": [
+     0.30064184258240184,
+     0.9544127391902995
+    ]
+   }
+  },
+  "negative": {
+   "n": 1,
+   "n_in_tier": 51782,
+   "model_update_yes": 0,
+   "model_strict_yes": 0,
+   "update_agrees_with_judge": {
+    "n": 1,
+    "k": 1,
+    "rate": 1.0,
+    "wilson95": [
+     0.20654931437723745,
+     1.0
+    ]
+   },
+   "update_agrees_with_parser": {
+    "n": 1,
+    "k": 1,
+    "rate": 1.0,
+    "wilson95": [
+     0.20654931437723745,
+     1.0
+    ]
+   },
+   "update_agrees_with_gold_update": {
+    "n": 1,
+    "k": 1,
+    "rate": 1.0,
+    "wilson95": [
+     0.20654931437723745,
+     1.0
+    ]
+   },
+   "strict_agrees_with_gold_strict": {
+    "n": 1,
+    "k": 1,
+    "rate": 1.0,
+    "wilson95": [
+     0.20654931437723745,
+     1.0
+    ]
+   }
+  }
+ },
+ "field_vs_judge": {
+  "same_referent": {
+   "n": 20,
+   "agreement": 0.95,
+   "kappa": 0.857142857142857,
+   "agree": {
+    "n": 20,
+    "k": 19,
+    "rate": 0.95,
+    "wilson95": [
+     0.763868806553258,
+     0.9911185511992047
+    ]
+   },
+   "table": {
+    "TT": 15,
+    "TF": 1,
+    "FT": 0,
+    "FF": 4
+   }
+  },
+  "same_relation": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": null,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 20,
+    "TF": 0,
+    "FT": 0,
+    "FF": 0
+   }
+  },
+  "context_overlap": {
+   "n": 20,
+   "agreement": 1.0,
+   "kappa": null,
+   "agree": {
+    "n": 20,
+    "k": 20,
+    "rate": 1.0,
+    "wilson95": [
+     0.8388748419471806,
+     1.0
+    ]
+   },
+   "table": {
+    "TT": 20,
+    "TF": 0,
+    "FT": 0,
+    "FF": 0
+   }
+  },
+  "values_incompatible": {
+   "n": 20,
+   "agreement": 0.5,
+   "kappa": 0.19354838709677424,
+   "agree": {
+    "n": 20,
+    "k": 10,
+    "rate": 0.5,
+    "wilson95": [
+     0.2992980081982123,
+     0.7007019918017877
+    ]
+   },
+   "table": {
+    "TT": 6,
+    "TF": 10,
+    "FT": 0,
+    "FF": 4
+   }
+  },
+  "update_conflict": {
+   "n": 20,
+   "agreement": 0.35,
+   "kappa": -0.16071428571428564,
+   "agree": {
+    "n": 20,
+    "k": 7,
+    "rate": 0.35,
+    "wilson95": [
+     0.18119182410108206,
+     0.5671457233147638
+    ]
+   },
+   "table": {
+    "TT": 3,
+    "TF": 10,
+    "FT": 3,
+    "FF": 4
+   }
+  },
+  "strict_conflict": {
+   "n": 20,
+   "agreement": 0.8,
+   "kappa": 0.41176470588235303,
+   "agree": {
+    "n": 20,
+    "k": 16,
+    "rate": 0.8,
+    "wilson95": [
+     0.5839825677481064,
+     0.919342337420202
+    ]
+   },
+   "table": {
+    "TT": 2,
+    "TF": 0,
+    "FT": 4,
+    "FF": 14
+   }
+  }
+ },
+ "rubric_departures": {},
+ "batches": [
+  {
+   "group": "heldout",
+   "batch": "batch_001",
+   "n": 20,
+   "state": "done",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_001",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_002",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_003",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_004",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_005",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_006",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_007",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_008",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_009",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_010",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_011",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_012",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_013",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_014",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_015",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_016",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_017",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_018",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_019",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_020",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_021",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_022",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_023",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_024",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_025",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_026",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_027",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_028",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_029",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_030",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_031",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_032",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_033",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_034",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_035",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_036",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_037",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_038",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_039",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_040",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_041",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_042",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_043",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_044",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_045",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_046",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_047",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_048",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_049",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_050",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_051",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_052",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_053",
+   "n": 100,
+   "state": "missing",
+   "error": null
+  },
+  {
+   "group": "stage1",
+   "batch": "batch_054",
+   "n": 97,
+   "state": "missing",
+   "error": null
+  }
+ ]
+}

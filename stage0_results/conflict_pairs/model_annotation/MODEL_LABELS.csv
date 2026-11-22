@@ -1,0 +1,21 @@
+review_id,pair_id,group,same_referent,same_relation,context_overlap,values_incompatible,update_conflict,strict_conflict,notes
+h001,sh_64k:2973-3681,heldout,yes,yes,yes,yes,yes,no,
+h002,sh_32k:1099-2019,heldout,yes,yes,yes,yes,yes,no,
+h003,sh_64k:1024-2205,heldout,yes,yes,yes,yes,yes,no,
+h004,sh_6k:68-410,heldout,yes,yes,yes,yes,yes,no,second value is not a religion; treated as different value
+h005,sh_32k:618-1801,heldout,yes,yes,yes,yes,yes,no,
+h006,sh_64k:2676-4394,heldout,yes,yes,yes,yes,yes,yes,
+h007,sh_32k:540-1296,heldout,yes,yes,yes,no,no,no,
+h008,sh_64k:2976-4499,heldout,yes,yes,yes,yes,yes,yes,uncovered: written in vs original language read as paraphrase; strict from original language row
+h009,sh_64k:668-2468,heldout,no,yes,yes,yes,no,no,
+h010,sh_64k:3066-3096,heldout,yes,yes,yes,yes,yes,no,
+h011,sh_64k:1057-1490,heldout,yes,yes,yes,yes,yes,no,
+h012,sh_64k:3893-4555,heldout,no,yes,yes,no,no,no,
+h013,sh_64k:1966-3825,heldout,no,yes,yes,yes,no,no,
+h014,sh_64k:2189-3251,heldout,yes,yes,yes,yes,yes,no,
+h015,sh_64k:1887-2365,heldout,no,yes,yes,yes,no,no,
+h016,sh_32k:1136-1424,heldout,yes,yes,yes,yes,yes,no,
+h017,sh_32k:518-1123,heldout,yes,yes,yes,yes,yes,no,
+h018,sh_32k:268-651,heldout,yes,yes,yes,no,no,no,
+h019,sh_64k:1575-4329,heldout,yes,yes,yes,no,no,no,hardcore punk read as subgenre of rock music
+h020,sh_64k:24-2084,heldout,yes,yes,yes,yes,yes,no,

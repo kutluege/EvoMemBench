@@ -1,0 +1,229 @@
+{
+ "n_reviewed": 60,
+ "annotators": 1,
+ "by_stratum_n": {
+  "disputed": 50,
+  "control": 10
+ },
+ "update_conflict_by_group": {
+  "disputed": {
+   "n": 50,
+   "human_update_yes": 33,
+   "human_strict_yes": 3,
+   "agrees_with_judge": {
+    "n": 50,
+    "k": 12,
+    "rate": 0.24,
+    "wilson95": [
+     0.1429739139699173,
+     0.3741268375794292
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 50,
+    "k": 38,
+    "rate": 0.76,
+    "wilson95": [
+     0.6258731624205708,
+     0.8570260860300828
+    ]
+   }
+  },
+  "control": {
+   "n": 10,
+   "human_update_yes": 5,
+   "human_strict_yes": 4,
+   "agrees_with_judge": {
+    "n": 10,
+    "k": 10,
+    "rate": 1.0,
+    "wilson95": [
+     0.7224672001371107,
+     0.9999999999999999
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 10,
+    "k": 10,
+    "rate": 1.0,
+    "wilson95": [
+     0.7224672001371107,
+     0.9999999999999999
+    ]
+   }
+  },
+  "update_only_fork": {
+   "n": 35,
+   "human_update_yes": 27,
+   "human_strict_yes": 0,
+   "agrees_with_judge": {
+    "n": 35,
+    "k": 8,
+    "rate": 0.22857142857142856,
+    "wilson95": [
+     0.12065879834191687,
+     0.3901731689199025
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 35,
+    "k": 27,
+    "rate": 0.7714285714285715,
+    "wilson95": [
+     0.6098268310800976,
+     0.879341201658083
+    ]
+   }
+  },
+  "rejected": {
+   "n": 2,
+   "human_update_yes": 2,
+   "human_strict_yes": 0,
+   "agrees_with_judge": {
+    "n": 2,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.6576197724933469
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 2,
+    "k": 2,
+    "rate": 1.0,
+    "wilson95": [
+     0.34238022750665303,
+     1.0
+    ]
+   }
+  },
+  "discovered_unverified": {
+   "n": 13,
+   "human_update_yes": 4,
+   "human_strict_yes": 3,
+   "agrees_with_judge": {
+    "n": 13,
+    "k": 4,
+    "rate": 0.3076923076923077,
+    "wilson95": [
+     0.12680703655710515,
+     0.5763065681945096
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 13,
+    "k": 9,
+    "rate": 0.6923076923076923,
+    "wilson95": [
+     0.42369343180549035,
+     0.8731929634428948
+    ]
+   }
+  },
+  "core": {
+   "n": 5,
+   "human_update_yes": 5,
+   "human_strict_yes": 4,
+   "agrees_with_judge": {
+    "n": 5,
+    "k": 5,
+    "rate": 1.0,
+    "wilson95": [
+     0.5655175352168251,
+     1.0
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 5,
+    "k": 5,
+    "rate": 1.0,
+    "wilson95": [
+     0.5655175352168251,
+     1.0
+    ]
+   }
+  },
+  "negative": {
+   "n": 5,
+   "human_update_yes": 0,
+   "human_strict_yes": 0,
+   "agrees_with_judge": {
+    "n": 5,
+    "k": 5,
+    "rate": 1.0,
+    "wilson95": [
+     0.5655175352168251,
+     1.0
+    ]
+   },
+   "agrees_with_parser": {
+    "n": 5,
+    "k": 5,
+    "rate": 1.0,
+    "wilson95": [
+     0.5655175352168251,
+     1.0
+    ]
+   }
+  }
+ },
+ "field_agreement_with_judge": {
+  "same_referent": {
+   "n": 60,
+   "k": 56,
+   "rate": 0.9333333333333333,
+   "wilson95": [
+    0.8407464268680283,
+    0.9737713012754938
+   ]
+  },
+  "same_relation": {
+   "n": 60,
+   "k": 59,
+   "rate": 0.9833333333333333,
+   "wilson95": [
+    0.9114487027240993,
+    0.9970518402052136
+   ]
+  },
+  "context_overlap": {
+   "n": 60,
+   "k": 60,
+   "rate": 1.0,
+   "wilson95": [
+    0.93982814785791,
+    0.9999999999999998
+   ]
+  },
+  "values_incompatible": {
+   "n": 60,
+   "k": 27,
+   "rate": 0.45,
+   "wilson95": [
+    0.3309365440675524,
+    0.5750806411466566
+   ]
+  },
+  "update_conflict": {
+   "n": 60,
+   "k": 22,
+   "rate": 0.36666666666666664,
+   "wilson95": [
+    0.25620916687225426,
+    0.49316999369896963
+   ]
+  },
+  "strict_conflict": {
+   "n": 60,
+   "k": 49,
+   "rate": 0.8166666666666667,
+   "wilson95": [
+    0.7008024625353194,
+    0.8944220311080237
+   ]
+  }
+ },
+ "build_id": "96044c348d3322b6",
+ "seed": 20261122
+}
