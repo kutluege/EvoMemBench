@@ -1,0 +1,15 @@
+{
+ "what": "who labelled which batches; written by the session that ran the workers",
+ "date": "2026-11-22",
+ "model": "claude-fable-5-2",
+ "reasoning_effort": "medium",
+ "agent": "Claude Code general-purpose subagent instructed to follow .claude/agents/pair-annotator.md (the pair-annotator agent type was not loaded in the session). The subagents had shell access; the rule to use only Read, Write and Glob rested on the instruction and on their own reports.",
+ "guideline": {
+  "heldout": ".claude/skills/pair-labelling/SKILL.md at commit c6cf01b (drafted from 40 pilot pairs)",
+  "stage1": ".claude/skills/pair-labelling/SKILL.md at commit 1920811 (all 60 pilot pairs)"
+ },
+ "runs": [
+  {"group": "heldout", "workers": 1, "batches_per_worker": 1, "wall_clock_seconds": 25},
+  {"group": "stage1", "workers": 9, "batches_per_worker": 6, "assignment": "worker k labelled batch_(6k-5) to batch_(6k)", "wall_clock_seconds_per_worker": "159-172", "note": "each worker read one batch file and wrote its 100 rows in one step"}
+ ]
+}

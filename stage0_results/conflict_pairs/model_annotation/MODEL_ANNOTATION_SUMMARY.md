@@ -2,14 +2,14 @@
 
 Annotator: claude-fable-5-2, reasoning effort medium, Claude Code subagents (parallel workers). Labels follow a guideline written from the human pilot; no model weights were changed. These are model labels, not human labels.
 
-Pairs labelled: 20 ({'heldout': 20}).
+Pairs labelled: 5417 ({'heldout': 20, 'stage1': 5397}).
 
 ## Coverage
 
 | group | batches done | invalid | missing |
 |---|---|---|---|
 | heldout | 1 | 0 | 0 |
-| stage1 | 0 | 0 | 54 |
+| stage1 | 54 | 0 | 0 |
 
 ## Held-out pilot pairs: model vs the human annotator
 
@@ -31,22 +31,22 @@ Gate (fixed in advance: update_conflict ≥ 0.85, every other field ≥ 0.8; 20 
 
 | tier | labelled / in tier | model update yes | model strict yes | = judge | = parser | = gold_update | strict = gold_strict |
 |---|---|---|---|---|---|---|---|
-| core | 2 / 2388 | 2 | 1 | 1.000 | 1.000 | 1.000 | 0.500 |
-| update_only_fork | 12 / 282 | 9 | 0 | 0.250 | 0.750 | 0.750 | 1.000 |
-| rejected | 1 / 12 | 1 | 0 | 0.000 | 1.000 | 0.000 | 1.000 |
-| discovered_unverified | 4 / 105 | 1 | 1 | 0.250 | 0.750 | 0.750 | 0.750 |
-| negative | 1 / 51782 | 0 | 0 | 1.000 | 1.000 | 1.000 | 1.000 |
+| core | 2385 / 2388 | 2383 | 764 | 0.999 | 0.999 | 0.999 | 0.496 |
+| update_only_fork | 259 / 282 | 229 | 0 | 0.116 | 0.884 | 0.884 | 1.000 |
+| rejected | 11 / 12 | 11 | 1 | 0.000 | 1.000 | 0.000 | 0.909 |
+| discovered_unverified | 96 / 105 | 14 | 11 | 0.146 | 0.854 | 0.854 | 0.885 |
+| negative | 2666 / 51782 | 0 | 0 | 1.000 | 1.000 | 1.000 | 1.000 |
 
 ## Field-level agreement with the GPT-5-mini judge (all labelled pairs)
 
 | field | n | agreement | Cohen κ |
 |---|---|---|---|
-| same_referent | 20 | 0.950 | 0.857 |
-| same_relation | 20 | 1.000 | — |
-| context_overlap | 20 | 1.000 | — |
-| values_incompatible | 20 | 0.500 | 0.194 |
-| update_conflict | 20 | 0.350 | -0.161 |
-| strict_conflict | 20 | 0.800 | 0.412 |
+| same_referent | 5417 | 0.967 | 0.933 |
+| same_relation | 5417 | 0.961 | 0.708 |
+| context_overlap | 5417 | 0.920 | 0.000 |
+| values_incompatible | 5417 | 0.783 | 0.580 |
+| update_conflict | 5417 | 0.940 | 0.880 |
+| strict_conflict | 5417 | 0.764 | 0.429 |
 
 ## Rows departing from the written rubric's derivation rules
 
