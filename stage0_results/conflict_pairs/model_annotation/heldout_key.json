@@ -1,0 +1,102 @@
+{
+ "what": "held-out pilot pairs; the annotator does not open this file",
+ "seed": 20261122,
+ "n_heldout": 20,
+ "n_calibration": 40,
+ "by_tier_heldout": {
+  "rejected": 1,
+  "update_only_fork": 12,
+  "core": 2,
+  "discovered_unverified": 4,
+  "negative": 1
+ },
+ "by_tier_calibration": {
+  "discovered_unverified": 9,
+  "update_only_fork": 23,
+  "rejected": 1,
+  "negative": 4,
+  "core": 3
+ },
+ "rows": {
+  "h001": {
+   "pilot_id": "P033",
+   "pair_id": "sh_64k:2973-3681"
+  },
+  "h002": {
+   "pilot_id": "P002",
+   "pair_id": "sh_32k:1099-2019"
+  },
+  "h003": {
+   "pilot_id": "P036",
+   "pair_id": "sh_64k:1024-2205"
+  },
+  "h004": {
+   "pilot_id": "P046",
+   "pair_id": "sh_6k:68-410"
+  },
+  "h005": {
+   "pilot_id": "P037",
+   "pair_id": "sh_32k:618-1801"
+  },
+  "h006": {
+   "pilot_id": "P040",
+   "pair_id": "sh_64k:2676-4394"
+  },
+  "h007": {
+   "pilot_id": "P051",
+   "pair_id": "sh_32k:540-1296"
+  },
+  "h008": {
+   "pilot_id": "P059",
+   "pair_id": "sh_64k:2976-4499"
+  },
+  "h009": {
+   "pilot_id": "P020",
+   "pair_id": "sh_64k:668-2468"
+  },
+  "h010": {
+   "pilot_id": "P015",
+   "pair_id": "sh_64k:3066-3096"
+  },
+  "h011": {
+   "pilot_id": "P054",
+   "pair_id": "sh_64k:1057-1490"
+  },
+  "h012": {
+   "pilot_id": "P052",
+   "pair_id": "sh_64k:3893-4555"
+  },
+  "h013": {
+   "pilot_id": "P049",
+   "pair_id": "sh_64k:1966-3825"
+  },
+  "h014": {
+   "pilot_id": "P011",
+   "pair_id": "sh_64k:2189-3251"
+  },
+  "h015": {
+   "pilot_id": "P027",
+   "pair_id": "sh_64k:1887-2365"
+  },
+  "h016": {
+   "pilot_id": "P034",
+   "pair_id": "sh_32k:1136-1424"
+  },
+  "h017": {
+   "pilot_id": "P044",
+   "pair_id": "sh_32k:518-1123"
+  },
+  "h018": {
+   "pilot_id": "P021",
+   "pair_id": "sh_32k:268-651"
+  },
+  "h019": {
+   "pilot_id": "P058",
+   "pair_id": "sh_64k:1575-4329"
+  },
+  "h020": {
+   "pilot_id": "P031",
+   "pair_id": "sh_64k:24-2084"
+  }
+ }
+}
