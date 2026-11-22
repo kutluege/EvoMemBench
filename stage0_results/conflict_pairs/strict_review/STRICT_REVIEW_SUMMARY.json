@@ -1,0 +1,215 @@
+{
+ "n_rows": 103,
+ "strict_yes": 18,
+ "by_stratum": {
+  "labelled_before": {
+   "n": 53,
+   "strict_yes": 7
+  },
+  "new": {
+   "n": 50,
+   "strict_yes": 11
+  }
+ },
+ "against_own_earlier_answer": {
+  "n": 53,
+  "same": 43,
+  "no_to_yes": [],
+  "yes_to_no": [
+   "S023",
+   "S033",
+   "S045",
+   "S064",
+   "S068",
+   "S071",
+   "S076",
+   "S090",
+   "S094",
+   "S095"
+  ]
+ },
+ "against_model_relation_only_rule": {
+  "n": 94,
+  "same": 81,
+  "human_yes_model_no": [],
+  "human_no_model_yes": [
+   "S011",
+   "S017",
+   "S027",
+   "S033",
+   "S050",
+   "S055",
+   "S061",
+   "S062",
+   "S064",
+   "S068",
+   "S076",
+   "S088",
+   "S095"
+  ]
+ },
+ "by_relation": {
+  "'s child is": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "The Governor of | is": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "The author of | is": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "The capital of | is": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "The chairperson of | is": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "The chief executive officer of | is": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "The company that produced | is": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "The director of | is": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "The head coach of | is": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "The headquarters of | is located in the city of": {
+   "n": 3,
+   "strict_yes": 0
+  },
+  "The name of the current head of state in | is": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "The name of the current head of the | government is": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "The name of the current head of the | government is / unparsed": {
+   "n": 3,
+   "strict_yes": 0
+  },
+  "The official language of | is": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "The origianl broadcaster of | is": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "The original language of | is": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "The original language of | is / was written in the language of": {
+   "n": 4,
+   "strict_yes": 0
+  },
+  "The type of music that | plays is": {
+   "n": 4,
+   "strict_yes": 0
+  },
+  "The univeristy where | was educated is": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "died in the city of": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "is a citizen of": {
+   "n": 7,
+   "strict_yes": 0
+  },
+  "is affiliated with the religion of": {
+   "n": 3,
+   "strict_yes": 0
+  },
+  "is associated with the sport of": {
+   "n": 12,
+   "strict_yes": 0
+  },
+  "is employed by": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "is famous for": {
+   "n": 4,
+   "strict_yes": 0
+  },
+  "is located in the continent of": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "is married to": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "plays the position of": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "speaks the language of": {
+   "n": 9,
+   "strict_yes": 0
+  },
+  "unparsed": {
+   "n": 4,
+   "strict_yes": 4
+  },
+  "was born in the city of": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "was created by": {
+   "n": 3,
+   "strict_yes": 0
+  },
+  "was created in the country of": {
+   "n": 5,
+   "strict_yes": 5
+  },
+  "was developed by": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "was founded by": {
+   "n": 2,
+   "strict_yes": 0
+  },
+  "was founded in the city of": {
+   "n": 1,
+   "strict_yes": 1
+  },
+  "was performed by": {
+   "n": 3,
+   "strict_yes": 0
+  },
+  "was written in the language of": {
+   "n": 1,
+   "strict_yes": 0
+  },
+  "worked in the city of": {
+   "n": 3,
+   "strict_yes": 0
+  },
+  "works in the field of": {
+   "n": 3,
+   "strict_yes": 0
+  }
+ },
+ "relations_with_both_answers": [],
+ "build_id": "e9dcb0e56609e20f"
+}

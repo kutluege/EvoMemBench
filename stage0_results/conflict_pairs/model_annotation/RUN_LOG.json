@@ -54,5 +54,6 @@
    "expected_by_guideline": "yes",
    "why": "both sentences have the subject South Korea; the identical sentence pair under review_id b29723 was labelled yes. The relations differ, so update_conflict and strict_conflict are no either way. The label file is left as the worker wrote it."
   }
- ]
+ ],
+ "context_caveat": "Added 2026-11-23. The workers ran as general-purpose subagents inside this repository. By the harness documentation such subagents receive the repository's CLAUDE.md at start, so the workers very probably had it in context; this was not checked at run time. CLAUDE.md holds no pair-level label, but it describes the dataset's tiers and label conventions (for example that gold_update follows the benchmark's later-serial-supersedes convention and that the update-only tier is a definitional fork). The model labels are therefore not blind to those conventions, in addition to the points under 'agent'."
 }

@@ -20,23 +20,24 @@ still missing; a claim is written in the paper only as far as its evidence goes.
 |---|---|---|---|---|
 | C1 | **Problem.** When a vector memory holds several versions of a fact, small models read out the superseded value. | Measured: 94 per cent of wrong answers on conflicted questions contain a superseded value. | Whether it survives fictitious entities and a short page. | 2 |
 | C2 | **Method and cost.** Version pairs can be found from embedding geometry alone, without a schema, a parser or a generative call, faster and cheaper than with language models. | Pair-level AUROC 0.972 against 0.893 for cosine. Cost of two LLM readers of the same pairs: GPT-5 mini US$19.49 for 54,569 pairs; Claude Fable 5.2 about 10 million tokens. | (a) Pair-level table: geometry, NLI, GPT-5 mini and Fable against human labels, with cost per 1,000 pairs. (b) End to end: a generative extract-then-keep-newest filter against the method, with accuracy, latency and calls. (c) Latency and memory of the filter. | 3–4 |
-| C3 | **Effect.** With the filter, a small model answers conflicted questions about as well as a much larger one. | Measured: filtered Qwen3-4B is at or above unfiltered Qwen3.5-9B on all three stores (77 against 39, 77 against 61, 56 against 51). | (a) A large hosted model, Claude Haiku 5.5, run in the same harness, unfiltered and filtered. (b) The same on the fact-disjoint test set. (c) The simple baselines. | 2–3 |
+| C3 | **Effect.** With the filter, a small model answers conflicted questions about as well as a much larger one. | Measured: filtered Qwen3-4B is at or above unfiltered Qwen3.5-9B on all three stores (77 against 39, 77 against 61, 56 against 51). | (a) A large hosted model run in the same harness, unfiltered and filtered (Section 4, Week 2, for which model). (b) The same on the fact-disjoint test set. (c) The simple baselines. | 2–3 |
 | C4 | **Scope.** The method detects supersession under a one-value-per-slot convention, not logical contradiction. | Decision of 23 November on `strict_conflict`; preliminary NLI measurement. | The share of update conflicts that are strict conflicts; the NLI measurement with the paper's own model. | 0–1 |
 | C5 | **Resource.** Two additions to the FactConsolidation task of MemoryAgentBench: (a) 54,569 fact pairs with two label layers, read by two language models and checked by two human annotators; (b) a fact-disjoint test set of free-text records. | All pairs labelled by GPT-5 mini, by a rule-based parser and by Claude Fable 5.2. One annotator has labelled every pair on which they disagree: 57 pair ids, 40 sentence pairs. | The second annotator; a sample of pairs on which the sources agree; kappa. The test set itself. | 1–4 |
 
 Rules that keep the claims honest:
 
 - **"About as well as a large model" is a measured statement.** The protocol fixes the report
-  before the run: accuracy of filtered Qwen3-4B, unfiltered Haiku 5.5 and filtered Haiku 5.5 on
-  conflicted questions, the share of the gap between unfiltered Qwen3-4B and unfiltered Haiku
+  before the run: accuracy of filtered Qwen3-4B and of the unfiltered and filtered hosted model on
+  conflicted questions, the share of the gap between unfiltered Qwen3-4B and the unfiltered hosted model
   that the filter closes, and cost per question. The word "comparable" is used only if the
   filtered small model is within five points of the unfiltered large one; otherwise the paper
   gives the share of the gap closed. *The five-point margin is my proposal [I]; the authors fix
   it at registration.*
-- **Haiku 5.5 is described as what it is:** a hosted commercial model whose parameter count is
-  not published, run with high reasoning effort while the small models run with thinking
-  disabled. It is the smallest tier of its family, so the paper calls it "a large hosted model",
-  not "a frontier model". Both facts go in the text and the limitations.
+- **The hosted model is described as what it is:** a commercial model whose parameter count is
+  not published, reached through Claude Code, run at a stated reasoning effort while the small
+  models run with thinking disabled. Haiku 5.5 is the smallest tier of its family and is not
+  called a large model; Sonnet 5.5, if used, is "a large hosted model", not "a frontier model".
+  These facts go in the text and the limitations.
 - **"Checked by two humans and two models" is written out in full:** every pair labelled by two
   language models and a parser; every sentence pair on which they disagree and a stratified
   sample of those on which they agree labelled independently by two annotators, who are the
@@ -64,7 +65,8 @@ about languages other than English.
    states this openly. An outside annotator can be added at revision if a reviewer asks.
 4. **The rubric is rewritten before the second annotator starts.** The first rubric was
    ambiguous in ways that produced the disputed tiers (Week 0).
-5. **A large-model reference run is added** (Claude Haiku 5.5), because C3 now rests on it.
+5. **A large-model reference run is added,** because C3 now rests on it. It goes through the
+   author's Claude Code subscription, not the API (Week 1 and Week 2).
 6. **The generative comparator and the cost analysis move from "should" to "never cut",** and the
    comparator moves one week earlier, because C2 rests on them.
 7. **A pair-level comparison with language-model readers is added.** It uses data that already
@@ -82,7 +84,7 @@ about languages other than English.
 |---|---|---|---|---|
 | 0 | 23–25 Nov | Rubric, protocol text, journal questions | Protocol ready to register; rubric v2; `strict_conflict` reference labels | — |
 | 1 | 26 Nov – 2 Dec | Registration and data | Protocol registered; test and calibration sets built; validation sample drawn | Registration precedes data generation |
-| 2 | 3–9 Dec | Phenomenon checks, transfer, large-model reference | Native checks; transfer under three conditions; Haiku 5.5 runs; annotation under way | **Framing decision with co-author: 9 Dec** |
+| 2 | 3–9 Dec | Phenomenon checks, transfer, large-model reference | Native checks; transfer under three conditions; hosted-model runs; annotation under way | **Framing decision with co-author: 9 Dec** |
 | 3 | 10–16 Dec | Baselines, robustness, comparator built | Baseline table; pair-level reader table; annotation complete and frozen | First tables in the manuscript |
 | 4 | 17–23 Dec | Cost, labels, generative comparator | Latency table; agreement report; comparator results | Existing text cut to about 11,100 words |
 | 5 | 24–30 Dec | Verification and data release | Verified tables; data card; claims memo | **Experimental freeze: 30 Dec** |
@@ -96,11 +98,22 @@ annotation (Weeks 1–3).
 
 ### Week 0 (23–25 November): what can be done before registration
 
-- [ ] **E** Fill the `strict_conflict` reference sheet: 103 sentence pairs, one question each
-      (`stage0_results/conflict_pairs/strict_review/strict_label.html`). About 20 minutes.
-- [ ] **C** Score it, split it into worked examples and a held-out half, fix the pass mark
-      before the run, then label `strict_conflict` on the 1,692 distinct update-conflict
-      sentence pairs with Fable 5.2 subagents. Nothing else is relabelled.
+- [x] **E** Fill the `strict_conflict` reference sheet (received 23 November, 103 sentence pairs).
+- [ ] **E** Two answers the sheet cannot be used without (`YAPILANLAR.md`, 23 November):
+  - how the sheet was filled: 91 of its 103 rows carry templated English notes that refer back
+    to the first 12 rows, and a reference sheet has to be the annotator's own labels;
+  - which rule stands. The sheet follows a relation-only table and says "no" on the two pairs
+    that prompted the decision of 23 November (US and ancient Rome citizenship; Lu and New York
+    City). Either the table is the rule, or the decision is.
+- [ ] **C**, after those answers:
+  - *if the table is the rule:* derive `strict_conflict` from it for all update conflicts. No
+    model pass is needed; 360 pair ids (222 sentence pairs) change from yes to no;
+  - *if the decision stands:* E re-decides 7 rows that contradict it and 3 borderline ones,
+    settles six relations (headquarters, married, continent, broadcaster, director, original
+    language), and labels 20–30 added pairs chosen to contain mutually exclusive values. Then
+    one Fable 5.2 pass over about 708 sentence pairs (up to 897), batched by relation, in which
+    each worker records the period of each value as evidence, with a held-out set that contains
+    such pairs. Nothing else is relabelled.
 - [ ] **New. C, then E and Ş approve.** Rubric v2 for the two-annotator validation. It settles the
       points the first rubric left open:
   - `values_incompatible` is about the slot: two different values are incompatible even when
@@ -157,8 +170,16 @@ Deliverables: protocol ready to register; rubric v2; `strict_conflict` labels; j
       (`cross-encoder/nli-deberta-v3-large`) on the 2,135 sentence pairs of the preliminary run:
       contradiction rate on single-valued and multi-valued relations, on containment pairs and
       on look-alike negatives.
-- [ ] **New. C** Write the API adapter for the hosted model and run a ten-question smoke test.
-      Same retrieved page, prompt and scoring as the local models.
+- [ ] **New, changed 23 November. C** Write the runner for the hosted model and run a
+      ten-question smoke test. The model is reached through the author's Claude Code
+      subscription, not the API: one non-interactive `claude -p` call per question from an
+      empty directory outside this repository, with the system prompt replaced by the
+      benchmark's, tools off, and JSON output for token counts. Same retrieved page, prompt and
+      scoring as the local models. The smoke test must show that the reported input tokens
+      match the length of our prompt, that is, that nothing else reaches the model. The run is
+      **never** done with subagents inside this repository: they receive `CLAUDE.md`, which
+      states the benchmark's rule, and they can open the gold answers.
+- [ ] **E** Check that the subscription's terms allow an automated evaluation run of this size.
 - [ ] **E** Rename and reorganise the repository.
 
 Deliverables: registered protocol; test set and calibration split with provenance and a
@@ -183,13 +204,22 @@ Days 3–6, transfer
       test set.
 
 **New.** Large-model reference, one to two days
-- [ ] **C, E** Run Claude Haiku 5.5 (`claude-haiku-5-5`, high reasoning effort) on the three
-      original stores and the new test set, with the unfiltered page and with the filtered page.
-      The deletion plan does not depend on the answering model, so the filtered page is the one
-      already built. About 1,400 calls: 600 on the original stores, 800 on the new set.
-- [ ] **C** Record for every call: model identifier, date, input and output tokens, latency. Record
-      the list price on the day of the run. The journal wants name, version and dates for any AI
-      tool that analyses data [J].
+- [ ] **C, E** Run the hosted reference model on the three original stores and the new test
+      set, with the unfiltered page and with the filtered page. The deletion plan does not
+      depend on the answering model, so the filtered page is the one already built. About 1,400
+      calls per model: 600 on the original stores, 800 on the new set. Which model: proposed
+      on 23 November, **Claude Sonnet 5.5 as the large model and Claude Haiku 5.5 as a second,
+      cheaper reference**, Haiku being the counterpart of the small hosted models whose
+      published scores the manuscript cites; the author asked first for Haiku 5.5 and has not
+      yet confirmed the proposal. If usage limits bind, the second model runs on the three
+      original stores only.
+- [ ] **C** Each cell is run three times, because the temperature cannot be set through this
+      route; report mean and range.
+- [ ] **C** Record for every call: model identifier, Claude Code version, flags, date, input and
+      output tokens, latency. A subscription has no price per call, so cost per question is
+      computed from the measured tokens and the public list price on the day of the run, and
+      the paper says so. The journal wants name, version and dates for any AI tool that
+      analyses data [J].
 - [ ] **C** Report as fixed in the protocol: the three accuracies on conflicted questions, the
       share of the gap closed, cost per question for the hosted model against the small model
       with the filter.
@@ -207,7 +237,7 @@ Writing track, about one day
 - [ ] **C** Move the development history to the supplement (about 900 words).
 
 **Decision on 9 December, with the co-author.** The outcome table of the 21 November plan
-decides the lead claim. **New:** the same meeting settles the wording of C3 from the Haiku
+decides the lead claim. **New:** the same meeting settles the wording of C3 from the hosted-model
 result (comparable, or share of the gap closed), the method's name, and the final list of
 main-text tables.
 
@@ -331,7 +361,7 @@ Deliverables: rewritten manuscript inside the budget; corrected figures and tabl
 
 - [ ] **Changed. E** AI-use declaration [J], each entry with name, version, dates and access:
   - in the methods: GPT-5 mini (pair labels), Claude Fable 5.2 (pair labels, calibrated on a
-    human pilot), Claude Haiku 5.5 (answering model), the model that wrote the test-set
+    human pilot), the hosted answering model or models, the model that wrote the test-set
     paraphrases;
   - in the acknowledgements: tools used for code and text.
 - [ ] **E** Data availability statement with the DOI.
@@ -360,7 +390,7 @@ Changes to the 21 November budget, all estimates [I]:
 
 | Item | 21 November | Now | Words |
 |---|---|---|---|
-| Model-scale comparison (Table 11, Figure 5) | Two sentences; rest to supplement | **Stays in main text**, with the Haiku 5.5 rows | +400 kept, +150 new |
+| Model-scale comparison (Table 11, Figure 5) | Two sentences; rest to supplement | **Stays in main text**, with the hosted-model rows | +400 kept, +150 new |
 | Pair-level reader comparison with cost | — | Merged into the label-agreement table; one paragraph | +150 |
 | Supersession against contradiction, strict share | — | One paragraph in the problem setting | +150 |
 | Detection inside the retrieved pools | Main text | Supplement; one sentence | −300 |
@@ -390,17 +420,20 @@ Never cut:
 - the phenomenon checks before 9 December;
 - the lexical, entity, cosine and NLI baselines end to end;
 - the two-annotator validation with kappa;
-- **the generative comparator, the cost analysis and the Haiku 5.5 reference run:** C2 and C3
+- **the generative comparator, the cost analysis and the hosted reference run:** C2 and C3
   rest on them;
 - the cut to the budget, the mandatory statements, the AI-use declaration and the alt text.
 
 ## 7. Risks to the claims
 
-- **Haiku 5.5 may be far ahead.** Published single-hop scores for hosted models on this task
-  range from 60 to 96 per cent in other pipelines. If the filtered small model is not within the
-  margin, C3 is written as the share of the gap closed and its cost, and the 4B-against-9B
-  result remains.
-- **The filter may help Haiku as well.** That is a finding for the paper, not against it: the
+- **The hosted model may be far ahead,** Sonnet 5.5 more likely than Haiku 5.5. Published
+  single-hop scores for hosted models on this task range from 60 to 96 per cent in other
+  pipelines. If the filtered small model is not within the margin, C3 is written as the share
+  of the gap closed and its cost, and the 4B-against-9B result remains.
+- **The model labels were not fully blind.** The labelling subagents ran inside this repository
+  and very probably had `CLAUDE.md` in context, which describes the dataset's label conventions
+  (no pair-level labels). Recorded in `RUN_LOG.json`; stated in the data card.
+- **The filter may help the hosted model as well.** That is a finding for the paper, not against it: the
   manuscript already asks whether read-time deletion helps large models.
 - **The generative comparator may be more accurate than the method.** Then C2 is cost and
   independence from a generative call, as the protocol text already says.
@@ -414,8 +447,11 @@ Never cut:
 
 ## 8. Decisions still open
 
-1. The five-point margin for "comparable" (E, Ş; at registration).
-2. `[MODEL]`, `[ENCODER]`, `[HARDWARE]` in the protocol (E, Ş; at registration).
-3. The method's name (9 December).
-4. Push and the public state of the repository.
-5. Preprint on submission day (Week 7).
+1. `strict_conflict`: how the reference sheet was filled, and whether the relation table or the
+   decision of 23 November is the rule (E; blocks the Week 0 strict task).
+2. The hosted reference model: Sonnet 5.5 with Haiku 5.5 as a second point, or Haiku 5.5 alone (E).
+3. The five-point margin for "comparable" (E, Ş; at registration).
+4. `[MODEL]`, `[ENCODER]`, `[HARDWARE]` in the protocol (E, Ş; at registration).
+5. The method's name (9 December).
+6. Push and the public state of the repository.
+7. Preprint on submission day (Week 7).

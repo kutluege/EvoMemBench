@@ -155,10 +155,44 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   `update_conflict` evet dediği 53 metin (eski yanıtlar belirsiz ölçütle verilmişti) ve hiç
   görülmemiş 50 metin (37 ilişkinin her birinden en az bir). Henüz doldurulmadı. Mevcut model
   etiketleri ve altın veri seti değişmedi.
+- **`strict_conflict` referans sayfası geldi, puanlandı ve bağımsız olarak denetlendi; henüz
+  referans olarak kullanılmıyor.** Dosyalar: `strict_review/strict_sheet.filled.csv` (alındığı
+  hâliyle), `STRICT_REVIEW_SUMMARY.md`. Denetimi ayrı bir alt ajan (Claude Opus 5.5, effort high)
+  yaptı; sayılar onun çalıştırdığı betiklerden ve depodaki puanlayıcıdan.
+  - 103 satırın 18'i "evet". Yanıt yalnızca ilişki şablonuna bağlı: sayfadaki 42 şablonun hiçbirinde
+    iki yanıt birden yok; değer çiftine göre karar verilen tek satır yok.
+  - Sayfa, aynı gün kayda geçen kararla ((a) tek değerli ilişki ya da (b) birbirini dışlayan
+    değerler) uyuşmuyor: kararı doğuran iki çiftin ikisi de "hayır" (D006 → S045, D024 → S032) ve
+    (b) hiçbir satırda uygulanmamış. Yönergenin açıkça "tek değerli" saydığı iki durumda da "hayır":
+    başkent (S033, S062) ve hükümet başkanı eş ifadesi (S064, S068, S095).
+  - Önceki yanıtlarla: 53 metnin 43'ü aynı, 10'u değişmiş, hepsi evet → hayır; 9'u aynı gece
+    doldurulan ayrışma sayfasındaki yanıtı tersine çeviriyor.
+  - İç tutarlılık: "birden fazlası düşünülebilir" gerekçesi CEO, başkan ve baş antrenörde "evet",
+    başkent, genel merkez, evlilik, kıta ve yönetmende "hayır" veriyor.
+  - Kaynak: 103 satırın 91'inde not var, ilk 12 satırda yok. Notların hepsi İngilizce, 28 ayrı
+    metinden oluşuyor ve ilk 12 satıra atıf yapıyor ("consistent with S009"); "conservative rule"
+    gibi yönergede olmayan terimler içeriyor. Sayfanın üretimi ile dosyanın kaydı arasında 815
+    saniye var. Önceki iki sayfada hiç not yoktu. Bunlar notların toplu üretilmiş ya da
+    yapıştırılmış olmasıyla uyumlu; kimin ya da neyin yazdığını göstermez. Etiketleyiciye soruldu;
+    yanıt gelene kadar bu satırlar "insan etiketi" olarak kayda geçmiyor.
+  - Sonuç: sayfadaki tablo kural sayılırsa `strict_conflict` şablondan türetilir, model koşusu
+    gerekmez; mevcut model etiketlerinden 360 çift kimliği (222 cümle çifti) evet → hayır olur
+    (evli 91, kıta 71, genel merkez 70, başkent 67, yayıncı 29, yönetmen 26, eş ifade 5, dil 1) ve
+    "evet" 776'dan 416'ya iner. Kayıtlı karar geçerliyse sayfanın 7 satırı kararla çelişiyor, 3
+    satırı sınırda, altı ilişkinin tek değerli olup olmadığı açık; (b) için yaklaşık 708 cümle
+    çiftinde çift düzeyinde karar gerekir ve sayfada (b) örneği hiç yok. Hiçbir koşu yapılmadı;
+    model etiketleri ve altın veri seti değişmedi.
+- **Model etiketleyici turu için ek kayıt.** Etiketleyen alt ajanlar bu depoda çalıştı; ortam
+  belgelerine göre bu tür alt ajanlara deponun `CLAUDE.md` dosyası veriliyor. Orada çift düzeyinde
+  etiket yok, ama katmanların ve etiket kurallarının tanımı var. Koşu sırasında denetlenmedi;
+  `model_annotation/RUN_LOG.json` içine `context_caveat` olarak yazıldı.
 - **Yedi haftalık plan yeniden yazıldı.** `paper/journal/WEEKLY_PLAN.md`: yazarın 21 Kasım planı,
   bu iki günün bulgularına ve 23 Kasım'da verilen kararlara göre güncellendi. Gönderim 14 Ocak
   2027. Beş iddia (C1–C5), her birinin elde olan ve eksik kanıtı, 0–7. haftaların iş listesi.
   Kararlar: LLM karşılaştırması hem uçtan uca hem çift düzeyinde; "küçük model, filtreyle büyük
   model kadar" iddiası için Claude Haiku 5.5 aynı düzenekte koşulacak; veri FactConsolidation
   görevine iki ek olarak sunulacak; iki insan etiketleyici yazarların kendisi, yaklaşık 200 cümle
-  çifti.
+  çifti. Aynı gün iki ek: büyük model koşusu API yerine yazarın Claude Code aboneliğiyle, depo
+  dışında boş bir klasörden tek seferlik komut satırı çağrılarıyla yapılacak (hangi model: Sonnet
+  5.5 ve ikinci nokta olarak Haiku 5.5 önerildi, yazarın onayı bekleniyor); `strict_conflict`
+  işi, referans sayfasıyla ilgili iki soru yanıtlanana kadar bekliyor.
