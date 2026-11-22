@@ -1,0 +1,1399 @@
+{
+ "what": "review_id -> sentence pair, its relation, earlier human answers and the model's strict_conflict under the relation-only rule; not opened before finishing",
+ "rule": "strict_conflict = the two sentences cannot both be true of the entity at the same time (decision of 2026-11-23)",
+ "seed": 20261123,
+ "build_id": "e9dcb0e56609e20f",
+ "n_rows": 103,
+ "by_stratum": {
+  "new": 50,
+  "labelled_before": 53
+ },
+ "relations_in_new": 37,
+ "rows": {
+  "S000": {
+   "shown_pair_id": "sh_32k:474-1324",
+   "relation": "is a citizen of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:474-1324",
+    "sh_64k:994-1646"
+   ]
+  },
+  "S001": {
+   "shown_pair_id": "sh_32k:593-1899",
+   "relation": "was developed by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:593-1899",
+    "sh_64k:502-4176"
+   ]
+  },
+  "S002": {
+   "shown_pair_id": "sh_64k:2078-2512",
+   "relation": "The original language of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:2078-2512"
+   ]
+  },
+  "S003": {
+   "shown_pair_id": "sh_64k:554-2954",
+   "relation": "was created in the country of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P023",
+     "strict": true
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:554-2954"
+   ]
+  },
+  "S004": {
+   "shown_pair_id": "sh_64k:1207-3583",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P024",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1558-1845",
+    "sh_64k:1207-3583"
+   ]
+  },
+  "S005": {
+   "shown_pair_id": "sh_64k:398-3657",
+   "relation": "is famous for",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P022",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1073-1560",
+    "sh_64k:398-3657"
+   ]
+  },
+  "S006": {
+   "shown_pair_id": "sh_32k:279-1920",
+   "relation": "works in the field of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P016",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:279-1920",
+    "sh_64k:21-4168"
+   ]
+  },
+  "S007": {
+   "shown_pair_id": "sh_32k:771-1316",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D029",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:771-1316",
+    "sh_64k:3819-4371"
+   ]
+  },
+  "S008": {
+   "shown_pair_id": "sh_64k:2540-4222",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P013",
+     "strict": false
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:2540-4222"
+   ]
+  },
+  "S009": {
+   "shown_pair_id": "sh_32k:369-538",
+   "relation": "unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P048",
+     "strict": true
+    },
+    {
+     "review_id": "D013",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:369-538",
+    "sh_64k:971-2848",
+    "sh_6k:82-276"
+   ]
+  },
+  "S010": {
+   "shown_pair_id": "sh_32k:312-2090",
+   "relation": "works in the field of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D032",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:312-2090",
+    "sh_64k:4295-4450"
+   ]
+  },
+  "S011": {
+   "shown_pair_id": "sh_32k:528-1605",
+   "relation": "The origianl broadcaster of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:528-1605",
+    "sh_64k:740-982"
+   ]
+  },
+  "S012": {
+   "shown_pair_id": "sh_32k:1257-1722",
+   "relation": "is associated with the sport of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1257-1722",
+    "sh_64k:1922-2487"
+   ]
+  },
+  "S013": {
+   "shown_pair_id": "sh_32k:460-1697",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P008",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:460-1697",
+    "sh_64k:2409-2808"
+   ]
+  },
+  "S014": {
+   "shown_pair_id": "sh_32k:1416-2051",
+   "relation": "The official language of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1416-2051",
+    "sh_64k:4366-4565"
+   ]
+  },
+  "S015": {
+   "shown_pair_id": "sh_32k:1545-1865",
+   "relation": "'s child is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1545-1865",
+    "sh_64k:973-1054"
+   ]
+  },
+  "S016": {
+   "shown_pair_id": "sh_32k:1586-1674",
+   "relation": "was created in the country of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:1586-1674",
+    "sh_64k:892-1273"
+   ]
+  },
+  "S017": {
+   "shown_pair_id": "sh_32k:574-2105",
+   "relation": "is married to",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:574-2105",
+    "sh_64k:49-529"
+   ]
+  },
+  "S018": {
+   "shown_pair_id": "sh_64k:2833-4102",
+   "relation": "was written in the language of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:2833-4102"
+   ]
+  },
+  "S019": {
+   "shown_pair_id": "sh_64k:24-2084",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P031",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:24-2084"
+   ]
+  },
+  "S020": {
+   "shown_pair_id": "sh_32k:1050-1962",
+   "relation": "The type of music that | plays is",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P039",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1050-1962",
+    "sh_64k:3691-3980",
+    "sh_6k:289-298"
+   ]
+  },
+  "S021": {
+   "shown_pair_id": "sh_32k:916-949",
+   "relation": "was created by",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P015",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:916-949",
+    "sh_64k:3066-3096"
+   ]
+  },
+  "S022": {
+   "shown_pair_id": "sh_64k:2676-4394",
+   "relation": "was created in the country of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P040",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_64k:2676-4394"
+   ]
+  },
+  "S023": {
+   "shown_pair_id": "sh_64k:3857-4203",
+   "relation": "The original language of | is / was written in the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D014",
+     "strict": true
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:3857-4203"
+   ]
+  },
+  "S024": {
+   "shown_pair_id": "sh_32k:163-329",
+   "relation": "was created by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:163-329",
+    "sh_64k:3014-3579"
+   ]
+  },
+  "S025": {
+   "shown_pair_id": "sh_64k:1499-2749",
+   "relation": "The chief executive officer of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_64k:1499-2749"
+   ]
+  },
+  "S026": {
+   "shown_pair_id": "sh_64k:701-4288",
+   "relation": "is affiliated with the religion of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:701-4288"
+   ]
+  },
+  "S027": {
+   "shown_pair_id": "sh_32k:370-1850",
+   "relation": "is located in the continent of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:370-1850",
+    "sh_64k:3053-3224"
+   ]
+  },
+  "S028": {
+   "shown_pair_id": "sh_32k:1099-2019",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P002",
+     "strict": false
+    },
+    {
+     "review_id": "D030",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1099-2019",
+    "sh_64k:1062-2898"
+   ]
+  },
+  "S029": {
+   "shown_pair_id": "sh_64k:1307-1906",
+   "relation": "worked in the city of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:1307-1906"
+   ]
+  },
+  "S030": {
+   "shown_pair_id": "sh_32k:301-336",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P033",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:301-336",
+    "sh_64k:2973-3681"
+   ]
+  },
+  "S031": {
+   "shown_pair_id": "sh_64k:458-2739",
+   "relation": "The type of music that | plays is",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D005",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:458-2739"
+   ]
+  },
+  "S032": {
+   "shown_pair_id": "sh_32k:2280-2297",
+   "relation": "worked in the city of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D024",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:2280-2297",
+    "sh_64k:1616-3682"
+   ]
+  },
+  "S033": {
+   "shown_pair_id": "sh_32k:361-1783",
+   "relation": "The capital of | is",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D037",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:361-1783",
+    "sh_64k:13-2546"
+   ]
+  },
+  "S034": {
+   "shown_pair_id": "sh_32k:1843-1908",
+   "relation": "is famous for",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P003",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1843-1908",
+    "sh_64k:375-778"
+   ]
+  },
+  "S035": {
+   "shown_pair_id": "sh_32k:21-324",
+   "relation": "The name of the current head of the | government is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:21-324",
+    "sh_64k:857-2139"
+   ]
+  },
+  "S036": {
+   "shown_pair_id": "sh_32k:673-1116",
+   "relation": "was born in the city of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:673-1116",
+    "sh_64k:1270-2258",
+    "sh_6k:0-306"
+   ]
+  },
+  "S037": {
+   "shown_pair_id": "sh_64k:34-1978",
+   "relation": "was performed by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:34-1978"
+   ]
+  },
+  "S038": {
+   "shown_pair_id": "sh_64k:2778-4037",
+   "relation": "is associated with the sport of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:2778-4037"
+   ]
+  },
+  "S039": {
+   "shown_pair_id": "sh_32k:890-2267",
+   "relation": "was developed by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:890-2267",
+    "sh_64k:2141-2806"
+   ]
+  },
+  "S040": {
+   "shown_pair_id": "sh_64k:366-2459",
+   "relation": "The company that produced | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:366-2459"
+   ]
+  },
+  "S041": {
+   "shown_pair_id": "sh_64k:283-2330",
+   "relation": "plays the position of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:283-2330"
+   ]
+  },
+  "S042": {
+   "shown_pair_id": "sh_32k:367-1449",
+   "relation": "is a citizen of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:367-1449",
+    "sh_64k:3757-4076"
+   ]
+  },
+  "S043": {
+   "shown_pair_id": "sh_64k:3418-3772",
+   "relation": "is affiliated with the religion of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:3418-3772"
+   ]
+  },
+  "S044": {
+   "shown_pair_id": "sh_64k:75-2444",
+   "relation": "is employed by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:75-2444"
+   ]
+  },
+  "S045": {
+   "shown_pair_id": "sh_32k:1516-2290",
+   "relation": "is a citizen of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D006",
+     "strict": true
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1516-2290",
+    "sh_64k:718-912"
+   ]
+  },
+  "S046": {
+   "shown_pair_id": "sh_32k:1555-1616",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P007",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1555-1616",
+    "sh_64k:599-2381",
+    "sh_6k:214-336"
+   ]
+  },
+  "S047": {
+   "shown_pair_id": "sh_64k:1582-2416",
+   "relation": "The author of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:1582-2416"
+   ]
+  },
+  "S048": {
+   "shown_pair_id": "sh_64k:438-1286",
+   "relation": "speaks the language of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:438-1286"
+   ]
+  },
+  "S049": {
+   "shown_pair_id": "sh_32k:517-2010",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D026",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:517-2010",
+    "sh_64k:2536-4578"
+   ]
+  },
+  "S050": {
+   "shown_pair_id": "sh_32k:1132-2148",
+   "relation": "The headquarters of | is located in the city of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:1132-2148",
+    "sh_64k:1235-4107"
+   ]
+  },
+  "S051": {
+   "shown_pair_id": "sh_64k:4043-4338",
+   "relation": "The head coach of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_64k:4043-4338"
+   ]
+  },
+  "S052": {
+   "shown_pair_id": "sh_32k:1136-1424",
+   "relation": "'s child is",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P034",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1136-1424"
+   ]
+  },
+  "S053": {
+   "shown_pair_id": "sh_64k:255-1310",
+   "relation": "was created by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:255-1310"
+   ]
+  },
+  "S054": {
+   "shown_pair_id": "sh_32k:1439-1831",
+   "relation": "The Governor of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:1439-1831",
+    "sh_64k:3180-3314"
+   ]
+  },
+  "S055": {
+   "shown_pair_id": "sh_32k:555-1591",
+   "relation": "The headquarters of | is located in the city of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:555-1591",
+    "sh_64k:1846-2463"
+   ]
+  },
+  "S056": {
+   "shown_pair_id": "sh_32k:1130-1630",
+   "relation": "The name of the current head of state in | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:1130-1630",
+    "sh_64k:2541-3210",
+    "sh_6k:115-126"
+   ]
+  },
+  "S057": {
+   "shown_pair_id": "sh_64k:1248-1607",
+   "relation": "was performed by",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P028",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:848-2270",
+    "sh_64k:1248-1607"
+   ]
+  },
+  "S058": {
+   "shown_pair_id": "sh_64k:3336-4537",
+   "relation": "was founded by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:3336-4537"
+   ]
+  },
+  "S059": {
+   "shown_pair_id": "sh_32k:236-2288",
+   "relation": "is famous for",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P038",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:236-2288",
+    "sh_64k:825-3108",
+    "sh_6k:145-189"
+   ]
+  },
+  "S060": {
+   "shown_pair_id": "sh_64k:2677-4115",
+   "relation": "was created in the country of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P025",
+     "strict": true
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:2677-4115"
+   ]
+  },
+  "S061": {
+   "shown_pair_id": "sh_64k:724-3078",
+   "relation": "is married to",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_64k:724-3078"
+   ]
+  },
+  "S062": {
+   "shown_pair_id": "sh_32k:1250-1756",
+   "relation": "The capital of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:1250-1756",
+    "sh_64k:2863-3695",
+    "sh_6k:158-341"
+   ]
+  },
+  "S063": {
+   "shown_pair_id": "sh_32k:1203-2234",
+   "relation": "was founded by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1203-2234",
+    "sh_64k:3065-4190"
+   ]
+  },
+  "S064": {
+   "shown_pair_id": "sh_32k:538-889",
+   "relation": "The name of the current head of the | government is / unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D017",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:538-889",
+    "sh_64k:323-2848"
+   ]
+  },
+  "S065": {
+   "shown_pair_id": "sh_32k:1115-1648",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P001",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1115-1648",
+    "sh_64k:358-1634",
+    "sh_6k:78-321"
+   ]
+  },
+  "S066": {
+   "shown_pair_id": "sh_32k:267-1641",
+   "relation": "is famous for",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:267-1641",
+    "sh_64k:1126-1855"
+   ]
+  },
+  "S067": {
+   "shown_pair_id": "sh_64k:2189-3251",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P011",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:2189-3251"
+   ]
+  },
+  "S068": {
+   "shown_pair_id": "sh_32k:369-1816",
+   "relation": "The name of the current head of the | government is / unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D036",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:369-1816",
+    "sh_64k:596-971"
+   ]
+  },
+  "S069": {
+   "shown_pair_id": "sh_32k:493-1407",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P042",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:493-1407",
+    "sh_64k:503-3876",
+    "sh_6k:19-446"
+   ]
+  },
+  "S070": {
+   "shown_pair_id": "sh_64k:1254-3727",
+   "relation": "worked in the city of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P047",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1124-1621",
+    "sh_64k:1254-3727"
+   ]
+  },
+  "S071": {
+   "shown_pair_id": "sh_64k:4203-4499",
+   "relation": "The original language of | is / was written in the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D007",
+     "strict": true
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:4203-4499"
+   ]
+  },
+  "S072": {
+   "shown_pair_id": "sh_64k:2959-4242",
+   "relation": "unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P056",
+     "strict": true
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:2959-4242"
+   ]
+  },
+  "S073": {
+   "shown_pair_id": "sh_32k:736-1107",
+   "relation": "was created in the country of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:736-1107",
+    "sh_64k:890-3104"
+   ]
+  },
+  "S074": {
+   "shown_pair_id": "sh_32k:1716-2212",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D038",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1716-2212",
+    "sh_64k:4012-4360"
+   ]
+  },
+  "S075": {
+   "shown_pair_id": "sh_32k:518-1123",
+   "relation": "is a citizen of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P044",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:518-1123",
+    "sh_64k:2327-3166"
+   ]
+  },
+  "S076": {
+   "shown_pair_id": "sh_64k:2976-4499",
+   "relation": "The original language of | is / was written in the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P059",
+     "strict": false
+    },
+    {
+     "review_id": "D002",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_64k:2976-4499"
+   ]
+  },
+  "S077": {
+   "shown_pair_id": "sh_64k:2153-4493",
+   "relation": "The univeristy where | was educated is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:2153-4493"
+   ]
+  },
+  "S078": {
+   "shown_pair_id": "sh_64k:2583-4033",
+   "relation": "The type of music that | plays is",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P035",
+     "strict": false
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:2583-4033"
+   ]
+  },
+  "S079": {
+   "shown_pair_id": "sh_64k:1211-2112",
+   "relation": "works in the field of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:1211-2112"
+   ]
+  },
+  "S080": {
+   "shown_pair_id": "sh_32k:1153-1218",
+   "relation": "The type of music that | plays is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:1153-1218",
+    "sh_64k:988-4098"
+   ]
+  },
+  "S081": {
+   "shown_pair_id": "sh_64k:1530-4064",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P041",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:374-937",
+    "sh_64k:1530-4064",
+    "sh_6k:195-197"
+   ]
+  },
+  "S082": {
+   "shown_pair_id": "sh_64k:243-2802",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P032",
+     "strict": false
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:243-2802"
+   ]
+  },
+  "S083": {
+   "shown_pair_id": "sh_32k:1660-1751",
+   "relation": "died in the city of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:1660-1751",
+    "sh_64k:1047-1319"
+   ]
+  },
+  "S084": {
+   "shown_pair_id": "sh_32k:711-2260",
+   "relation": "The chairperson of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:711-2260",
+    "sh_64k:1766-2096"
+   ]
+  },
+  "S085": {
+   "shown_pair_id": "sh_32k:631-664",
+   "relation": "unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D004",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:631-664",
+    "sh_64k:349-3776"
+   ]
+  },
+  "S086": {
+   "shown_pair_id": "sh_32k:135-1021",
+   "relation": "was performed by",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:135-1021",
+    "sh_64k:3582-3835"
+   ]
+  },
+  "S087": {
+   "shown_pair_id": "sh_32k:273-2143",
+   "relation": "The author of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:273-2143",
+    "sh_64k:1955-2180"
+   ]
+  },
+  "S088": {
+   "shown_pair_id": "sh_32k:87-868",
+   "relation": "The director of | is",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:87-868",
+    "sh_64k:847-2813",
+    "sh_6k:207-354"
+   ]
+  },
+  "S089": {
+   "shown_pair_id": "sh_64k:691-1188",
+   "relation": "is a citizen of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:691-1188"
+   ]
+  },
+  "S090": {
+   "shown_pair_id": "sh_64k:3285-3513",
+   "relation": "The headquarters of | is located in the city of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P014",
+     "strict": true
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:3285-3513"
+   ]
+  },
+  "S091": {
+   "shown_pair_id": "sh_64k:499-4560",
+   "relation": "unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D035",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_64k:499-4560"
+   ]
+  },
+  "S092": {
+   "shown_pair_id": "sh_64k:1359-3507",
+   "relation": "is a citizen of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P006",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:31-224",
+    "sh_64k:1359-3507"
+   ]
+  },
+  "S093": {
+   "shown_pair_id": "sh_64k:3074-4473",
+   "relation": "is a citizen of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P045",
+     "strict": false
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:3074-4473"
+   ]
+  },
+  "S094": {
+   "shown_pair_id": "sh_64k:645-3661",
+   "relation": "The original language of | is / was written in the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "D003",
+     "strict": true
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:645-3661"
+   ]
+  },
+  "S095": {
+   "shown_pair_id": "sh_64k:596-2848",
+   "relation": "The name of the current head of the | government is / unparsed",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P053",
+     "strict": true
+    },
+    {
+     "review_id": "D039",
+     "strict": true
+    }
+   ],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:538-1816",
+    "sh_64k:596-2848"
+   ]
+  },
+  "S096": {
+   "shown_pair_id": "sh_64k:1024-2205",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P036",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:1024-2205"
+   ]
+  },
+  "S097": {
+   "shown_pair_id": "sh_32k:112-1583",
+   "relation": "is affiliated with the religion of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P046",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:112-1583",
+    "sh_64k:871-3553",
+    "sh_6k:68-410"
+   ]
+  },
+  "S098": {
+   "shown_pair_id": "sh_32k:222-768",
+   "relation": "is employed by",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P054",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:222-768",
+    "sh_64k:1057-1490"
+   ]
+  },
+  "S099": {
+   "shown_pair_id": "sh_64k:1852-4255",
+   "relation": "speaks the language of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P030",
+     "strict": false
+    }
+   ],
+   "model_strict": null,
+   "pair_ids": [
+    "sh_64k:1852-4255"
+   ]
+  },
+  "S100": {
+   "shown_pair_id": "sh_32k:249-1961",
+   "relation": "was founded in the city of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": true,
+   "pair_ids": [
+    "sh_32k:249-1961",
+    "sh_64k:1868-2914"
+   ]
+  },
+  "S101": {
+   "shown_pair_id": "sh_64k:2362-2842",
+   "relation": "plays the position of",
+   "stratum": "new",
+   "prior": [],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_64k:2362-2842"
+   ]
+  },
+  "S102": {
+   "shown_pair_id": "sh_32k:618-1801",
+   "relation": "is associated with the sport of",
+   "stratum": "labelled_before",
+   "prior": [
+    {
+     "review_id": "P037",
+     "strict": false
+    }
+   ],
+   "model_strict": false,
+   "pair_ids": [
+    "sh_32k:618-1801",
+    "sh_64k:103-978"
+   ]
+  }
+ }
+}

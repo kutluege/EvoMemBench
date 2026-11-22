@@ -477,17 +477,20 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 
 
 def render_page(blind: list[dict], lang: str = "en", i18n: dict | None = None,
-                file_stem: str = "pilot_sheet") -> str:
+                file_stem: str = "pilot_sheet", label_cols: list[str] | None = None) -> str:
     """The labelling page. ``lang`` is the language it opens in; the page can switch.
 
-    ``i18n`` and ``file_stem`` let another review reuse the page with its own
-    texts and download name; the defaults give the pilot page.
+    ``i18n``, ``file_stem`` and ``label_cols`` let another review reuse the page
+    with its own texts, download name and questions; the defaults give the
+    pilot page.
     """
     i18n = I18N if i18n is None else i18n
     if lang not in i18n:
         raise SystemExit(f"unknown page language {lang!r}; choose from {sorted(i18n)}")
-    data = {"build_id": build_id(blind), "rows": blind, "label_cols": LABEL_COLS,
-            "sheet_cols": SHEET_COLS, "lang": lang, "langs": sorted(i18n), "i18n": i18n}
+    label_cols = LABEL_COLS if label_cols is None else label_cols
+    sheet_cols = SHEET_COLS[:4] + label_cols + ["notes"]
+    data = {"build_id": build_id(blind), "rows": blind, "label_cols": label_cols,
+            "sheet_cols": sheet_cols, "lang": lang, "langs": sorted(i18n), "i18n": i18n}
     blob = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     return PAGE_TEMPLATE.replace("__STEM__", file_stem).replace("__DATA__", blob)
 

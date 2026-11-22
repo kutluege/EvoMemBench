@@ -151,6 +151,18 @@ Süre: iş günü. "Kim": Y = yazarlar, C = Claude oturumu, GPU = GPU makinesind
 | K10 | Gecikme ve bellek ölçümü | [I] #11, isteğe bağlı | 1–2 | K5 | GPU |
 | K11 | İkinci encoder, çift düzeyinde | [I] #10, isteğe bağlı | 2 | K5 | GPU, C |
 | K12 | Türkçeye çevrilmiş 100 çiftlik geometri yoklaması | [I] #8, isteğe bağlı | 4 | — | C, GPU |
+| K13 | `strict_conflict` referans sayfasının doldurulması (103 cümle çifti, tek soru), ardından yalnızca `strict_conflict` için dar model koşusu (1.692 ayrı cümle çifti) | 23 Kasım kararı | <1 | — | Y, C |
+| K14 | NLI doğrulayıcısının tek değerli / çok değerli ilişkileri ayırıp ayırmadığının makaledeki modelle (`cross-encoder/nli-deberta-v3-large`) ölçümü | 23 Kasım ön ölçümü | <1 | K13 | GPU, C |
+
+K14 için ön ölçüm (23 Kasım, yerelde, **makaledeki model değil** `microsoft/deberta-large-mnli`,
+iki yönde çelişki ≥ 0,90; depoya işlenmedi, geçici klasörde): aynı özne, aynı ilişki, farklı
+değer taşıyan 1.692 cümle çiftinin 1.684'ünde "çelişki"; tek değerli ilişkilerde 464/466, çok
+değerli ilişkilerde 1.220/1.226 (ör. "speaks English / speaks Arabic" 1,00). Farklı özne, aynı
+ilişki olan 150 negatifin 106'sında da "çelişki". Kapsama ve eş ad çiftlerinde 4/26. Makaledeki
+modelle doğrulanırsa `THESIS_CLAIMS.md` §12'deki "NLI doğrulayıcısının rolü çok değerli
+ilişkilerde büyür" cümlesi gözden geçirilmeli: ölçüm, NLI'ın bu ayrımı yapmadığını gösteriyor.
+NLI skoru hiçbir etiketleyiciye (insan ya da model) gösterilmez; yöntemin doğrulayıcısı NLI olduğu
+için etiket ondan bağımsız kalmalı.
 
 Bırakılanlar (rapor "can drop" diyor): LongMemEval, kayıt düzeyinde erişim. Makalede
 gelecek iş olarak anılır.

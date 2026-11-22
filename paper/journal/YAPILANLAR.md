@@ -143,3 +143,15 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
     `update_conflict` seti modelden 1 çiftte, mevcut `gold_update`'ten 65 çiftte ayrılıyor: fork 34 ve
     core 2 "çatışma değil"e (36'sı değerlendirme kümesinde), rejected 12 ve discovered_unverified 17
     "çatışma"ya. Bu set dosyaya yazılmadı; altın veri seti değişmedi.
+- **`strict_conflict` kuralı yeniden tanımlandı (etiketleyicinin kararı).** İlk ölçüt bu alanı iki
+  ayrı biçimde tanımlıyordu ("iki cümle aynı anda doğru olamaz" ve "ilişki tek değerliyse") ve
+  ikisi, ilişki çok değerli olduğu halde iki değerin birbirini dışladığı çiftlerde ayrışıyordu
+  (D006: ABD ve antik Roma vatandaşlığı; D024: Lu ve New York'ta çalışmak). Model yönergesi
+  yalnızca ikinci okumayı uyguluyordu. Yeni kural: `update_conflict` evet ise ve iki cümle o varlık
+  için aynı anda doğru olamıyorsa `strict_conflict` evet; ilişki tablosu kural değil, örnek.
+- **`strict_conflict` için tek soruluk referans sayfası hazırlandı.**
+  `hnav/labeling/audit_strict_review.py` (`build`, `score`), 5 test; dosyalar
+  `stage0_results/conflict_pairs/strict_review/`. 103 cümle çifti: daha önce insanın
+  `update_conflict` evet dediği 53 metin (eski yanıtlar belirsiz ölçütle verilmişti) ve hiç
+  görülmemiş 50 metin (37 ilişkinin her birinden en az bir). Henüz doldurulmadı. Mevcut model
+  etiketleri ve altın veri seti değişmedi.

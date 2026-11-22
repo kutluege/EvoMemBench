@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilot review: blind labelling</title>
+<style>
+:root{--bg:#faf9f6;--fg:#1d1c1a;--muted:#67645e;--line:#d8d4ca;--card:#ffffff;--yes:#1d6b47;--no:#8c302b;--accent:#28497c;--on:#ffffff}
+@media (prefers-color-scheme:dark){:root{--bg:#171716;--fg:#eceae4;--muted:#a3a098;--line:#3b3a36;--card:#20201e;--yes:#3f9a6f;--no:#c5625b;--accent:#8cafe8;--on:#111110}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:820px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.bar h1.grow{margin:0;color:var(--fg)}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.95rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.bar .grow{flex:1 1 auto;color:var(--muted);font-variant-numeric:tabular-nums}
+button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin:12px 0}
+.fact{font-size:1.1rem;margin:0 0 10px}
+.fact:last-child{margin:0}
+.tag{display:inline-block;min-width:1.5em;font-weight:600;color:var(--accent)}
+.q{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:start;padding:11px 0;border-top:1px solid var(--line)}
+.q:first-child{border-top:0;padding-top:0}
+.q code{font:600 .95rem ui-monospace,Consolas,monospace}
+.q p{margin:2px 0 0;color:var(--muted);font-size:.93rem}
+.yn{display:flex;gap:6px}
+.yn button{min-width:58px}
+.yn button[aria-pressed="true"].y{background:var(--yes);border-color:var(--yes);color:#fff}
+.yn button[aria-pressed="true"].n{background:var(--no);border-color:var(--no);color:#fff}
+textarea{width:100%;min-height:56px;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+label{display:block;color:var(--muted);font-size:.93rem;margin-bottom:4px}
+#status{min-height:1.5em;color:var(--muted);font-size:.93rem}
+details{margin-top:20px}
+summary{cursor:pointer;color:var(--accent)}
+pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10px 0 0}
+@media (max-width:520px){.q{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<div class="bar">
+  <h1 class="grow" id="t_title"></h1>
+  <button id="lang" type="button"></button>
+</div>
+<p class="sub" id="t_sub"></p>
+
+<div class="bar">
+  <span class="grow" id="progress"></span>
+  <button id="prev" type="button"></button>
+  <button id="next" type="button"></button>
+  <button id="todo" type="button"></button>
+</div>
+
+<div class="card" id="facts"></div>
+<div class="card" id="questions"></div>
+<div class="card">
+  <label for="notes" id="t_notes"></label>
+  <textarea id="notes"></textarea>
+</div>
+
+<div class="bar">
+  <span class="grow" id="status"></span>
+  <button id="download" type="button" class="primary"></button>
+</div>
+
+<details>
+  <summary id="t_full"></summary>
+  <pre id="rubric"></pre>
+</details>
+</main>
+
+<script id="data" type="application/json">{"build_id": "e9dcb0e56609e20f", "rows": [{"review_id": "S000", "subset": "sh_32k", "fact_a": "Chris Hutchings is a citizen of United Kingdom.", "fact_b": "Chris Hutchings is a citizen of Ireland."}, {"review_id": "S001", "subset": "sh_32k", "fact_a": "Bf 109 was developed by Messerschmitt.", "fact_b": "Bf 109 was developed by Sikorsky Aircraft Corporation."}, {"review_id": "S002", "subset": "sh_64k", "fact_a": "The original language of 60 Minutes is English.", "fact_b": "The original language of 60 Minutes is Malayalam."}, {"review_id": "S003", "subset": "sh_64k", "fact_a": "Jump5 was created in the country of United States of America.", "fact_b": "Jump5 was created in the country of Republic of Cyprus."}, {"review_id": "S004", "subset": "sh_64k", "fact_a": "Joseph Wright of Derby speaks the language of English.", "fact_b": "Joseph Wright of Derby speaks the language of Russian."}, {"review_id": "S005", "subset": "sh_64k", "fact_a": "Allen Ginsberg is famous for Howl.", "fact_b": "Allen Ginsberg is famous for Natya Shastra."}, {"review_id": "S006", "subset": "sh_32k", "fact_a": "William Shakespeare works in the field of playwright.", "fact_b": "William Shakespeare works in the field of businessperson."}, {"review_id": "S007", "subset": "sh_32k", "fact_a": "safety is associated with the sport of American football.", "fact_b": "safety is associated with the sport of field hockey."}, {"review_id": "S008", "subset": "sh_64k", "fact_a": "Ronald D. Moore speaks the language of English.", "fact_b": "Ronald D. Moore speaks the language of Dutch."}, {"review_id": "S009", "subset": "sh_32k", "fact_a": "The Prime Minister of Sweden is Stefan Löfven.", "fact_b": "The Prime Minister of Sweden is Pedro Pierluisi."}, {"review_id": "S010", "subset": "sh_32k", "fact_a": "tight end works in the field of American football player.", "fact_b": "tight end works in the field of artistic gymnast."}, {"review_id": "S011", "subset": "sh_32k", "fact_a": "The origianl broadcaster of Girl Meets World is Disney Channel.", "fact_b": "The origianl broadcaster of Girl Meets World is Channel 4."}, {"review_id": "S012", "subset": "sh_32k", "fact_a": "Salem-Keizer Volcanoes is associated with the sport of baseball.", "fact_b": "Salem-Keizer Volcanoes is associated with the sport of basketball."}, {"review_id": "S013", "subset": "sh_32k", "fact_a": "center is associated with the sport of basketball.", "fact_b": "center is associated with the sport of rugby union."}, {"review_id": "S014", "subset": "sh_32k", "fact_a": "The official language of Berlin is German.", "fact_b": "The official language of Berlin is Finnish."}, {"review_id": "S015", "subset": "sh_32k", "fact_a": "Chiang Kai-shek's child is Chiang Ching-kuo.", "fact_b": "Chiang Kai-shek's child is Christopher Monck, 2nd Duke of Albemarle."}, {"review_id": "S016", "subset": "sh_32k", "fact_a": "hip hop music was created in the country of United States of America.", "fact_b": "hip hop music was created in the country of Denmark."}, {"review_id": "S017", "subset": "sh_32k", "fact_a": "David Bowie is married to Iman.", "fact_b": "David Bowie is married to Maria Amalia of Naples and Sicily."}, {"review_id": "S018", "subset": "sh_64k", "fact_a": "The New York Times was written in the language of English.", "fact_b": "The New York Times was written in the language of Ancient Greek."}, {"review_id": "S019", "subset": "sh_64k", "fact_a": "Michael Lewis speaks the language of English.", "fact_b": "Michael Lewis speaks the language of French."}, {"review_id": "S020", "subset": "sh_32k", "fact_a": "The type of music that Michael Mantler plays is jazz.", "fact_b": "The type of music that Michael Mantler plays is post-punk."}, {"review_id": "S021", "subset": "sh_32k", "fact_a": "Lord Voldemort was created by J. K. Rowling.", "fact_b": "Lord Voldemort was created by Wilbert Awdry."}, {"review_id": "S022", "subset": "sh_64k", "fact_a": "The Man Show was created in the country of United States of America.", "fact_b": "The Man Show was created in the country of United Kingdom."}, {"review_id": "S023", "subset": "sh_64k", "fact_a": "The original language of The Sky at Night is English.", "fact_b": "The Sky at Night was written in the language of German."}, {"review_id": "S024", "subset": "sh_32k", "fact_a": "Finnish was created by Mikael Agricola.", "fact_b": "Finnish was created by Stirling Silliphanta."}, {"review_id": "S025", "subset": "sh_64k", "fact_a": "The chief executive officer of Tesla is Elon Musk.", "fact_b": "The chief executive officer of Tesla is Adam Sandler."}, {"review_id": "S026", "subset": "sh_64k", "fact_a": "Fra Angelico is affiliated with the religion of Catholic Church.", "fact_b": "Fra Angelico is affiliated with the religion of Armenian Apostolic Church."}, {"review_id": "S027", "subset": "sh_32k", "fact_a": "England is located in the continent of Europe.", "fact_b": "England is located in the continent of South America."}, {"review_id": "S028", "subset": "sh_32k", "fact_a": "goalkeeper is associated with the sport of association football.", "fact_b": "goalkeeper is associated with the sport of Gaelic football."}, {"review_id": "S029", "subset": "sh_64k", "fact_a": "William Blake worked in the city of London.", "fact_b": "William Blake worked in the city of Munich."}, {"review_id": "S030", "subset": "sh_32k", "fact_a": "Sam Robards speaks the language of English.", "fact_b": "Sam Robards speaks the language of German."}, {"review_id": "S031", "subset": "sh_64k", "fact_a": "The type of music that Billy Joe Shaver plays is country music.", "fact_b": "The type of music that Billy Joe Shaver plays is bluegrass music."}, {"review_id": "S032", "subset": "sh_32k", "fact_a": "Confucius worked in the city of Lu.", "fact_b": "Confucius worked in the city of New York City."}, {"review_id": "S033", "subset": "sh_32k", "fact_a": "The capital of ancient Rome is Rome.", "fact_b": "The capital of ancient Rome is Budapest."}, {"review_id": "S034", "subset": "sh_32k", "fact_a": "João Gilberto is famous for The Girl from Ipanema.", "fact_b": "João Gilberto is famous for Angel."}, {"review_id": "S035", "subset": "sh_32k", "fact_a": "The name of the current head of the South Korea government is Moon Jae-in.", "fact_b": "The name of the current head of the South Korea government is Mauro Carlesse."}, {"review_id": "S036", "subset": "sh_32k", "fact_a": "Thomas Kyd was born in the city of London.", "fact_b": "Thomas Kyd was born in the city of Leeds."}, {"review_id": "S037", "subset": "sh_64k", "fact_a": "99 Luftballons was performed by Nena.", "fact_b": "99 Luftballons was performed by George Harrison."}, {"review_id": "S038", "subset": "sh_64k", "fact_a": "Fabrizio Ravanelli is associated with the sport of association football.", "fact_b": "Fabrizio Ravanelli is associated with the sport of baseball."}, {"review_id": "S039", "subset": "sh_32k", "fact_a": "iOS 9 was developed by Apple Inc..", "fact_b": "iOS 9 was developed by NeXT Computer, Inc.."}, {"review_id": "S040", "subset": "sh_64k", "fact_a": "The company that produced Aston Martin DB4 is Aston Martin Lagonda.", "fact_b": "The company that produced Aston Martin DB4 is Cessna."}, {"review_id": "S041", "subset": "sh_64k", "fact_a": "Masahiro Tanaka plays the position of starting pitcher.", "fact_b": "Masahiro Tanaka plays the position of midfielder."}, {"review_id": "S042", "subset": "sh_32k", "fact_a": "Philip IV of France is a citizen of France.", "fact_b": "Philip IV of France is a citizen of Ireland."}, {"review_id": "S043", "subset": "sh_64k", "fact_a": "Joaquim Chissano is affiliated with the religion of Catholic Church.", "fact_b": "Joaquim Chissano is affiliated with the religion of Methodism."}, {"review_id": "S044", "subset": "sh_64k", "fact_a": "Lucrețiu Pătrășcanu is employed by University of Bucharest.", "fact_b": "Lucrețiu Pătrășcanu is employed by George Mason University."}, {"review_id": "S045", "subset": "sh_32k", "fact_a": "David Crane is a citizen of United States of America.", "fact_b": "David Crane is a citizen of ancient Rome."}, {"review_id": "S046", "subset": "sh_32k", "fact_a": "William Waynflete speaks the language of English.", "fact_b": "William Waynflete speaks the language of Latin."}, {"review_id": "S047", "subset": "sh_64k", "fact_a": "The author of Surrealist Manifesto is André Breton.", "fact_b": "The author of Surrealist Manifesto is Franklin Delano Roosevelt."}, {"review_id": "S048", "subset": "sh_64k", "fact_a": "John Keats speaks the language of English.", "fact_b": "John Keats speaks the language of French."}, {"review_id": "S049", "subset": "sh_32k", "fact_a": "defensive end is associated with the sport of American football.", "fact_b": "defensive end is associated with the sport of Muay Thai."}, {"review_id": "S050", "subset": "sh_32k", "fact_a": "The headquarters of University of Cambridge is located in the city of Cambridge.", "fact_b": "The headquarters of University of Cambridge is located in the city of Washington, D.C.."}, {"review_id": "S051", "subset": "sh_64k", "fact_a": "The head coach of Michigan Wolverines football is Jim Harbaugh.", "fact_b": "The head coach of Michigan Wolverines football is Adrian Mutu."}, {"review_id": "S052", "subset": "sh_32k", "fact_a": "Ken Burns's child is Sarah Burns.", "fact_b": "Ken Burns's child is Louis Joseph, Prince of Condé."}, {"review_id": "S053", "subset": "sh_64k", "fact_a": "Chris Griffin was created by Seth MacFarlane.", "fact_b": "Chris Griffin was created by Hergé."}, {"review_id": "S054", "subset": "sh_32k", "fact_a": "The Governor of Wisconsin is Scott Walker.", "fact_b": "The Governor of Wisconsin is Jusuf Kalla."}, {"review_id": "S055", "subset": "sh_32k", "fact_a": "The headquarters of Daimler-Benz is located in the city of Stuttgart.", "fact_b": "The headquarters of Daimler-Benz is located in the city of Chicago."}, {"review_id": "S056", "subset": "sh_32k", "fact_a": "The name of the current head of state in United States of America is Donald Trump.", "fact_b": "The name of the current head of state in United States of America is Connachta."}, {"review_id": "S057", "subset": "sh_64k", "fact_a": "Nature Boy was performed by Nat King Cole.", "fact_b": "Nature Boy was performed by Donovan."}, {"review_id": "S058", "subset": "sh_64k", "fact_a": "The Trump Entrepreneur Initiative was founded by Donald Trump.", "fact_b": "The Trump Entrepreneur Initiative was founded by Sam Nujoma."}, {"review_id": "S059", "subset": "sh_32k", "fact_a": "Hugh Hefner is famous for Playboy.", "fact_b": "Hugh Hefner is famous for The Vampyre."}, {"review_id": "S060", "subset": "sh_64k", "fact_a": "bluegrass music was created in the country of United States of America.", "fact_b": "bluegrass music was created in the country of Indonesia."}, {"review_id": "S061", "subset": "sh_64k", "fact_a": "Russell Simmons is married to Kimora Lee Simmons.", "fact_b": "Russell Simmons is married to Pat Nixon."}, {"review_id": "S062", "subset": "sh_32k", "fact_a": "The capital of India is New Delhi.", "fact_b": "The capital of India is Grosseto."}, {"review_id": "S063", "subset": "sh_32k", "fact_a": "Epic Games was founded by Tim Sweeney.", "fact_b": "Epic Games was founded by Ella Baker."}, {"review_id": "S064", "subset": "sh_32k", "fact_a": "The Prime Minister of Sweden is Pedro Pierluisi.", "fact_b": "The name of the current head of the Sweden government is Stefan Löfven."}, {"review_id": "S065", "subset": "sh_32k", "fact_a": "placekicker is associated with the sport of American football.", "fact_b": "placekicker is associated with the sport of rugby."}, {"review_id": "S066", "subset": "sh_32k", "fact_a": "Edward Bellamy is famous for Looking Backward.", "fact_b": "Edward Bellamy is famous for Gesta Hunnorum et Hungarorum."}, {"review_id": "S067", "subset": "sh_64k", "fact_a": "Ken Burns speaks the language of English.", "fact_b": "Ken Burns speaks the language of German."}, {"review_id": "S068", "subset": "sh_32k", "fact_a": "The Prime Minister of Sweden is Stefan Löfven.", "fact_b": "The name of the current head of the Sweden government is Gro Harlem Brundtland."}, {"review_id": "S069", "subset": "sh_32k", "fact_a": "Alta IF is associated with the sport of association football.", "fact_b": "Alta IF is associated with the sport of baseball."}, {"review_id": "S070", "subset": "sh_64k", "fact_a": "Laurence Olivier worked in the city of London.", "fact_b": "Laurence Olivier worked in the city of Washington, D.C.."}, {"review_id": "S071", "subset": "sh_64k", "fact_a": "The Sky at Night was written in the language of German.", "fact_b": "The original language of The Sky at Night is Filipino."}, {"review_id": "S072", "subset": "sh_64k", "fact_a": "The Prime Minister of Malta is Joseph Muscat.", "fact_b": "The Prime Minister of Malta is Pietro Parolin."}, {"review_id": "S073", "subset": "sh_32k", "fact_a": "field hockey was created in the country of England.", "fact_b": "field hockey was created in the country of Philippines."}, {"review_id": "S074", "subset": "sh_32k", "fact_a": "defender is associated with the sport of association football.", "fact_b": "defender is associated with the sport of baseball."}, {"review_id": "S075", "subset": "sh_32k", "fact_a": "Shaun Udal is a citizen of United Kingdom.", "fact_b": "Shaun Udal is a citizen of Denmark."}, {"review_id": "S076", "subset": "sh_64k", "fact_a": "The Sky at Night was written in the language of English.", "fact_b": "The original language of The Sky at Night is Filipino."}, {"review_id": "S077", "subset": "sh_64k", "fact_a": "The univeristy where John Gunther was educated is University of Chicago.", "fact_b": "The univeristy where John Gunther was educated is Northeastern University."}, {"review_id": "S078", "subset": "sh_64k", "fact_a": "The type of music that Mike Watt plays is punk rock.", "fact_b": "The type of music that Mike Watt plays is alternative rock."}, {"review_id": "S079", "subset": "sh_64k", "fact_a": "Uhuru Kenyatta works in the field of politician.", "fact_b": "Uhuru Kenyatta works in the field of tragedy writer."}, {"review_id": "S080", "subset": "sh_32k", "fact_a": "The type of music that Archie Shepp plays is jazz.", "fact_b": "The type of music that Archie Shepp plays is J-pop."}, {"review_id": "S081", "subset": "sh_64k", "fact_a": "T. S. Eliot speaks the language of English.", "fact_b": "T. S. Eliot speaks the language of French."}, {"review_id": "S082", "subset": "sh_64k", "fact_a": "Antonio Conte is associated with the sport of association football.", "fact_b": "Antonio Conte is associated with the sport of rugby union."}, {"review_id": "S083", "subset": "sh_32k", "fact_a": "Lord Byron died in the city of Missolonghi.", "fact_b": "Lord Byron died in the city of Santa Monica."}, {"review_id": "S084", "subset": "sh_32k", "fact_a": "The chairperson of Hon Hai Precision Industry is Terry Gou.", "fact_b": "The chairperson of Hon Hai Precision Industry is Talia Sasson."}, {"review_id": "S085", "subset": "sh_32k", "fact_a": "The President of Azerbaijan is Ilham Aliyev.", "fact_b": "The President of Azerbaijan is Prince Andrew, Duke of York."}, {"review_id": "S086", "subset": "sh_32k", "fact_a": "Fourth Doctor was performed by Tom Baker.", "fact_b": "Fourth Doctor was performed by Bryan Adams."}, {"review_id": "S087", "subset": "sh_32k", "fact_a": "The author of The Selfish Gene is Richard Dawkins.", "fact_b": "The author of The Selfish Gene is Karl Marx."}, {"review_id": "S088", "subset": "sh_32k", "fact_a": "The director of Madonna is Guy Oseary.", "fact_b": "The director of Madonna is Narendra Modi."}, {"review_id": "S089", "subset": "sh_64k", "fact_a": "Cordell Douglass Perri is a citizen of United States of America.", "fact_b": "Cordell Douglass Perri is a citizen of Sweden."}, {"review_id": "S090", "subset": "sh_64k", "fact_a": "The headquarters of Blizzard Entertainment is located in the city of Irvine.", "fact_b": "The headquarters of Blizzard Entertainment is located in the city of Knoxville."}, {"review_id": "S091", "subset": "sh_64k", "fact_a": "The Illinois Attorney General is Lisa Madigan.", "fact_b": "The Illinois Attorney General is Ben Carson."}, {"review_id": "S092", "subset": "sh_64k", "fact_a": "John Evelyn is a citizen of Kingdom of England.", "fact_b": "John Evelyn is a citizen of Poland."}, {"review_id": "S093", "subset": "sh_64k", "fact_a": "Max Eastman is a citizen of United States of America.", "fact_b": "Max Eastman is a citizen of Austria."}, {"review_id": "S094", "subset": "sh_64k", "fact_a": "Rurouni Kenshin was written in the language of Japanese.", "fact_b": "The original language of Rurouni Kenshin is English."}, {"review_id": "S095", "subset": "sh_64k", "fact_a": "The name of the current head of the Sweden government is Gro Harlem Brundtland.", "fact_b": "The Prime Minister of Sweden is Pedro Pierluisi."}, {"review_id": "S096", "subset": "sh_64k", "fact_a": "Aníbal Sánchez is associated with the sport of baseball.", "fact_b": "Aníbal Sánchez is associated with the sport of association football."}, {"review_id": "S097", "subset": "sh_32k", "fact_a": "Natalie Portman is affiliated with the religion of Judaism.", "fact_b": "Natalie Portman is affiliated with the religion of interdenominational organization."}, {"review_id": "S098", "subset": "sh_32k", "fact_a": "Derek Bok is employed by Harvard University.", "fact_b": "Derek Bok is employed by MI5."}, {"review_id": "S099", "subset": "sh_64k", "fact_a": "Neil Simon speaks the language of English.", "fact_b": "Neil Simon speaks the language of Japanese."}, {"review_id": "S100", "subset": "sh_32k", "fact_a": "NBC was founded in the city of New York City.", "fact_b": "NBC was founded in the city of Paris."}, {"review_id": "S101", "subset": "sh_64k", "fact_a": "Maurice Cheeks plays the position of point guard.", "fact_b": "Maurice Cheeks plays the position of left fielder."}, {"review_id": "S102", "subset": "sh_32k", "fact_a": "outfielder is associated with the sport of baseball.", "fact_b": "outfielder is associated with the sport of cricket."}], "label_cols": ["strict_conflict"], "sheet_cols": ["review_id", "subset", "fact_a", "fact_b", "strict_conflict", "notes"], "lang": "tr", "langs": ["en", "tr"], "i18n": {"en": {"name": "English", "title": "Strict-conflict review: blind labelling", "sub": "Every pair here is already an update conflict. Decide one thing: can the two sentences both be true of that entity at the same time? Do not check whether either is true in the real world.", "prev": "Previous", "next": "Next", "todo": "Next unanswered", "notes": "Notes (optional)", "download": "Download CSV", "full": "Full instructions", "yes": "Yes", "no": "No", "progress": "Pair {i} of {n} ({id}, {subset})  |  {done} complete", "all_done": "Every pair is complete.", "saved_partial": "Saved {name}. {missing} pairs are incomplete; the scorer rejects blank cells.", "saved_full": "Saved {name}. All {n} pairs are complete.", "short": {"strict_conflict": "Yes: the two sentences cannot both be true of this entity at the same time. No: both could hold together."}, "rubric": "# Strict-conflict review — annotator instructions\n\nEvery pair in this sheet already counts as an update conflict: both sentences\nare about the same entity and the same attribute, and they give two different\nvalues, neither of which contains the other. One question is left.\n\n`strict_conflict`: can the two sentences both be true of that entity at the\nsame time?\n\n- Answer **yes** (a strict conflict) when they cannot: if one is true, the\n  other is definitely false. This holds when the attribute has one value at a\n  time (a capital, a birthplace, a head of government). It also holds when the\n  attribute can have several values but these two exclude each other, for\n  example citizenship of two states that never existed in the same period.\n- Answer **no** when both could hold together, however unlikely the\n  combination: two languages spoken, two children, two employers, two fields\n  of work.\n\nJudge only whether the two values can hold together. Do **not** judge whether\neither sentence is true of the real person or thing; many sentences are\ncounterfactual on purpose. \"Confucius is a citizen of the United States\" and\n\"Confucius is a citizen of Canada\" are both false in fact, but the two values\ncan hold together, so the answer is no.\n\nIf a pair is hard to decide, use this test: told that the first sentence is\ntrue, would you say the second is definitely false? If so, answer yes.\n\nAnswer yes or no for every pair (no blanks, no \"unsure\"); use `notes` for\nanything you want to flag. Do not open `strict_key.json`, your earlier sheets\nor anything under `model_annotation/` before you have finished. Hand the\ndownloaded file over as it is, without re-saving it in a spreadsheet program.\n"}, "tr": {"name": "Türkçe", "title": "Katı çatışma incelemesi: kör etiketleme", "sub": "Buradaki her çift zaten bir güncelleme çatışması. Tek bir şeye karar verin: iki cümle o varlık için aynı anda doğru olabilir mi? Cümlelerin gerçek dünyada doğru olup olmadığını kontrol etmeyin. Yanıtlar dosyaya İngilizce (yes/no) kaydedilir.", "prev": "Önceki", "next": "Sonraki", "todo": "Sonraki yanıtsız", "notes": "Notlar (isteğe bağlı)", "download": "CSV indir", "full": "Yönergenin tamamı", "yes": "Evet", "no": "Hayır", "progress": "{n} çiftten {i}. çift ({id}, {subset})  |  {done} tamamlandı", "all_done": "Bütün çiftler tamamlandı.", "saved_partial": "{name} kaydedildi. {missing} çift eksik; puanlayıcı boş hücreleri kabul etmez.", "saved_full": "{name} kaydedildi. {n} çiftin hepsi tamamlandı.", "short": {"strict_conflict": "Evet: iki cümle bu varlık için aynı anda doğru olamaz. Hayır: ikisi birlikte geçerli olabilir."}, "rubric": "# Katı çatışma incelemesi — etiketleyici yönergesi\n\nBu sayfadaki her çift zaten bir güncelleme çatışması sayılıyor: iki cümle de\naynı varlık ve aynı özellik hakkında, ve biri diğerini kapsamayan iki farklı\ndeğer veriyor. Geriye tek soru kalıyor.\n\n`strict_conflict`: iki cümle o varlık için aynı anda doğru olabilir mi?\n\n- Olamıyorsa **evet** (katı çatışma) deyin: biri doğruysa diğeri kesinlikle\n  yanlıştır. Özellik aynı anda tek değer alıyorsa böyledir (başkent, doğum\n  yeri, hükümet başkanı). Özellik birden çok değer alabildiği halde bu iki\n  değer birbirini dışlıyorsa da böyledir; örneğin hiç aynı dönemde var olmamış\n  iki devletin vatandaşlığı.\n- İkisi birlikte geçerli olabiliyorsa, birliktelik ne kadar olası görünmese de\n  **hayır** deyin: konuşulan iki dil, iki çocuk, iki işveren, iki çalışma alanı.\n\nYalnızca iki değerin birlikte geçerli olup olamayacağına bakın. Cümlelerin\ngerçek kişi ya da şey için doğru olup olmadığına **bakmayın**; cümlelerin çoğu\nbilerek karşıolgusaldır. \"Confucius is a citizen of the United States\" ile\n\"Confucius is a citizen of Canada\" gerçekte ikisi de yanlıştır, ama iki değer\nbirlikte geçerli olabilir; yanıt hayırdır.\n\nKarar vermek zorsa şu sınamayı kullanın: ilk cümlenin doğru olduğu söylense,\nikincinin kesinlikle yanlış olduğunu söyler miydiniz? Öyleyse evet deyin.\n\nHer çift için evet ya da hayır deyin (boş bırakmayın, \"emin değilim\" yok);\nbelirtmek istediğiniz her şey için notlar alanını kullanın. Bitirmeden önce\n`strict_key.json` dosyasını, önceki sayfalarınızı ve `model_annotation/`\naltındaki hiçbir şeyi açmayın. İndirilen dosyayı olduğu gibi verin; bir tablo\nprogramında yeniden kaydetmeyin.\n"}}}</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("data").textContent);
+  var rows = D.rows, cols = D.label_cols, sheetCols = D.sheet_cols;
+  var storeKey = "pilot-review-" + D.build_id, langKey = "pilot-review-lang";
+  var answers = {}, at = 0, lang = D.lang;
+
+  // The language changes the display only: answers are stored and exported as "yes" / "no".
+  try { var saved = localStorage.getItem(langKey); if (saved && D.i18n[saved]) { lang = saved; } } catch (e) {}
+  function L() { return D.i18n[lang]; }
+  function fmt(s, v) { return s.replace(/\{(\w+)\}/g, function (m, k) { return v[k] === undefined ? m : v[k]; }); }
+
+  try { answers = JSON.parse(localStorage.getItem(storeKey) || "{}") || {}; } catch (e) { answers = {}; }
+  function save() { try { localStorage.setItem(storeKey, JSON.stringify(answers)); } catch (e) {} }
+  function rec(rid) { if (!answers[rid]) { answers[rid] = {}; } return answers[rid]; }
+  function complete(rid) {
+    var a = answers[rid] || {};
+    return cols.every(function (c) { return a[c] === "yes" || a[c] === "no"; });
+  }
+  function nDone() { return rows.filter(function (r) { return complete(r.review_id); }).length; }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text !== undefined) { e.textContent = text; }
+    return e;
+  }
+
+  function render() {
+    var r = rows[at], a = rec(r.review_id);
+    document.getElementById("progress").textContent = fmt(L().progress,
+      { i: at + 1, n: rows.length, id: r.review_id, subset: r.subset, done: nDone() });
+
+    var f = document.getElementById("facts");
+    f.textContent = "";
+    [["A", r.fact_a], ["B", r.fact_b]].forEach(function (p) {
+      var line = el("p", "fact");
+      line.appendChild(el("span", "tag", p[0]));
+      line.appendChild(document.createTextNode(p[1]));
+      f.appendChild(line);
+    });
+
+    var q = document.getElementById("questions");
+    q.textContent = "";
+    cols.forEach(function (c) {
+      var row = el("div", "q"), left = el("div"), yn = el("div", "yn");
+      left.appendChild(el("code", "", c));
+      left.appendChild(el("p", "", L().short[c] || ""));
+      [["yes", "y", L().yes], ["no", "n", L().no]].forEach(function (o) {
+        var b = el("button", o[1], o[2]);
+        b.type = "button";
+        b.setAttribute("aria-pressed", a[c] === o[0] ? "true" : "false");
+        b.setAttribute("aria-label", c + ": " + o[2]);
+        b.addEventListener("click", function () {
+          a[c] = o[0];
+          save();
+          render();
+        });
+        yn.appendChild(b);
+      });
+      row.appendChild(left);
+      row.appendChild(yn);
+      q.appendChild(row);
+    });
+    document.getElementById("notes").value = a.notes || "";
+  }
+
+  function go(i) { at = Math.max(0, Math.min(rows.length - 1, i)); render(); window.scrollTo(0, 0); }
+
+  function applyLang() {
+    var t = L(), other = D.langs.filter(function (x) { return x !== lang; })[0];
+    document.documentElement.lang = lang;
+    document.title = t.title;
+    [["t_title", "title"], ["t_sub", "sub"], ["prev", "prev"], ["next", "next"], ["todo", "todo"],
+     ["t_notes", "notes"], ["download", "download"], ["t_full", "full"], ["rubric", "rubric"]]
+      .forEach(function (p) { document.getElementById(p[0]).textContent = t[p[1]]; });
+    document.getElementById("lang").textContent = D.i18n[other].name;
+    document.getElementById("status").textContent = "";
+    render();
+  }
+  document.getElementById("lang").addEventListener("click", function () {
+    lang = D.langs.filter(function (x) { return x !== lang; })[0];
+    try { localStorage.setItem(langKey, lang); } catch (e) {}
+    applyLang();
+  });
+
+  document.getElementById("notes").addEventListener("input", function (ev) {
+    rec(rows[at].review_id).notes = ev.target.value;
+    save();
+  });
+  document.getElementById("prev").addEventListener("click", function () { go(at - 1); });
+  document.getElementById("next").addEventListener("click", function () { go(at + 1); });
+  document.getElementById("todo").addEventListener("click", function () {
+    for (var k = 1; k <= rows.length; k++) {
+      var i = (at + k) % rows.length;
+      if (!complete(rows[i].review_id)) { go(i); return; }
+    }
+    document.getElementById("status").textContent = L().all_done;
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.target && ev.target.tagName === "TEXTAREA") { return; }
+    if (ev.key === "ArrowLeft") { go(at - 1); }
+    if (ev.key === "ArrowRight") { go(at + 1); }
+  });
+
+  function cell(v) { return '"' + String(v === undefined || v === null ? "" : v).replace(/"/g, '""') + '"'; }
+  document.getElementById("download").addEventListener("click", function () {
+    var lines = [sheetCols.join(",")];
+    rows.forEach(function (r) {
+      var a = answers[r.review_id] || {};
+      lines.push(sheetCols.map(function (c) {
+        if (c === "review_id" || c === "subset" || c === "fact_a" || c === "fact_b") { return cell(r[c]); }
+        return cell(a[c]);
+      }).join(","));
+    });
+    var missing = rows.length - nDone();
+    var name = missing ? "strict_sheet.partial.csv" : "strict_sheet.filled.csv";
+    var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    document.getElementById("status").textContent = fmt(missing ? L().saved_partial : L().saved_full,
+      { name: name, missing: missing, n: rows.length });
+  });
+
+  for (var i = 0; i < rows.length; i++) { if (!complete(rows[i].review_id)) { at = i; break; } }
+  applyLang();
+})();
+</script>
+</body>
+</html>
