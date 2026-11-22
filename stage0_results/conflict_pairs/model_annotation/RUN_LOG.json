@@ -6,10 +6,53 @@
  "agent": "Claude Code general-purpose subagent instructed to follow .claude/agents/pair-annotator.md (the pair-annotator agent type was not loaded in the session). The subagents had shell access; the rule to use only Read, Write and Glob rested on the instruction and on their own reports.",
  "guideline": {
   "heldout": ".claude/skills/pair-labelling/SKILL.md at commit c6cf01b (drafted from 40 pilot pairs)",
-  "stage1": ".claude/skills/pair-labelling/SKILL.md at commit 1920811 (all 60 pilot pairs)"
+  "stage1": ".claude/skills/pair-labelling/SKILL.md at commit 1920811 (all 60 pilot pairs)",
+  "stage2": "same file and commit as stage1 (1920811)"
  },
  "runs": [
-  {"group": "heldout", "workers": 1, "batches_per_worker": 1, "wall_clock_seconds": 25},
-  {"group": "stage1", "workers": 9, "batches_per_worker": 6, "assignment": "worker k labelled batch_(6k-5) to batch_(6k)", "wall_clock_seconds_per_worker": "159-172", "note": "each worker read one batch file and wrote its 100 rows in one step"}
+  {
+   "group": "heldout",
+   "workers": 1,
+   "batches_per_worker": 1,
+   "wall_clock_seconds": 25
+  },
+  {
+   "group": "stage1",
+   "workers": 9,
+   "batches_per_worker": 6,
+   "assignment": "worker k labelled batch_(6k-5) to batch_(6k)",
+   "wall_clock_seconds_per_worker": "159-172",
+   "note": "each worker read one batch file and wrote its 100 rows in one step"
+  },
+  {
+   "group": "stage2",
+   "round": 1,
+   "workers": 9,
+   "batches": "batch_001-batch_054",
+   "batches_per_worker": 6,
+   "orchestration": "Claude Code workflow, general-purpose subagents, effort medium, model inherited from the session (claude-fable-5-2)",
+   "wall_clock_seconds": 163,
+   "subagent_tokens": 994002
+  },
+  {
+   "group": "stage2",
+   "round": 2,
+   "workers": 73,
+   "batches": "batch_055-batch_492",
+   "batches_per_worker": 6,
+   "orchestration": "same workflow script; at most 16 workers at a time",
+   "wall_clock_seconds": 1185,
+   "subagent_tokens": 8030676
+  }
+ ],
+ "self_reports": "All 82 stage-2 workers reported that they finished every assigned batch, opened no file outside their instructions and inputs, and used no tool other than Read, Write and Glob. These are the workers' own statements; nothing enforced them.",
+ "known_label_slips": [
+  {
+   "review_id": "b24776",
+   "field": "same_referent",
+   "labelled": "no",
+   "expected_by_guideline": "yes",
+   "why": "both sentences have the subject South Korea; the identical sentence pair under review_id b29723 was labelled yes. The relations differ, so update_conflict and strict_conflict are no either way. The label file is left as the worker wrote it."
+  }
  ]
 }

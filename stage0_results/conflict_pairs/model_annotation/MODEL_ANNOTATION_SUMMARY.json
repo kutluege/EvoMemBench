@@ -1,63 +1,63 @@
 {
  "annotator": "claude-fable-5-2, reasoning effort medium, Claude Code subagents (parallel workers)",
- "n_labelled": 10817,
+ "n_labelled": 54529,
  "n_by_group": {
   "heldout": 20,
   "stage1": 5397,
-  "stage2": 5400
+  "stage2": 49112
  },
  "repeated_text": {
-  "n_rows": 10817,
-  "n_distinct_texts": 9343,
+  "n_rows": 54529,
+  "n_distinct_texts": 47052,
   "repeated_texts": {
-   "n": 1302,
-   "k": 1302,
-   "rate": 1.0,
+   "n": 7126,
+   "k": 7125,
+   "rate": 0.9998596688184115,
    "wilson95": [
-    0.9970582502226852,
-    1.0
+    0.999205475174191,
+    0.9999752276711065
    ]
   },
   "repeated_in_different_batches": {
-   "n": 1283,
-   "k": 1283,
-   "rate": 1.0,
+   "n": 7092,
+   "k": 7091,
+   "rate": 0.9998589960518894,
    "wilson95": [
-    0.9970148157767511,
-    1.0
+    0.9992016682439862,
+    0.9999751089071671
    ]
   }
  },
  "parser_slots": {
-  "n_both_parse": 10794,
-  "same_referent_equals_same_subject": 10794,
-  "same_relation_equals_same_template": 10786,
-  "same_template_and_same_value": 4742,
+  "n_both_parse": 54455,
+  "same_referent_equals_same_subject": 54454,
+  "same_relation_equals_same_template": 54436,
+  "same_template_and_same_value": 30108,
   "of_which_values_incompatible": 0,
-  "same_template_different_value": 5379,
-  "of_which_values_compatible": 94
+  "same_template_different_value": 20549,
+  "of_which_values_compatible": 425
  },
  "sentinels": {
-  "n": 540,
+  "n": 4920,
   "all_six_identical": {
-   "n": 540,
-   "k": 540,
+   "n": 4920,
+   "k": 4920,
    "rate": 1.0,
    "wilson95": [
-    0.9929364362381928,
-    0.9999999999999999
+    0.9992198248353807,
+    1.0
    ]
   },
   "update_conflict_identical": {
-   "n": 540,
-   "k": 540,
+   "n": 4920,
+   "k": 4920,
    "rate": 1.0,
    "wilson95": [
-    0.9929364362381928,
-    0.9999999999999999
+    0.9992198248353807,
+    1.0
    ]
   },
-  "n_batches": 54,
+  "n_batches": 492,
   "batches_with_a_mismatch": {}
  },
  "heldout_vs_human": {
@@ -371,43 +371,43 @@
    }
   },
   "negative": {
-   "n": 8066,
+   "n": 51778,
    "n_in_tier": 51782,
    "model_update_yes": 0,
    "model_strict_yes": 0,
    "update_agrees_with_judge": {
-    "n": 8066,
-    "k": 8066,
+    "n": 51778,
+    "k": 51778,
     "rate": 1.0,
     "wilson95": [
-     0.9995239734460338,
+     0.9999258145575268,
      0.9999999999999999
     ]
    },
    "update_agrees_with_parser": {
-    "n": 8066,
-    "k": 8066,
+    "n": 51778,
+    "k": 51778,
     "rate": 1.0,
     "wilson95": [
-     0.9995239734460338,
+     0.9999258145575268,
      0.9999999999999999
     ]
    },
    "update_agrees_with_gold_update": {
-    "n": 8066,
-    "k": 8066,
+    "n": 51778,
+    "k": 51778,
     "rate": 1.0,
     "wilson95": [
-     0.9995239734460338,
+     0.9999258145575268,
      0.9999999999999999
     ]
    },
    "strict_agrees_with_gold_strict": {
-    "n": 8066,
-    "k": 8066,
+    "n": 51778,
+    "k": 51778,
     "rate": 1.0,
     "wilson95": [
-     0.9995239734460338,
+     0.9999258145575268,
      0.9999999999999999
     ]
    }
@@ -415,123 +415,123 @@
  },
  "field_vs_judge": {
   "same_referent": {
-   "n": 10817,
-   "agreement": 0.977350466857724,
-   "kappa": 0.9428197921734577,
+   "n": 54529,
+   "agreement": 0.9869427277228631,
+   "kappa": 0.8913180949535583,
    "agree": {
-    "n": 10817,
-    "k": 10572,
-    "rate": 0.977350466857724,
+    "n": 54529,
+    "k": 53817,
+    "rate": 0.9869427277228631,
     "wilson95": [
-     0.9743725694375961,
-     0.9799894401436332
+     0.9859550318062922,
+     0.9878618201929035
     ]
    },
    "table": {
-    "TT": 2820,
-    "TF": 67,
-    "FT": 178,
-    "FF": 7752
+    "TT": 3143,
+    "TF": 107,
+    "FT": 605,
+    "FF": 50674
    }
   },
   "same_relation": {
-   "n": 10817,
-   "agreement": 0.9448090967920866,
-   "kappa": 0.6525890732380707,
+   "n": 54529,
+   "agreement": 0.9317977589906289,
+   "kappa": 0.6313513467212287,
    "agree": {
-    "n": 10817,
-    "k": 10220,
-    "rate": 0.9448090967920866,
+    "n": 54529,
+    "k": 50810,
+    "rate": 0.9317977589906289,
     "wilson95": [
-     0.9403457657381004,
-     0.9489566084460935
+     0.9296513009646258,
+     0.9338833827279479
     ]
    },
    "table": {
-    "TT": 9585,
-    "TF": 559,
-    "FT": 38,
-    "FF": 635
+    "TT": 47114,
+    "TF": 3585,
+    "FT": 134,
+    "FF": 3696
    }
   },
   "context_overlap": {
-   "n": 10817,
-   "agreement": 0.923453822686512,
+   "n": 54529,
+   "agreement": 0.9226099873461827,
    "kappa": 0.0,
    "agree": {
-    "n": 10817,
-    "k": 9989,
-    "rate": 0.923453822686512,
+    "n": 54529,
+    "k": 50309,
+    "rate": 0.9226099873461827,
     "wilson95": [
-     0.9182918251856822,
-     0.9283151632692073
+     0.9203373230469409,
+     0.9248231117857664
     ]
    },
    "table": {
-    "TT": 9989,
-    "TF": 828,
+    "TT": 50309,
+    "TF": 4220,
     "FT": 0,
     "FF": 0
    }
   },
   "values_incompatible": {
-   "n": 10817,
-   "agreement": 0.7192382361098272,
-   "kappa": 0.4320566230637898,
+   "n": 54529,
+   "agreement": 0.6725962331970144,
+   "kappa": 0.1413704789307678,
    "agree": {
-    "n": 10817,
-    "k": 7780,
-    "rate": 0.7192382361098272,
+    "n": 54529,
+    "k": 36676,
+    "rate": 0.6725962331970144,
     "wilson95": [
-     0.710693176682675,
-     0.7276276339538867
+     0.668645490672604,
+     0.6765226593166787
     ]
    },
    "table": {
-    "TT": 2312,
-    "TF": 2988,
-    "FT": 49,
-    "FF": 5468
+    "TT": 2377,
+    "TF": 17775,
+    "FT": 78,
+    "FF": 34299
    }
   },
   "update_conflict": {
-   "n": 10817,
-   "agreement": 0.9700471480077656,
-   "kappa": 0.9171005472245506,
+   "n": 54529,
+   "agreement": 0.9940582075592804,
+   "kappa": 0.9335798766582613,
    "agree": {
-    "n": 10817,
-    "k": 10493,
-    "rate": 0.9700471480077656,
+    "n": 54529,
+    "k": 54205,
+    "rate": 0.9940582075592804,
     "wilson95": [
-     0.9666642605180328,
-     0.9730962968007938
+     0.9933774307998546,
+     0.9946693784001956
     ]
    },
    "table": {
     "TT": 2397,
     "TF": 240,
     "FT": 84,
-    "FF": 8096
+    "FF": 51808
    }
   },
   "strict_conflict": {
-   "n": 10817,
-   "agreement": 0.8816677452158639,
-   "kappa": 0.49478671865182255,
+   "n": 54529,
+   "agreement": 0.9765262520860459,
+   "kappa": 0.5378387553264292,
    "agree": {
-    "n": 10817,
-    "k": 9537,
-    "rate": 0.8816677452158639,
+    "n": 54529,
+    "k": 53249,
+    "rate": 0.9765262520860459,
     "wilson95": [
-     0.8754448876510098,
-     0.8876196144417771
+     0.9752215139855362,
+     0.9777638542763261
     ]
    },
    "table": {
     "TT": 774,
     "TF": 2,
     "FT": 1278,
-    "FF": 8763
+    "FF": 52475
    }
   }
  },
@@ -1304,3066 +1304,3066 @@
    "group": "stage2",
    "batch": "batch_055",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_056",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_057",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_058",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_059",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_060",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_061",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_062",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_063",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_064",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_065",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_066",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_067",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_068",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_069",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_070",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_071",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_072",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_073",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_074",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_075",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_076",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_077",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_078",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_079",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_080",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_081",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_082",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_083",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_084",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_085",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_086",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_087",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_088",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_089",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_090",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_091",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_092",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_093",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_094",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_095",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_096",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_097",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_098",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_099",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_100",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_101",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_102",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_103",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_104",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_105",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_106",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_107",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_108",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_109",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_110",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_111",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_112",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_113",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_114",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_115",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_116",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_117",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_118",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_119",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_120",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_121",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_122",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_123",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_124",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_125",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_126",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_127",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_128",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_129",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_130",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_131",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_132",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_133",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_134",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_135",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_136",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_137",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_138",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_139",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_140",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_141",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_142",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_143",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_144",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_145",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_146",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_147",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_148",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_149",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_150",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_151",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_152",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_153",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_154",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_155",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_156",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_157",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_158",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_159",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_160",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_161",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_162",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_163",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_164",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_165",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_166",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_167",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_168",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_169",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_170",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_171",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_172",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_173",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_174",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_175",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_176",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_177",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_178",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_179",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_180",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_181",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_182",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_183",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_184",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_185",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_186",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_187",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_188",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_189",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_190",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_191",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_192",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_193",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_194",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_195",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_196",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_197",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_198",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_199",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_200",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_201",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_202",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_203",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_204",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_205",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_206",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_207",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_208",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_209",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_210",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_211",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_212",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_213",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_214",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_215",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_216",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_217",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_218",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_219",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_220",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_221",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_222",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_223",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_224",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_225",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_226",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_227",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_228",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_229",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_230",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_231",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_232",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_233",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_234",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_235",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_236",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_237",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_238",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_239",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_240",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_241",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_242",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_243",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_244",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_245",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_246",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_247",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_248",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_249",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_250",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_251",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_252",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_253",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_254",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_255",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_256",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_257",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_258",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_259",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_260",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_261",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_262",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_263",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_264",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_265",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_266",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_267",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_268",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_269",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_270",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_271",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_272",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_273",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_274",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_275",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_276",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_277",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_278",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_279",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_280",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_281",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_282",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_283",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_284",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_285",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_286",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_287",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_288",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_289",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_290",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_291",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_292",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_293",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_294",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_295",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_296",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_297",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_298",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_299",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_300",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_301",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_302",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_303",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_304",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_305",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_306",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_307",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_308",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_309",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_310",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_311",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_312",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_313",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_314",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_315",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_316",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_317",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_318",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_319",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_320",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_321",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_322",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_323",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_324",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_325",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_326",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_327",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_328",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_329",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_330",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_331",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_332",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_333",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_334",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_335",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_336",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_337",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_338",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_339",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_340",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_341",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_342",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_343",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_344",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_345",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_346",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_347",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_348",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_349",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_350",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_351",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_352",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_353",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_354",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_355",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_356",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_357",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_358",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_359",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_360",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_361",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_362",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_363",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_364",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_365",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_366",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_367",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_368",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_369",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_370",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_371",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_372",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_373",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_374",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_375",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_376",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_377",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_378",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_379",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_380",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_381",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_382",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_383",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_384",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_385",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_386",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_387",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_388",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_389",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_390",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_391",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_392",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_393",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_394",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_395",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_396",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_397",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_398",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_399",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_400",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_401",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_402",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_403",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_404",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_405",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_406",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_407",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_408",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_409",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_410",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_411",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_412",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_413",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_414",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_415",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_416",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_417",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_418",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_419",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_420",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_421",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_422",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_423",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_424",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_425",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_426",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_427",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_428",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_429",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_430",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_431",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_432",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_433",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_434",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_435",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_436",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_437",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_438",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_439",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_440",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_441",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_442",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_443",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_444",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_445",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_446",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_447",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_448",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_449",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_450",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_451",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_452",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_453",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_454",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_455",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_456",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_457",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_458",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_459",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_460",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_461",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_462",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_463",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_464",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_465",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_466",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_467",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_468",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_469",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_470",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_471",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_472",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_473",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_474",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_475",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_476",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_477",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_478",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_479",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_480",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_481",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_482",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_483",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_484",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_485",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_486",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_487",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_488",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_489",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_490",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_491",
    "n": 110,
-   "state": "missing",
+   "state": "done",
    "error": null
   },
   {
    "group": "stage2",
    "batch": "batch_492",
    "n": 22,
-   "state": "missing",
+   "state": "done",
    "error": null
   }
  ]

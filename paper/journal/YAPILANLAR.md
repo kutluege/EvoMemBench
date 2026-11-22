@@ -81,3 +81,24 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   Sınırlar: bunlar model etiketidir, insan etiketi değildir; altın veri seti değişmedi.
   `strict_conflict` hakemin `gold_strict` etiketiyle core katmanında yalnızca 0,496 uyumlu,
   çünkü insan "tek değerli" ilişkiyi dar tanımlıyor ve tablonun çoğu çıkarım.
+- **Alt ajanlar kalan bütün çiftleri de etiketledi (2. aşama).** Değerlendirme kümesi dışındaki
+  49.112 negatif çift, 492 parti, 82 paralel alt ajan (Fable 5.2, effort medium; iş akışıyla, aynı
+  anda en çok 16), aynı yönerge. 492 etiket dosyasının hepsi geçerli. Süre yaklaşık 22 dakika,
+  yaklaşık 9 milyon alt ajan token'ı. 49.112 çiftin hepsinde `update_conflict` = hayır; hakem ve
+  ayrıştırıcıyla tam uyum.
+  Partiler tek katmandan olduğu için her partiye, 1. aşamada etiketlenmiş çiftlerden 10 tanesi yeni
+  kimlikle ve rastgele sırayla karıştırıldı (toplam 4.920 kontrol satırı; ajan bunları ayırt
+  edemez). 4.920'sinin hepsi altı alanda da 1. aşamadaki etiketin aynısını aldı.
+- **Sonuç: altın veri setindeki 54.569 çiftin hepsinin bu açıdan bir etiketi var.** 60 çift insan
+  (20'si ayrıca model), 54.509 çift yalnızca model. Birleşik dosya:
+  `stage0_results/conflict_pairs/model_annotation/MODEL_LABELS.csv` (54.529 model satırı), özet
+  `MODEL_ANNOTATION_SUMMARY.md`, çalıştırma kaydı `RUN_LOG.json`.
+  - Tutarlılık (bütün tur): 54.529 satır 47.052 ayrı cümle çifti. Farklı partilerde birden çok kez
+    etiketlenen 7.092 cümle çiftinin 7.091'i altı alanda aynı. Tek fark bir alandaki tek bir
+    hata (`b24776`, `same_referent`; `update_conflict` etkilenmiyor), `RUN_LOG.json`'da kayıtlı,
+    etiket dosyası düzeltilmedi.
+  - Model `update_conflict` = evet: 2.637 çift, tamamı 1. aşama katmanlarında.
+  - Yazılı ölçütün türetme kurallarından sapan satır yok (`update_conflict` dört denetimin
+    kesişimi; `strict_conflict` yalnızca `update_conflict` evet iken).
+  - Altın veri seti ve makaledeki sayılar değişmedi. Bu etiketler model etiketidir; insan
+    kanıtı 60 çifttir ve modelin insanı izlediğine dair bağımsız kanıt ayrı tutulan 20 çifttir.

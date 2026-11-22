@@ -228,6 +228,9 @@ etiketler ayrı bir kaynak olarak yayımlanabilir. Yayımdan önce gerekenler:
 | V3 | Daha büyük insan doğrulaması: ayrı tutulan 20 çift yayın için ince bir kanıt. Model etiketlerinden katmanlı bir örneği (ör. 200–300 çift) iki etiketleyiciyle kör doğrulamak ve κ raporlamak gerekir (K1–K3 ile birleşir) |
 | V4 | Veri kartı: seçim çerçevesi (cos ≥ 0,80, tek gömme modeli), denetlenmeyen 32.533 aday, katman tanımları, bilinen sınırlar |
 | V5 | Makaledeki sayılarla ilişki: makale dondurulmuş `gold_update` etiketleriyle raporluyor. Yeni etiketler o sayıları değiştirmez; ayrı bir duyarlılık analizi olarak girer ya da ayrı bir yayın olur. Karar yazarların |
+| V7 | Yinelenen çiftler: 54.529 etiketli satır yalnızca 47.052 ayrı cümle çifti (aynı çift birden çok alt kümede). Yayımda ya tekilleştirilmeli ya da alt küme sütunuyla açıkça belirtilmeli; aksi hâlde eğitim/sınama ayrımına sızar |
+| V8 | Model etiketi büyük ölçüde belirlenimci çıktı: iki cümlenin de ayrıştığı çiftlerde `same_referent` "özne dizgesi aynı" ile, `same_relation` neredeyse her zaman "şablon aynı" ile örtüşüyor. Katkı, insanın kuralının ölçekli uygulanması ve kapsama/eş ad istisnasıdır (aynı şablon, farklı değer olan 20.549 çiftin 425'i); "bağımsız üçüncü hakem" diye sunulmamalı |
+| V9 | `strict_conflict` tablosu: 37 ilişkinin 22'si insan etiketinde gözlenmedi, yazılı ölçütten çıkarıldı. Yayımdan önce yazarlar bu 22 satırı onaylamalı ya da düzeltmeli; `strict` etiketi `update_conflict` ve ilişki sınıfından yeniden türetilebilir |
 | V6 | Yayım yeri ve DOI (Zenodo ya da Hugging Face), sürüm numarası; depo zaten herkese açık (A4) |
 
 ### S — Dergiye ve kuruma sorulacaklar

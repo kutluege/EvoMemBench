@@ -1,0 +1,23 @@
+review_id,same_referent,same_relation,context_overlap,values_incompatible,update_conflict,strict_conflict,notes
+b54011,no,yes,yes,yes,no,no,
+b54012,yes,yes,yes,no,no,no,rugby union is a kind of rugby
+b54013,no,yes,yes,yes,no,no,
+b54014,yes,yes,yes,yes,yes,no,
+b54015,yes,yes,yes,yes,yes,yes,
+b54016,yes,yes,yes,yes,yes,yes,
+b54017,no,yes,yes,yes,no,no,
+b54018,no,yes,yes,yes,no,no,
+b54019,yes,yes,yes,yes,yes,no,
+b54020,no,yes,yes,no,no,no,
+b54021,no,yes,yes,yes,no,no,
+b54022,no,yes,yes,yes,no,no,historical state vs modern country as subjects
+b54023,yes,yes,yes,yes,yes,no,
+b54024,no,yes,yes,no,no,no,
+b54025,no,yes,yes,yes,no,no,
+b54026,no,yes,yes,no,no,no,
+b54027,no,yes,yes,yes,no,no,
+b54028,no,yes,yes,no,no,no,
+b54029,yes,yes,yes,yes,yes,no,
+b54030,no,yes,yes,yes,no,no,
+b54031,no,yes,yes,no,no,no,
+b54032,yes,yes,yes,yes,yes,yes,
