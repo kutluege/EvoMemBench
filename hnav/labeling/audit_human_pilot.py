@@ -455,7 +455,7 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
       }).join(","));
     });
     var missing = rows.length - nDone();
-    var name = missing ? "pilot_sheet.partial.csv" : "pilot_sheet.filled.csv";
+    var name = missing ? "__STEM__.partial.csv" : "__STEM__.filled.csv";
     var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
     var link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -476,14 +476,20 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 """
 
 
-def render_page(blind: list[dict], lang: str = "en") -> str:
-    """The labelling page. ``lang`` is the language it opens in; the page can switch."""
-    if lang not in I18N:
-        raise SystemExit(f"unknown page language {lang!r}; choose from {LANGS}")
+def render_page(blind: list[dict], lang: str = "en", i18n: dict | None = None,
+                file_stem: str = "pilot_sheet") -> str:
+    """The labelling page. ``lang`` is the language it opens in; the page can switch.
+
+    ``i18n`` and ``file_stem`` let another review reuse the page with its own
+    texts and download name; the defaults give the pilot page.
+    """
+    i18n = I18N if i18n is None else i18n
+    if lang not in i18n:
+        raise SystemExit(f"unknown page language {lang!r}; choose from {sorted(i18n)}")
     data = {"build_id": build_id(blind), "rows": blind, "label_cols": LABEL_COLS,
-            "sheet_cols": SHEET_COLS, "lang": lang, "langs": LANGS, "i18n": I18N}
+            "sheet_cols": SHEET_COLS, "lang": lang, "langs": sorted(i18n), "i18n": i18n}
     blob = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
-    return PAGE_TEMPLATE.replace("__DATA__", blob)
+    return PAGE_TEMPLATE.replace("__STEM__", file_stem).replace("__DATA__", blob)
 
 
 # ── build ────────────────────────────────────────────────────────────────────

@@ -1,0 +1,949 @@
+{
+ "what": "review_id -> sentence pair and every gold pair id with that text; the annotator does not open this file before finishing",
+ "seed": 20261123,
+ "build_id": "ed00850cfaa54998",
+ "n_rows": 40,
+ "n_disputed_pairs": 57,
+ "disputed_by_tier": {
+  "update_only_fork": 30,
+  "discovered_unverified": 14,
+  "rejected": 11,
+  "core": 2
+ },
+ "disputed_in_eval_set": 32,
+ "disputed_gold_yes_model_no": 32,
+ "disputed_gold_no_model_yes": 25,
+ "rows_seen_in_pilot": 10,
+ "rows": {
+  "D000": {
+   "shown_pair_id": "sh_64k:1788-4384",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:1788-4384",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D001": {
+   "shown_pair_id": "sh_32k:540-1296",
+   "seen_in_pilot": [
+    "P051"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:540-1296",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": "P051"
+    },
+    {
+     "pair_id": "sh_64k:3916-4019",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D002": {
+   "shown_pair_id": "sh_64k:2976-4499",
+   "seen_in_pilot": [
+    "P059"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:2976-4499",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": "P059"
+    }
+   ]
+  },
+  "D003": {
+   "shown_pair_id": "sh_64k:645-3661",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:645-3661",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D004": {
+   "shown_pair_id": "sh_32k:631-664",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:631-664",
+     "subset": "sh_32k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:349-3776",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D005": {
+   "shown_pair_id": "sh_64k:458-2739",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:458-2739",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D006": {
+   "shown_pair_id": "sh_32k:1516-2290",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1516-2290",
+     "subset": "sh_32k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:718-912",
+     "subset": "sh_64k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D007": {
+   "shown_pair_id": "sh_64k:4203-4499",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:4203-4499",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D008": {
+   "shown_pair_id": "sh_32k:948-1180",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:948-1180",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:134-4391",
+     "subset": "sh_64k",
+     "tier": "core",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D009": {
+   "shown_pair_id": "sh_32k:689-1887",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:689-1887",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:469-2249",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D010": {
+   "shown_pair_id": "sh_32k:2-1752",
+   "seen_in_pilot": [
+    "P055"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:2-1752",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:1139-1541",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": null,
+     "disputed": false,
+     "pilot_review_id": "P055"
+    },
+    {
+     "pair_id": "sh_6k:90-415",
+     "subset": "sh_6k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D011": {
+   "shown_pair_id": "sh_32k:68-1508",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:68-1508",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:327-1259",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D012": {
+   "shown_pair_id": "sh_32k:1268-2186",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1268-2186",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:668-3071",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D013": {
+   "shown_pair_id": "sh_32k:369-538",
+   "seen_in_pilot": [
+    "P048"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:369-538",
+     "subset": "sh_32k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:971-2848",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_6k:82-276",
+     "subset": "sh_6k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": null,
+     "disputed": false,
+     "pilot_review_id": "P048"
+    }
+   ]
+  },
+  "D014": {
+   "shown_pair_id": "sh_64k:3857-4203",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:3857-4203",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D015": {
+   "shown_pair_id": "sh_64k:1655-1752",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:1655-1752",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D016": {
+   "shown_pair_id": "sh_32k:684-1780",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:684-1780",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:196-3808",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D017": {
+   "shown_pair_id": "sh_32k:538-889",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:538-889",
+     "subset": "sh_32k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:323-2848",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D018": {
+   "shown_pair_id": "sh_64k:625-954",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:625-954",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D019": {
+   "shown_pair_id": "sh_32k:268-651",
+   "seen_in_pilot": [
+    "P021"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:268-651",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": "P021"
+    },
+    {
+     "pair_id": "sh_64k:787-3010",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D020": {
+   "shown_pair_id": "sh_32k:110-1397",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:110-1397",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D021": {
+   "shown_pair_id": "sh_32k:856-1359",
+   "seen_in_pilot": [
+    "P058"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:856-1359",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:1575-4329",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": "P058"
+    }
+   ]
+  },
+  "D022": {
+   "shown_pair_id": "sh_64k:1923-1982",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:1923-1982",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D023": {
+   "shown_pair_id": "sh_64k:1152-2712",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:1152-2712",
+     "subset": "sh_64k",
+     "tier": "core",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D024": {
+   "shown_pair_id": "sh_32k:2280-2297",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:2280-2297",
+     "subset": "sh_32k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:1616-3682",
+     "subset": "sh_64k",
+     "tier": "core",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": true,
+     "disputed": false,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D025": {
+   "shown_pair_id": "sh_64k:3689-4130",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:3689-4130",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D026": {
+   "shown_pair_id": "sh_32k:517-2010",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:517-2010",
+     "subset": "sh_32k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:2536-4578",
+     "subset": "sh_64k",
+     "tier": "core",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": true,
+     "disputed": false,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D027": {
+   "shown_pair_id": "sh_32k:1245-1919",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1245-1919",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:1651-2403",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D028": {
+   "shown_pair_id": "sh_32k:1100-1525",
+   "seen_in_pilot": [
+    "P005"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1100-1525",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:766-1668",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": null,
+     "disputed": false,
+     "pilot_review_id": "P005"
+    }
+   ]
+  },
+  "D029": {
+   "shown_pair_id": "sh_32k:771-1316",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:771-1316",
+     "subset": "sh_32k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:3819-4371",
+     "subset": "sh_64k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D030": {
+   "shown_pair_id": "sh_32k:1099-2019",
+   "seen_in_pilot": [
+    "P002"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1099-2019",
+     "subset": "sh_32k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": "P002"
+    },
+    {
+     "pair_id": "sh_64k:1062-2898",
+     "subset": "sh_64k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D031": {
+   "shown_pair_id": "sh_64k:843-3323",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:843-3323",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D032": {
+   "shown_pair_id": "sh_64k:4295-4450",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:312-2090",
+     "subset": "sh_32k",
+     "tier": "core",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": true,
+     "disputed": false,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:4295-4450",
+     "subset": "sh_64k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D033": {
+   "shown_pair_id": "sh_64k:1543-2447",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:1543-2447",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D034": {
+   "shown_pair_id": "sh_32k:1299-1995",
+   "seen_in_pilot": [
+    "P010"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1299-1995",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": false,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:219-4080",
+     "subset": "sh_64k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": null,
+     "disputed": false,
+     "pilot_review_id": "P010"
+    }
+   ]
+  },
+  "D035": {
+   "shown_pair_id": "sh_64k:499-4560",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_64k:499-4560",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D036": {
+   "shown_pair_id": "sh_32k:369-1816",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:369-1816",
+     "subset": "sh_32k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:596-971",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D037": {
+   "shown_pair_id": "sh_32k:361-1783",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:361-1783",
+     "subset": "sh_32k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:13-2546",
+     "subset": "sh_64k",
+     "tier": "core",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": true,
+     "disputed": false,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D038": {
+   "shown_pair_id": "sh_64k:4012-4360",
+   "seen_in_pilot": [],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:1716-2212",
+     "subset": "sh_32k",
+     "tier": "update_only_fork",
+     "in_eval_set": true,
+     "gold_update": true,
+     "model_update": true,
+     "disputed": false,
+     "pilot_review_id": null
+    },
+    {
+     "pair_id": "sh_64k:4012-4360",
+     "subset": "sh_64k",
+     "tier": "rejected",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  },
+  "D039": {
+   "shown_pair_id": "sh_64k:596-2848",
+   "seen_in_pilot": [
+    "P053"
+   ],
+   "pairs": [
+    {
+     "pair_id": "sh_32k:538-1816",
+     "subset": "sh_32k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": null,
+     "disputed": false,
+     "pilot_review_id": "P053"
+    },
+    {
+     "pair_id": "sh_64k:596-2848",
+     "subset": "sh_64k",
+     "tier": "discovered_unverified",
+     "in_eval_set": false,
+     "gold_update": false,
+     "model_update": true,
+     "disputed": true,
+     "pilot_review_id": null
+    }
+   ]
+  }
+ }
+}

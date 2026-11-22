@@ -102,3 +102,24 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
     kesişimi; `strict_conflict` yalnızca `update_conflict` evet iken).
   - Altın veri seti ve makaledeki sayılar değişmedi. Bu etiketler model etiketidir; insan
     kanıtı 60 çifttir ve modelin insanı izlediğine dair bağımsız kanıt ayrı tutulan 20 çifttir.
+
+## 2026-11-23
+
+- **Altın ile model etiketinin ayrıştığı çiftler için kör inceleme sayfası hazırlandı.**
+  `hnav/labeling/audit_disagreement_review.py` (`build`, `score`), 8 test; dosyalar
+  `stage0_results/conflict_pairs/disagreement_review/` (`disagreement_label.html`,
+  `disagreement_sheet.csv`, `disagreement_README.md`, `disagreement_key.json`). Sayfa pilotla aynı
+  araç ve aynı altı alan; hangi kaynağın ne dediğini göstermez. Henüz doldurulmadı.
+  - `update_conflict` için altın (`gold_update`) ile model 57 çiftte ayrışıyor: fork 30, core 2
+    (ikisi de altın evet, model hayır; 32'si değerlendirme kümesinde), rejected 11,
+    discovered_unverified 14 (altın hayır, model evet).
+  - Bu 57 çift 40 ayrı cümle çifti: aynı cümleler farklı alt kümelerde ayrı kimlikle geçiyor. Sayfa
+    her cümle çiftini bir kez gösterir (40 satır); yanıt o metni taşıyan bütün kimliklere uygulanır.
+  - 40 cümle çiftinin 10'u (57 kimliğin 16'sı) pilotta zaten etiketlenmişti ve yönergede modele
+    örnek olarak gösterildi; bu 16'sında insan etiketi modelle aynı, yani orada model insan etiketini
+    yineliyor. İnsan için yeni olan 30 cümle çifti (41 kimlik, 22'si değerlendirme kümesinde).
+  - 5 cümle çifti farklı alt kümelerde zıt altın etiket taşıyor (4'ü bir yerde core, başka yerde
+    rejected; 1'i fork ve rejected): hakem aynı metne çağrıdan çağrıya farklı karar vermiş.
+  - Sınır: sayfa yalnızca ayrışan çiftleri içerir; altın ile modelin uyuştuğu çiftler hakkında bir
+    şey söylemez. Model pilot etiketleyicinin okumasına göre kalibre edildiği için, incelemeyi aynı
+    kişi yaparsa sonuç modelden bağımsız olmaz.
