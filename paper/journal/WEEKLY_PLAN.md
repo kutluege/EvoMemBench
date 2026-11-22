@@ -105,6 +105,10 @@ annotation (Weeks 1–3).
   - which rule stands. The sheet follows a relation-only table and says "no" on the two pairs
     that prompted the decision of 23 November (US and ancient Rome citizenship; Lu and New York
     City). Either the table is the rule, or the decision is.
+  - **Due before rubric v2 goes to the second annotator (26 November).** If it is still open
+    then, rubric v2 goes out with the other five fields, and `strict_conflict` is labelled
+    later by both annotators on a separate one-question sheet; nothing else waits for it. The
+    last point at which it can be settled without moving a gate is the label report of Week 4.
 - [ ] **C**, after those answers:
   - *if the table is the rule:* derive `strict_conflict` from it for all update conflicts. No
     model pass is needed; 360 pair ids (222 sentence pairs) change from yes to no;
@@ -314,6 +318,11 @@ Related Work in three subsections.
 - [ ] **GPU, C** Finish any comparator cell left from Week 4.
 - [ ] **C** Verify: rerun failed cells, check unexpected results, recompute every table from the
       result files, confirm seeds, finalise intervals, reconcile label corrections.
+- [ ] **New. C** Assemble the final pair dataset as one table, one row per pair id: the two
+      sentences, subset and split, the duplicate-group id, the frozen labels, the GPT-5 mini,
+      parser and Fable 5.2 labels, both annotators' labels where they exist, the adjudicated
+      `update_conflict`, and the final `strict_conflict` under whichever rule was decided in
+      Week 0. A test rebuilds it from the committed inputs and checks the counts.
 - [ ] **New. C, E** Prepare the data release:
   - data card: selection frame (cosine at least 0.80, one encoder), the 32,533 unaudited
     candidates, tier definitions, who labelled what, known limits;
