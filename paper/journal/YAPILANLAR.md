@@ -173,8 +173,11 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
     metinden oluşuyor ve ilk 12 satıra atıf yapıyor ("consistent with S009"); "conservative rule"
     gibi yönergede olmayan terimler içeriyor. Sayfanın üretimi ile dosyanın kaydı arasında 815
     saniye var. Önceki iki sayfada hiç not yoktu. Bunlar notların toplu üretilmiş ya da
-    yapıştırılmış olmasıyla uyumlu; kimin ya da neyin yazdığını göstermez. Etiketleyiciye soruldu;
-    yanıt gelene kadar bu satırlar "insan etiketi" olarak kayda geçmiyor.
+    yapıştırılmış olmasıyla uyumlu; kimin ya da neyin yazdığını göstermez. Etiketleyiciye soruldu.
+  - **Etiketleyicinin yanıtı (23 Kasım):** S012'den sonraki satırları bir modele doldurtmuş. Buna
+    göre bu sayfada insan etiketi yalnızca ilk 12 satırdır (S000–S011); S012–S102 (91 satır) model
+    çıktısıdır, hangi model olduğu kayıtlı değil. Bu 91 satır insan referansı olarak kullanılmaz ve
+    hiçbir yerde insan etiketi diye sayılmaz. Dosya alındığı hâliyle duruyor.
   - Sonuç: sayfadaki tablo kural sayılırsa `strict_conflict` şablondan türetilir, model koşusu
     gerekmez; mevcut model etiketlerinden 360 çift kimliği (222 cümle çifti) evet → hayır olur
     (evli 91, kıta 71, genel merkez 70, başkent 67, yayıncı 29, yönetmen 26, eş ifade 5, dil 1) ve

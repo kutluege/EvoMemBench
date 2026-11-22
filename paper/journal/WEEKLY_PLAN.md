@@ -100,8 +100,8 @@ annotation (Weeks 1–3).
 
 - [x] **E** Fill the `strict_conflict` reference sheet (received 23 November, 103 sentence pairs).
 - [ ] **E** Two answers the sheet cannot be used without (`YAPILANLAR.md`, 23 November):
-  - how the sheet was filled: 91 of its 103 rows carry templated English notes that refer back
-    to the first 12 rows, and a reference sheet has to be the annotator's own labels;
+  - ~~how the sheet was filled~~ answered 23 November: rows S012–S102 were filled by a model,
+    so only the first 12 rows are the annotator's own. Those 91 rows are not a human reference;
   - which rule stands. The sheet follows a relation-only table and says "no" on the two pairs
     that prompted the decision of 23 November (US and ancient Rome citizenship; Lu and New York
     City). Either the table is the rule, or the decision is.
