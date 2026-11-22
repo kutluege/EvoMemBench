@@ -25,7 +25,11 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   `stage0_results/conflict_pairs/human_pilot/` (commit `370e271`, `a06f47b`).
 - **Model etiketleyici hattı kuruldu.** `hnav/labeling/audit_model_annotator.py` (insan
   etiketlerini kalibrasyon ve ayrı tutulan kısım olarak böler, kör partileri üretir, etiket
-  dosyalarını doğrular ve puanlar), 8 test, alt ajan tanımı `.claude/agents/pair-annotator.md`.
+  dosyalarını doğrular ve puanlar, partileri paralel işçilere dağıtır), 10 test, alt ajan
+  tanımı `.claude/agents/pair-annotator.md` (Claude Fable 5.2, effort medium; yalnızca dosya
+  okur ve yazar, kod çalıştıramaz). Geçme ölçütü etiketlemeden önce sabitlendi: ayrı tutulan
+  20 çiftte insanla uyum `update_conflict` için en az 0,85, diğer beş alanın her biri için en
+  az 0,80.
   1. aşama için 5.397 çiftlik 54 kör parti üretildi
   (`stage0_results/conflict_pairs/model_annotation/batches/stage1/`): dengeli değerlendirme
   kümesi ile `rejected` ve `discovered_unverified` katmanları, pilot çiftleri hariç.

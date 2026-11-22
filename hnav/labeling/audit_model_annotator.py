@@ -23,6 +23,22 @@ labels the held-out pairs blind; `ingest` reports that agreement. It is the
 only number here that speaks to whether the annotator follows the human on
 pairs it was not shown. Its n is small and it is reported with its interval.
 
+Gate
+----
+The stage batches are labelled only if the held-out check passes
+(`HELDOUT_GATE`, fixed before any model label existed): agreement with the
+human on `update_conflict` of at least 0.85, and at least 0.80 on each of the
+other five fields. The check is run with the same model and reasoning effort
+as the stage batches. If it fails, the pass stops and the authors decide; the
+guideline is not tuned against the held-out pairs.
+
+Parallel workers
+----------------
+The stage batches are split among several identical subagents, each given a
+disjoint list of batches (`assign`). A worker writes only its own batches'
+label files, so workers cannot collide, and a stopped worker's finished
+batches stay on disk.
+
 Stages
 ------
 stage 1   the balanced evaluation set (all positives and their cosine-matched
@@ -35,6 +51,7 @@ stage 2   every other audited negative. These batches are all one tier, so
     python hnav/labeling/audit_model_annotator.py split --sheet <filled pilot csv>
     python hnav/labeling/audit_model_annotator.py batches [--stage 1|2|all]
     python hnav/labeling/audit_model_annotator.py status
+    python hnav/labeling/audit_model_annotator.py assign --group stage1 --workers 9
     python hnav/labeling/audit_model_annotator.py ingest --sheet <filled pilot csv>
 """
 from __future__ import annotations
@@ -72,7 +89,8 @@ TIERS = ["core", "update_only_fork", "rejected", "discovered_unverified", "negat
 STAGE_PREFIX = {1: "a", 2: "b"}
 BATCH_COLS = ["review_id", "fact_a", "fact_b"]
 OUT_COLS = ["review_id"] + LABEL_COLS + ["notes"]
-ANNOTATOR = "claude-fable-5-2, reasoning effort high, Claude Code subagent"
+ANNOTATOR = "claude-fable-5-2, reasoning effort medium, Claude Code subagents (parallel workers)"
+HELDOUT_GATE = {"update_conflict": 0.85, "each_other_field": 0.80}
 
 
 # ── small helpers ────────────────────────────────────────────────────────────
@@ -305,11 +323,43 @@ def status(args) -> int:
     return 0
 
 
+def assign_batches(status_rows: list[dict], group: str, workers: int) -> list[list[str]]:
+    """Split the batches of `group` that are not done into `workers` contiguous, disjoint lists."""
+    todo = [s["batch"] for s in status_rows if s["group"] == group and s["state"] != "done"]
+    sizes = largest_remainder([1] * workers, len(todo)) if todo else []
+    out, i = [], 0
+    for k in sizes:
+        if k:
+            out.append(todo[i:i + k])
+        i += k
+    return out
+
+
+def assign(args) -> int:
+    _, st = collect(args.out_dir)
+    parts = assign_batches(st, args.group, args.workers)
+    if not parts:
+        print(f"{args.group}: nothing left to assign")
+    for i, part in enumerate(parts, start=1):
+        print(f"worker {i}: group {args.group}; batches {', '.join(part)}")
+    return 0
+
+
 # ── ingest ───────────────────────────────────────────────────────────────────
 
 def _pairwise(x: list[bool], y: list[bool]) -> dict:
     return {"n": len(x), "agreement": agreement(x, y), "kappa": cohen_kappa(x, y),
             "agree": _rate(sum(a == b for a, b in zip(x, y)), len(x)), "table": table2x2(x, y)}
+
+
+def heldout_gate(hv: dict, n_scored: int, n_heldout: int) -> dict:
+    """Pass/fail of the held-out check against HELDOUT_GATE. Incomplete labelling fails."""
+    failed = [c for c in LABEL_COLS
+              if hv[c]["agree"]["rate"] < (HELDOUT_GATE["update_conflict"] if c == "update_conflict"
+                                           else HELDOUT_GATE["each_other_field"])]
+    complete = n_scored == n_heldout
+    return {"criteria": HELDOUT_GATE, "n_scored": n_scored, "n_heldout": n_heldout,
+            "failed_fields": failed, "passed": complete and not failed}
 
 
 def score(merged: dict[str, dict], gold: dict[str, dict], human: dict[str, dict] | None,
@@ -327,6 +377,7 @@ def score(merged: dict[str, dict], gold: dict[str, dict], human: dict[str, dict]
             rep["heldout_vs_human"]["all_six_fields_identical"] = _rate(
                 sum(all(merged[h][c] == human[heldout_rows[h]["pilot_id"]][c] for c in LABEL_COLS)
                     for h in ids), len(ids))
+            rep["heldout_gate"] = heldout_gate(rep["heldout_vs_human"], len(ids), len(heldout_rows))
 
     by_tier = {}
     for t in TIERS:
@@ -387,6 +438,12 @@ def render_md(rep: dict, status_rows: list[dict]) -> str:
             L.append(f"| {f} | {a['n']} | {a['k']} | {_f(a['wilson95'])} | {_f(hv[f]['kappa'])} |")
         a = hv["all_six_fields_identical"]
         L.append(f"| all six fields | {a['n']} | {a['k']} | {_f(a['wilson95'])} | — |")
+        g = rep["heldout_gate"]
+        L += ["", f"Gate (fixed in advance: update_conflict ≥ {g['criteria']['update_conflict']}, "
+              f"every other field ≥ {g['criteria']['each_other_field']}; "
+              f"{g['n_scored']} of {g['n_heldout']} held-out pairs scored): "
+              + ("**passed**." if g["passed"] else
+                 f"**not passed** (fields below the bar: {g['failed_fields'] or 'none; labelling incomplete'}).")]
     L += ["", "## By gold tier (`update_conflict` unless stated)", "",
           "| tier | labelled / in tier | model update yes | model strict yes | = judge | = parser "
           "| = gold_update | strict = gold_strict |", "|---|---|---|---|---|---|---|---|"]
@@ -431,7 +488,7 @@ def ingest(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("split", "batches", "status", "ingest"):
+    for name in ("split", "batches", "status", "assign", "ingest"):
         p = sub.add_parser(name)
         p.add_argument("--out-dir", type=pathlib.Path, default=OUT)
         p.add_argument("--gold", type=pathlib.Path, default=GOLD)
@@ -441,11 +498,15 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--sheet", type=pathlib.Path, default=PILOT_FILLED)
         if name == "split":
             p.add_argument("--n-heldout", type=int, default=N_HELDOUT)
+        if name == "assign":
+            p.add_argument("--group", default="stage1")
+            p.add_argument("--workers", type=int, default=9)
         if name == "batches":
             p.add_argument("--stage", choices=["1", "2", "all"], default="1")
             p.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     args = ap.parse_args(argv)
-    return {"split": split, "batches": batches, "status": status, "ingest": ingest}[args.cmd](args)
+    return {"split": split, "batches": batches, "status": status, "assign": assign,
+            "ingest": ingest}[args.cmd](args)
 
 
 if __name__ == "__main__":

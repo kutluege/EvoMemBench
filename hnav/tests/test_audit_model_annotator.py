@@ -186,6 +186,9 @@ def test_ingest_scores_against_hand_computed_counts(tmp_path, capsys):
     hv = rep["heldout_vs_human"]["update_conflict"]["agree"]
     assert (hv["k"], hv["n"]) == (4, 5)
     assert rep["heldout_vs_human"]["all_six_fields_identical"]["k"] == 4
+    # 4 of 5 = 0.80: below the 0.85 bar on update_conflict, at the 0.80 bar on the other fields
+    gate = rep["heldout_gate"]
+    assert gate["failed_fields"] == ["update_conflict"] and gate["passed"] is False
 
     held_tiers = [key["rows"][v["pilot_id"]]["tier"] for v in hk.values()]
     flipped_tier = key["rows"][hk[flipped]["pilot_id"]]["tier"]
@@ -218,3 +221,29 @@ def test_ingest_reports_an_invalid_batch_and_keeps_the_valid_ones(tmp_path, caps
     assert [b["state"] for b in rep["batches"]] == ["done", "invalid"]
     assert ma.main(["status"] + common) == 0
     assert "1/2 batches done, 1 invalid" in capsys.readouterr().out
+
+
+def _hv(k_update: int, k_other: int, n: int) -> dict:
+    return {c: {"agree": {"k": k, "n": n, "rate": k / n}}
+            for c in LABEL_COLS for k in [k_update if c == "update_conflict" else k_other]}
+
+
+def test_heldout_gate_thresholds_and_completeness():
+    assert ma.heldout_gate(_hv(17, 16, 20), 20, 20)["passed"] is True      # 0.85 and 0.80 exactly
+    g = ma.heldout_gate(_hv(16, 20, 20), 20, 20)                           # 0.80 on update_conflict
+    assert g["passed"] is False and g["failed_fields"] == ["update_conflict"]
+    g = ma.heldout_gate(_hv(20, 15, 20), 20, 20)                           # 0.75 on the other fields
+    assert g["passed"] is False and len(g["failed_fields"]) == 5
+    assert ma.heldout_gate(_hv(19, 19, 19), 19, 20)["passed"] is False     # one held-out pair unlabelled
+
+
+def test_assign_gives_disjoint_contiguous_lists_of_unfinished_batches():
+    st = [{"group": "stage1", "batch": f"batch_{i:03d}", "state": "done" if i in (2, 5) else "missing"}
+          for i in range(1, 12)]
+    st.append({"group": "stage2", "batch": "batch_001", "state": "missing"})
+    parts = ma.assign_batches(st, "stage1", 4)
+    flat = [b for p in parts for b in p]
+    assert flat == [f"batch_{i:03d}" for i in (1, 3, 4, 6, 7, 8, 9, 10, 11)]   # 9 left of 11
+    assert sorted(len(p) for p in parts) == [2, 2, 2, 3]
+    assert ma.assign_batches(st, "stage1", 20) == [[b] for b in flat]          # more workers than batches
+    assert ma.assign_batches([], "stage1", 3) == []

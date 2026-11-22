@@ -216,6 +216,20 @@ başlıklarla yaklaşık 15.500. Derginin hangisini saydığı bilinmiyor (S1).
 | A4 | Push kararı (depo herkese açık) |
 | A5 | `test_audit_laya.py` içindeki bir test Windows'ta kodlama yüzünden düşüyor (`read_text()` kodlamasız); Linux'ta etkilenmez |
 
+### V — Etiketli veri setinin benchmark olarak yayımlanması (22 Kasım'da gündeme geldi)
+
+Model etiketleyici turu (`hnav/labeling/audit_model_annotator.py`) bittiğinde çiftler ve
+etiketler ayrı bir kaynak olarak yayımlanabilir. Yayımdan önce gerekenler:
+
+| Kimlik | İş |
+|---|---|
+| V1 | Kaynak verinin lisansı: çiftler MemoryAgentBench `Conflict_Resolution` cümlelerinden türetiliyor; yeniden dağıtım koşulu ve atıf biçimi doğrulanmalı |
+| V2 | Etiketlerin ne olduğu açık yazılmalı: insan etiketi 60 çift (tek etiketleyici), geri kalanı bu 60 çiftten yazılan yönergeyle çalışan model etiketi. Model etiketleri "insan etiketi" ya da "altın" diye sunulamaz |
+| V3 | Daha büyük insan doğrulaması: ayrı tutulan 20 çift yayın için ince bir kanıt. Model etiketlerinden katmanlı bir örneği (ör. 200–300 çift) iki etiketleyiciyle kör doğrulamak ve κ raporlamak gerekir (K1–K3 ile birleşir) |
+| V4 | Veri kartı: seçim çerçevesi (cos ≥ 0,80, tek gömme modeli), denetlenmeyen 32.533 aday, katman tanımları, bilinen sınırlar |
+| V5 | Makaledeki sayılarla ilişki: makale dondurulmuş `gold_update` etiketleriyle raporluyor. Yeni etiketler o sayıları değiştirmez; ayrı bir duyarlılık analizi olarak girer ya da ayrı bir yayın olur. Karar yazarların |
+| V6 | Yayım yeri ve DOI (Zenodo ya da Hugging Face), sürüm numarası; depo zaten herkese açık (A4) |
+
 ### S — Dergiye ve kuruma sorulacaklar
 
 | Kimlik | Soru | Kime |
@@ -247,3 +261,5 @@ başlıklarla yaklaşık 15.500. Derginin hangisini saydığı bilinmiyor (S1).
 5. Push ve deponun kamuya açık durumu (A4, B5).
 6. İsteğe bağlı kalemlerden hangileri takvime girecek (K9–K12); rapora göre iki tanesine
    yer var.
+7. Etiketli veri setinin benchmark olarak yayımlanması: makalenin içinde mi, ayrı bir yayın
+   olarak mı, ve V1–V6'dan hangileri gönderimden önce yapılacak.
