@@ -46,3 +46,45 @@ Then score it:
     python hnav/labeling/audit_human_pilot.py score --sheet <the filled file>
 
 Do not open `pilot_key.json` before you have finished.
+
+---
+
+## Türkçe çeviri (display translation)
+
+The labelling page can be shown in Turkish. The text below is a translation of
+the instructions above, which remain the reference. The sentence pairs are
+never translated, and the saved file always carries the English column names
+and `yes` / `no`. If labels made from the Turkish display are reported, say so.
+
+# İnsan incelemesi — etiketleyici yönergesi
+
+Bir olgu deposundan alınmış cümle çiftlerini etiketliyorsunuz. Cümlelerin gerçek
+dünyada doğru olup olmadığını **kontrol etmeyin**; iki cümlenin çelişen
+önermeler dile getirip getirmediğine karar verin. Tek başınıza çalışın, diğer
+etiketleyiciye danışmayın ve anahtar dosyasını (`pilot_key.json`) açmayın.
+
+Her çift için önce her cümlenin ne ileri sürdüğünü belirleyin — özne, özellik
+(ilişki), değer ve varsa geçerlilik bağlamı (zaman, yer, topluluk, kurum,
+koşul) — sonra her sütunu evet/hayır olarak yanıtlayın:
+
+- `same_referent`: iki cümle de aynı gerçek dünya varlığı hakkındadır (takma
+  adlar, kısaltmalar ve farklı yazımlar tek bir varlığı adlandırabilir).
+- `same_relation`: ikisi de aynı özelliği ya da ilişkiyi bildirir; ifade biçimi
+  farklı olsa bile.
+- `context_overlap`: önermeler bağdaşan ya da örtüşen geçerlilik koşulları
+  altında geçerlidir.
+- `values_incompatible`: iki değer, aynı bağlamda aynı yuvada birlikte
+  bulunamaz. Aynı anlama gelen farklı ifadeler, takma adlar, bir değerin
+  diğerini kapsaması ve birlikte var olabilen değerler **bağdaşır** (hayır
+  deyin). Yalnızca yazımlar farklı diye evet demeyin.
+- `update_conflict`: her (varlık, özellik) yuvası için tek bir güncel değer
+  tutan bir bellek deposu kuralında, cümlelerden biri diğerinin değerinin
+  yerini alır. Yukarıdaki dört kontrolün hepsi evet olduğunda, ve yalnızca o
+  zaman, evettir; ilişki doğası gereği çok değerli olsa bile (vatandaşlıklar,
+  çocuklar, diller, ...).
+- `strict_conflict`: iki cümle gerçek dünyada aynı anda doğru olamaz. Yalnızca
+  `update_conflict` evet ise **ve** ilişki aynı anda tek bir değer kabul
+  ediyorsa evettir.
+
+Her soruyu evet ya da hayır olarak yanıtlayın (boş bırakmayın, "emin değilim"
+yok); belirtmek istediğiniz her şey için notlar alanını kullanın.

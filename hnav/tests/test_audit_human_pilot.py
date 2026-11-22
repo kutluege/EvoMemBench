@@ -53,6 +53,7 @@ def gold() -> list[dict]:
 
 
 def _write_gold(tmp_path: pathlib.Path, gold: list[dict]) -> pathlib.Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     p = tmp_path / "gold.jsonl"
     p.write_text("\n".join(json.dumps(g) for g in gold) + "\n", encoding="utf-8")
     return p
@@ -134,7 +135,42 @@ def test_sheet_and_page_carry_nothing_but_the_blind_columns(tmp_path, gold):
         assert leak not in page
         assert leak not in (out / "pilot_sheet.csv").read_text(encoding="utf-8")
     assert data["sheet_cols"] == hr.SHEET_COLS and data["label_cols"] == hr.LABEL_COLS
-    assert set(pilot.SHORT) == set(hr.LABEL_COLS)
+
+
+def test_display_language_changes_the_text_and_nothing_that_is_saved(tmp_path, gold):
+    en = _build(tmp_path / "en", gold)
+    tr = _build(tmp_path / "tr", gold, lang="tr")
+    grab = lambda out: json.loads(re.search(                                   # noqa: E731
+        r'<script id="data" type="application/json">(.*?)</script>',
+        (out / "pilot_label.html").read_text(encoding="utf-8"), re.S).group(1))
+    d_en, d_tr = grab(en), grab(tr)
+
+    assert (d_en["lang"], d_tr["lang"]) == ("en", "tr")
+    # everything except the opening language is identical: rows, columns, both text tables
+    assert {k: v for k, v in d_en.items() if k != "lang"} == {k: v for k, v in d_tr.items() if k != "lang"}
+    assert (en / "pilot_sheet.csv").read_bytes() == (tr / "pilot_sheet.csv").read_bytes()
+    key = lambda out: json.loads((out / "pilot_key.json").read_text(encoding="utf-8"))  # noqa: E731
+    assert key(en) == key(tr)
+
+    # the saved vocabulary is fixed by the page script, not by the text tables
+    page = (tr / "pilot_label.html").read_text(encoding="utf-8")
+    assert '[["yes", "y", L().yes], ["no", "n", L().no]]' in page
+    assert d_tr["i18n"]["tr"]["yes"] == "Evet" and d_tr["i18n"]["en"]["yes"] == "Yes"
+
+    # both languages define the same strings and describe every label column
+    def shape(t):
+        return {k: (sorted(v) if isinstance(v, dict) else None) for k, v in t.items()}
+    assert shape(pilot.I18N["en"]) == shape(pilot.I18N["tr"])
+    for lang in pilot.LANGS:
+        assert set(pilot.I18N[lang]["short"]) == set(hr.LABEL_COLS)
+        assert all(f"`{c}`" in pilot.I18N[lang]["rubric"] for c in hr.LABEL_COLS)
+    placeholders = lambda s: sorted(re.findall(r"\{(\w+)\}", s))               # noqa: E731
+    for k in ("progress", "saved_partial", "saved_full"):
+        assert placeholders(pilot.I18N["en"][k]) == placeholders(pilot.I18N["tr"][k])
+    assert pilot.I18N["en"]["rubric"] is hr.RUBRIC             # the reference text is not a copy
+
+    with pytest.raises(SystemExit):                            # argparse rejects an unknown language
+        pilot.main(["build", "--gold", str(tmp_path / "en" / "gold.jsonl"), "--lang", "de"])
 
 
 # ── scoring ──────────────────────────────────────────────────────────────────

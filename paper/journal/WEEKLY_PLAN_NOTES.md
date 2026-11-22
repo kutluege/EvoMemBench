@@ -58,6 +58,12 @@ hayır diyor" ayırt edilemez. İstenmezse `--n-control 0` ile yeniden üretilir
 4. Puanla: `python hnav/labeling/audit_human_pilot.py score --sheet stage0_results/conflict_pairs/human_pilot/pilot_sheet.filled.csv`
 5. Bitirmeden `pilot_key.json` dosyasını açma.
 
+Sayfa Türkçe açılır; sağ üstteki düğme İngilizceye çevirir. Dil yalnızca arayüzü
+değiştirir: cümle çiftleri çevrilmez, kaydedilen dosyada sütun adları ve yanıtlar
+(`yes` / `no`) her zaman İngilizcedir. Türkçe metin İngilizce yönergenin çevirisidir,
+ölçüm aracı İngilizce yönergedir. Türkçe arayüzle yapılan etiketler makalede
+kullanılırsa bu belirtilmeli (K3, B3).
+
 **Pilotun sınırı:** tek etiketleyici ve yalnızca tartışmalı katmanlar. Uyum katsayısı (κ)
 vermez, hakemin veri kümesi genelindeki doğruluğunu tahmin etmez. Makalede "insan
 doğrulaması" olarak raporlanamaz. Aynı formu ikinci bir kişi de doldurursa puanlayıcı κ

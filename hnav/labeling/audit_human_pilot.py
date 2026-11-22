@@ -18,7 +18,11 @@ the rubric on undisputed cases.
     python hnav/labeling/audit_human_pilot.py score --sheet <filled.csv> [--sheet-b <filled.csv>]
 
 ``build`` writes a blind CSV sheet, a self-contained HTML page that fills the
-same sheet in a browser (no Excel, no network), the rubric and a key.
+same sheet in a browser (no Excel, no network), the rubric and a key. The page
+can be shown in English or Turkish (``--lang`` sets the language it opens in);
+the language changes the display only. The sentence pairs are never
+translated, and the saved file always carries the English column names and
+``yes`` / ``no``, so sheets filled in either language are scored identically.
 ``score`` compares the filled sheet with the judge and the parser per tier,
 with Wilson intervals, and with a second annotator if one is given.
 
@@ -90,16 +94,115 @@ Then score it:
 Do not open `pilot_key.json` before you have finished.
 """
 
-# One line per column for the labelling page, taken from the rubric above.
-SHORT = {
-    "same_referent": "Both sentences are about the same real-world entity.",
-    "same_relation": "Both assert the same attribute or relation, even if phrased differently.",
-    "context_overlap": "The propositions apply under compatible or overlapping validity conditions.",
-    "values_incompatible": "The two values cannot both occupy the same slot under the same context.",
-    "update_conflict": "With one current value per (entity, attribute) slot, one sentence replaces "
-                       "the other's value. Yes exactly when the four checks above are all yes.",
-    "strict_conflict": "The two sentences cannot both be true at the same time in the real world.",
+TRANSLATION_NOTE = """
+---
+
+## Türkçe çeviri (display translation)
+
+The labelling page can be shown in Turkish. The text below is a translation of
+the instructions above, which remain the reference. The sentence pairs are
+never translated, and the saved file always carries the English column names
+and `yes` / `no`. If labels made from the Turkish display are reported, say so.
+
+"""
+
+# Turkish translation of RUBRIC, for display only. The English rubric is the
+# reference instrument; the facts, the column names and the saved yes/no values
+# stay in English whatever language the page is shown in.
+RUBRIC_TR = """# İnsan incelemesi — etiketleyici yönergesi
+
+Bir olgu deposundan alınmış cümle çiftlerini etiketliyorsunuz. Cümlelerin gerçek
+dünyada doğru olup olmadığını **kontrol etmeyin**; iki cümlenin çelişen
+önermeler dile getirip getirmediğine karar verin. Tek başınıza çalışın, diğer
+etiketleyiciye danışmayın ve anahtar dosyasını (`pilot_key.json`) açmayın.
+
+Her çift için önce her cümlenin ne ileri sürdüğünü belirleyin — özne, özellik
+(ilişki), değer ve varsa geçerlilik bağlamı (zaman, yer, topluluk, kurum,
+koşul) — sonra her sütunu evet/hayır olarak yanıtlayın:
+
+- `same_referent`: iki cümle de aynı gerçek dünya varlığı hakkındadır (takma
+  adlar, kısaltmalar ve farklı yazımlar tek bir varlığı adlandırabilir).
+- `same_relation`: ikisi de aynı özelliği ya da ilişkiyi bildirir; ifade biçimi
+  farklı olsa bile.
+- `context_overlap`: önermeler bağdaşan ya da örtüşen geçerlilik koşulları
+  altında geçerlidir.
+- `values_incompatible`: iki değer, aynı bağlamda aynı yuvada birlikte
+  bulunamaz. Aynı anlama gelen farklı ifadeler, takma adlar, bir değerin
+  diğerini kapsaması ve birlikte var olabilen değerler **bağdaşır** (hayır
+  deyin). Yalnızca yazımlar farklı diye evet demeyin.
+- `update_conflict`: her (varlık, özellik) yuvası için tek bir güncel değer
+  tutan bir bellek deposu kuralında, cümlelerden biri diğerinin değerinin
+  yerini alır. Yukarıdaki dört kontrolün hepsi evet olduğunda, ve yalnızca o
+  zaman, evettir; ilişki doğası gereği çok değerli olsa bile (vatandaşlıklar,
+  çocuklar, diller, ...).
+- `strict_conflict`: iki cümle gerçek dünyada aynı anda doğru olamaz. Yalnızca
+  `update_conflict` evet ise **ve** ilişki aynı anda tek bir değer kabul
+  ediyorsa evettir.
+
+Her soruyu evet ya da hayır olarak yanıtlayın (boş bırakmayın, "emin değilim"
+yok); belirtmek istediğiniz her şey için notlar alanını kullanın.
+"""
+
+# Text of the labelling page per display language. ``short`` gives one line per
+# column, taken from the rubric. Only the display changes with the language.
+I18N = {
+    "en": {
+        "name": "English",
+        "title": "Pilot review: blind labelling",
+        "sub": "Decide whether the two sentences express conflicting propositions. Do not check "
+               "whether either is true in the real world. Answer all six questions for every pair.",
+        "prev": "Previous", "next": "Next", "todo": "Next unanswered",
+        "notes": "Notes (optional)", "download": "Download CSV", "full": "Full instructions",
+        "yes": "Yes", "no": "No",
+        "progress": "Pair {i} of {n} ({id}, {subset})  |  {done} complete",
+        "all_done": "Every pair is complete.",
+        "saved_partial": "Saved {name}. {missing} pairs are incomplete; the scorer rejects blank cells.",
+        "saved_full": "Saved {name}. All {n} pairs are complete.",
+        "short": {
+            "same_referent": "Both sentences are about the same real-world entity.",
+            "same_relation": "Both assert the same attribute or relation, even if phrased differently.",
+            "context_overlap": "The propositions apply under compatible or overlapping validity "
+                               "conditions.",
+            "values_incompatible": "The two values cannot both occupy the same slot under the same "
+                                   "context.",
+            "update_conflict": "With one current value per (entity, attribute) slot, one sentence "
+                               "replaces the other's value. Yes exactly when the four checks above "
+                               "are all yes.",
+            "strict_conflict": "The two sentences cannot both be true at the same time in the real "
+                               "world.",
+        },
+        "rubric": RUBRIC,
+    },
+    "tr": {
+        "name": "Türkçe",
+        "title": "Pilot inceleme: kör etiketleme",
+        "sub": "İki cümlenin çelişen önermeler dile getirip getirmediğine karar verin. Cümlelerin "
+               "gerçek dünyada doğru olup olmadığını kontrol etmeyin. Her çift için altı sorunun "
+               "hepsini yanıtlayın. Yanıtlar dosyaya İngilizce (yes/no) olarak kaydedilir.",
+        "prev": "Önceki", "next": "Sonraki", "todo": "Sonraki yanıtsız",
+        "notes": "Notlar (isteğe bağlı)", "download": "CSV indir", "full": "Yönergenin tamamı",
+        "yes": "Evet", "no": "Hayır",
+        "progress": "{n} çiftten {i}. çift ({id}, {subset})  |  {done} tamamlandı",
+        "all_done": "Bütün çiftler tamamlandı.",
+        "saved_partial": "{name} kaydedildi. {missing} çift eksik; puanlayıcı boş hücreleri "
+                         "kabul etmez.",
+        "saved_full": "{name} kaydedildi. {n} çiftin hepsi tamamlandı.",
+        "short": {
+            "same_referent": "İki cümle de aynı gerçek dünya varlığı hakkında.",
+            "same_relation": "İkisi de aynı özelliği ya da ilişkiyi bildiriyor; ifade biçimi farklı "
+                             "olsa bile.",
+            "context_overlap": "Önermeler bağdaşan ya da örtüşen geçerlilik koşulları altında "
+                               "geçerli.",
+            "values_incompatible": "İki değer, aynı bağlamda aynı yuvada birlikte bulunamaz.",
+            "update_conflict": "Her (varlık, özellik) yuvası için tek bir güncel değer tutulduğunda, "
+                               "cümlelerden biri diğerinin değerinin yerini alır. Yukarıdaki dört "
+                               "kontrolün hepsi evet olduğunda, ve yalnızca o zaman, evet.",
+            "strict_conflict": "İki cümle gerçek dünyada aynı anda doğru olamaz.",
+        },
+        "rubric": RUBRIC_TR,
+    },
 }
+LANGS = sorted(I18N)
 
 
 # ── selection ────────────────────────────────────────────────────────────────
@@ -174,6 +277,7 @@ PAGE_TEMPLATE = r"""<!doctype html>
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:820px;margin:0 auto;padding:20px 16px 64px}
 h1{font-size:1.25rem;margin:0 0 4px}
+.bar h1.grow{margin:0;color:var(--fg)}
 .sub{color:var(--muted);margin:0 0 16px;font-size:.95rem}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
 .bar .grow{flex:1 1 auto;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -204,30 +308,33 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 </head>
 <body>
 <main>
-<h1>Pilot review: blind labelling</h1>
-<p class="sub">Decide whether the two sentences express conflicting propositions. Do not check whether either is true in the real world. Answer all six questions for every pair.</p>
+<div class="bar">
+  <h1 class="grow" id="t_title"></h1>
+  <button id="lang" type="button"></button>
+</div>
+<p class="sub" id="t_sub"></p>
 
 <div class="bar">
   <span class="grow" id="progress"></span>
-  <button id="prev" type="button">Previous</button>
-  <button id="next" type="button">Next</button>
-  <button id="todo" type="button">Next unanswered</button>
+  <button id="prev" type="button"></button>
+  <button id="next" type="button"></button>
+  <button id="todo" type="button"></button>
 </div>
 
 <div class="card" id="facts"></div>
 <div class="card" id="questions"></div>
 <div class="card">
-  <label for="notes">Notes (optional)</label>
+  <label for="notes" id="t_notes"></label>
   <textarea id="notes"></textarea>
 </div>
 
 <div class="bar">
   <span class="grow" id="status"></span>
-  <button id="download" type="button" class="primary">Download CSV</button>
+  <button id="download" type="button" class="primary"></button>
 </div>
 
 <details>
-  <summary>Full instructions</summary>
+  <summary id="t_full"></summary>
   <pre id="rubric"></pre>
 </details>
 </main>
@@ -237,8 +344,13 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 (function () {
   var D = JSON.parse(document.getElementById("data").textContent);
   var rows = D.rows, cols = D.label_cols, sheetCols = D.sheet_cols;
-  var storeKey = "pilot-review-" + D.build_id;
-  var answers = {}, at = 0;
+  var storeKey = "pilot-review-" + D.build_id, langKey = "pilot-review-lang";
+  var answers = {}, at = 0, lang = D.lang;
+
+  // The language changes the display only: answers are stored and exported as "yes" / "no".
+  try { var saved = localStorage.getItem(langKey); if (saved && D.i18n[saved]) { lang = saved; } } catch (e) {}
+  function L() { return D.i18n[lang]; }
+  function fmt(s, v) { return s.replace(/\{(\w+)\}/g, function (m, k) { return v[k] === undefined ? m : v[k]; }); }
 
   try { answers = JSON.parse(localStorage.getItem(storeKey) || "{}") || {}; } catch (e) { answers = {}; }
   function save() { try { localStorage.setItem(storeKey, JSON.stringify(answers)); } catch (e) {} }
@@ -257,9 +369,8 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 
   function render() {
     var r = rows[at], a = rec(r.review_id);
-    document.getElementById("progress").textContent =
-      "Pair " + (at + 1) + " of " + rows.length + " (" + r.review_id + ", " + r.subset + ")  |  " +
-      nDone() + " complete";
+    document.getElementById("progress").textContent = fmt(L().progress,
+      { i: at + 1, n: rows.length, id: r.review_id, subset: r.subset, done: nDone() });
 
     var f = document.getElementById("facts");
     f.textContent = "";
@@ -275,8 +386,8 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
     cols.forEach(function (c) {
       var row = el("div", "q"), left = el("div"), yn = el("div", "yn");
       left.appendChild(el("code", "", c));
-      left.appendChild(el("p", "", D.short[c] || ""));
-      [["yes", "y", "Yes"], ["no", "n", "No"]].forEach(function (o) {
+      left.appendChild(el("p", "", L().short[c] || ""));
+      [["yes", "y", L().yes], ["no", "n", L().no]].forEach(function (o) {
         var b = el("button", o[1], o[2]);
         b.type = "button";
         b.setAttribute("aria-pressed", a[c] === o[0] ? "true" : "false");
@@ -297,6 +408,23 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 
   function go(i) { at = Math.max(0, Math.min(rows.length - 1, i)); render(); window.scrollTo(0, 0); }
 
+  function applyLang() {
+    var t = L(), other = D.langs.filter(function (x) { return x !== lang; })[0];
+    document.documentElement.lang = lang;
+    document.title = t.title;
+    [["t_title", "title"], ["t_sub", "sub"], ["prev", "prev"], ["next", "next"], ["todo", "todo"],
+     ["t_notes", "notes"], ["download", "download"], ["t_full", "full"], ["rubric", "rubric"]]
+      .forEach(function (p) { document.getElementById(p[0]).textContent = t[p[1]]; });
+    document.getElementById("lang").textContent = D.i18n[other].name;
+    document.getElementById("status").textContent = "";
+    render();
+  }
+  document.getElementById("lang").addEventListener("click", function () {
+    lang = D.langs.filter(function (x) { return x !== lang; })[0];
+    try { localStorage.setItem(langKey, lang); } catch (e) {}
+    applyLang();
+  });
+
   document.getElementById("notes").addEventListener("input", function (ev) {
     rec(rows[at].review_id).notes = ev.target.value;
     save();
@@ -308,7 +436,7 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
       var i = (at + k) % rows.length;
       if (!complete(rows[i].review_id)) { go(i); return; }
     }
-    document.getElementById("status").textContent = "Every pair is complete.";
+    document.getElementById("status").textContent = L().all_done;
   });
   document.addEventListener("keydown", function (ev) {
     if (ev.target && ev.target.tagName === "TEXTAREA") { return; }
@@ -335,14 +463,12 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
     document.body.appendChild(link);
     link.click();
     link.remove();
-    document.getElementById("status").textContent = missing
-      ? "Saved " + name + ". " + missing + " pairs are incomplete; the scorer rejects blank cells."
-      : "Saved " + name + ". All " + rows.length + " pairs are complete.";
+    document.getElementById("status").textContent = fmt(missing ? L().saved_partial : L().saved_full,
+      { name: name, missing: missing, n: rows.length });
   });
 
-  document.getElementById("rubric").textContent = D.rubric;
   for (var i = 0; i < rows.length; i++) { if (!complete(rows[i].review_id)) { at = i; break; } }
-  render();
+  applyLang();
 })();
 </script>
 </body>
@@ -350,9 +476,12 @@ pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10
 """
 
 
-def render_page(blind: list[dict]) -> str:
+def render_page(blind: list[dict], lang: str = "en") -> str:
+    """The labelling page. ``lang`` is the language it opens in; the page can switch."""
+    if lang not in I18N:
+        raise SystemExit(f"unknown page language {lang!r}; choose from {LANGS}")
     data = {"build_id": build_id(blind), "rows": blind, "label_cols": LABEL_COLS,
-            "sheet_cols": SHEET_COLS, "short": SHORT, "rubric": RUBRIC}
+            "sheet_cols": SHEET_COLS, "lang": lang, "langs": LANGS, "i18n": I18N}
     blob = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
     return PAGE_TEMPLATE.replace("__DATA__", blob)
 
@@ -374,8 +503,9 @@ def build(args) -> int:
         "rows": {r["review_id"]: {"pair_id": r["pair_id"], "tier": r["tier"], "stratum": r["stratum"]}
                  for r in rows}}, indent=1, ensure_ascii=False, default=dict), encoding="utf-8")
     write_sheet(out / SHEET.name, blind)
-    (out / PAGE.name).write_text(render_page(blind), encoding="utf-8")
-    (out / README.name).write_text(RUBRIC + PILOT_NOTE, encoding="utf-8")
+    (out / PAGE.name).write_text(render_page(blind, args.lang), encoding="utf-8")
+    (out / README.name).write_text(RUBRIC + PILOT_NOTE + TRANSLATION_NOTE + RUBRIC_TR,
+                                   encoding="utf-8")
     print(f"pilot set: {len(rows)} pairs; by tier {dict(Counter(r['tier'] for r in rows))}")
     print(f"wrote {out / SHEET.name}, {out / PAGE.name}, {out / KEY.name}, {out / README.name}")
     return 0
@@ -510,6 +640,8 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--seed", type=int, default=SEED)
     b.add_argument("--n-disputed", type=int, default=N_DISPUTED)
     b.add_argument("--n-control", type=int, default=N_CONTROL)
+    b.add_argument("--lang", choices=LANGS, default="en",
+                   help="language the labelling page opens in (display only)")
     b.set_defaults(func=build)
     s = sub.add_parser("score")
     s.add_argument("--gold", default=str(GOLD))
