@@ -22,6 +22,7 @@ geometry" (E. Kutlu, Ş. Özönder), being prepared for *Natural Language Proces
 | `journal/WEEKLY_PLAN_NOTES.md` | Open decisions and proposed work items, input to the week-by-week plan. Where the two differ, `WEEKLY_PLAN.md` is the later one. |
 | `journal/YAPILANLAR.md` | Dated log of work completed for the submission (Turkish). Only finished, checked work is entered. |
 | `PROTOCOL_GENERALISATION.md` | Protocol for the new-set evaluation. Draft, not registered. |
+| `PROTOCOL_ANNOTATION.md` | Protocol for the pair labels: human seed, model at scale, human review of disagreements, independent audit. Draft, not registered; stages 1–4 are a record of work already done. |
 
 Build: `pdflatex main_nlp`, `bibtex main_nlp`, `pdflatex main_nlp`, `pdflatex main_nlp`,
 run inside `nlp_cambridge/`.

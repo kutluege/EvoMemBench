@@ -118,6 +118,12 @@ annotation (Weeks 1–3).
     one Fable 5.2 pass over about 708 sentence pairs (up to 897), batched by relation, in which
     each worker records the period of each value as evidence, with a held-out set that contains
     such pairs. Nothing else is relabelled.
+- [ ] **New, 24 November. E, Ş** Read and approve the annotation protocol
+      (`paper/PROTOCOL_ANNOTATION.md`, draft v0.1): stages 1–4 are recorded as done, stages 0, 5
+      and 6 are fixed before they start. Confirm the two `[CONFIRM]` lines of its §6.7. It is
+      registered together with the generalisation protocol on 26 November.
+- [ ] **New. E, Ş** Fill the decision table of stage 0 (about 45 decisions); it replaces the
+      `strict_conflict` reference sheet.
 - [ ] **New. C, then E and Ş approve.** Rubric v2 for the two-annotator validation. It settles the
       points the first rubric left open:
   - `values_incompatible` is about the slot: two different values are incompatible even when
