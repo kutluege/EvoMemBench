@@ -2,6 +2,12 @@
 
 Yazım tarihi: 2026-11-22. Hedef gönderim tarihi: 7 Ocak 2027 (hazırlık raporundaki tarih).
 
+**23 Kasım 2026 notu:** hafta hafta plan artık `WEEKLY_PLAN.md` dosyasında ve gönderim tarihi 14
+Ocak 2027'ye alındı. Aşağıdaki açık kararlardan şunlar orada karara bağlandı: asıl insan
+doğrulaması (yaklaşık 200 cümle çifti, iki etiketleyici yazarların kendisi), iddiaların biçimi
+(C1–C5), büyük model referansı (Claude Haiku 5.5), üretici karşılaştırıcının ve maliyet
+analizinin zorunlu sayılması. İki dosya ayrışırsa `WEEKLY_PLAN.md` geçerlidir.
+
 Bu dosya bir plan değil, plana girdi. Hafta ataması yok; her iş kaleminin bir kimliği
 (K1, M3, …), tahmini süresi ve bağımlılığı var, haftalık plan bunlara kimlikle atıf
 yapabilsin diye. Süre tahminleri `READINESS_PLAN.md` Bölüm 4'ten alındı; raporun kendi

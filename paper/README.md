@@ -18,7 +18,8 @@ geometry" (E. Kutlu, Ş. Özönder), being prepared for *Natural Language Proces
 | `journal/READINESS_PLAN.md` | Research on what the journal expects and what the paper still needs (2026-11-21). |
 | `journal/FORMAT_BRIEF.md` | The format and conversion brief the source was built from (2026-10-09). |
 | `journal/SKILL.md` | Working rules for manuscript edits, paper-facing experiments and code. Loaded through `.claude/skills/nlp-journal/`. |
-| `journal/WEEKLY_PLAN_NOTES.md` | Open decisions and proposed work items, input to the week-by-week plan. |
+| `journal/WEEKLY_PLAN.md` | The week-by-week plan to submission on 14 January 2027, revised 23 November 2026: the five claims, what each still needs, and the tasks of Weeks 0–7. |
+| `journal/WEEKLY_PLAN_NOTES.md` | Open decisions and proposed work items, input to the week-by-week plan. Where the two differ, `WEEKLY_PLAN.md` is the later one. |
 | `journal/YAPILANLAR.md` | Dated log of work completed for the submission (Turkish). Only finished, checked work is entered. |
 | `PROTOCOL_GENERALISATION.md` | Protocol for the new-set evaluation. Draft, not registered. |
 

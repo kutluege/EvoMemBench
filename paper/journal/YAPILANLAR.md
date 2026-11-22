@@ -155,3 +155,10 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   `update_conflict` evet dediği 53 metin (eski yanıtlar belirsiz ölçütle verilmişti) ve hiç
   görülmemiş 50 metin (37 ilişkinin her birinden en az bir). Henüz doldurulmadı. Mevcut model
   etiketleri ve altın veri seti değişmedi.
+- **Yedi haftalık plan yeniden yazıldı.** `paper/journal/WEEKLY_PLAN.md`: yazarın 21 Kasım planı,
+  bu iki günün bulgularına ve 23 Kasım'da verilen kararlara göre güncellendi. Gönderim 14 Ocak
+  2027. Beş iddia (C1–C5), her birinin elde olan ve eksik kanıtı, 0–7. haftaların iş listesi.
+  Kararlar: LLM karşılaştırması hem uçtan uca hem çift düzeyinde; "küçük model, filtreyle büyük
+  model kadar" iddiası için Claude Haiku 5.5 aynı düzenekte koşulacak; veri FactConsolidation
+  görevine iki ek olarak sunulacak; iki insan etiketleyici yazarların kendisi, yaklaşık 200 cümle
+  çifti.
