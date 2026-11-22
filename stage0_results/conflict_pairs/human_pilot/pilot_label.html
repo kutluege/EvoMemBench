@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilot review: blind labelling</title>
+<style>
+:root{--bg:#faf9f6;--fg:#1d1c1a;--muted:#67645e;--line:#d8d4ca;--card:#ffffff;--yes:#1d6b47;--no:#8c302b;--accent:#28497c;--on:#ffffff}
+@media (prefers-color-scheme:dark){:root{--bg:#171716;--fg:#eceae4;--muted:#a3a098;--line:#3b3a36;--card:#20201e;--yes:#3f9a6f;--no:#c5625b;--accent:#8cafe8;--on:#111110}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:820px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:1.25rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.95rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.bar .grow{flex:1 1 auto;color:var(--muted);font-variant-numeric:tabular-nums}
+button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin:12px 0}
+.fact{font-size:1.1rem;margin:0 0 10px}
+.fact:last-child{margin:0}
+.tag{display:inline-block;min-width:1.5em;font-weight:600;color:var(--accent)}
+.q{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:start;padding:11px 0;border-top:1px solid var(--line)}
+.q:first-child{border-top:0;padding-top:0}
+.q code{font:600 .95rem ui-monospace,Consolas,monospace}
+.q p{margin:2px 0 0;color:var(--muted);font-size:.93rem}
+.yn{display:flex;gap:6px}
+.yn button{min-width:58px}
+.yn button[aria-pressed="true"].y{background:var(--yes);border-color:var(--yes);color:#fff}
+.yn button[aria-pressed="true"].n{background:var(--no);border-color:var(--no);color:#fff}
+textarea{width:100%;min-height:56px;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+label{display:block;color:var(--muted);font-size:.93rem;margin-bottom:4px}
+#status{min-height:1.5em;color:var(--muted);font-size:.93rem}
+details{margin-top:20px}
+summary{cursor:pointer;color:var(--accent)}
+pre{white-space:pre-wrap;font:inherit;font-size:.93rem;color:var(--fg);margin:10px 0 0}
+@media (max-width:520px){.q{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Pilot review: blind labelling</h1>
+<p class="sub">Decide whether the two sentences express conflicting propositions. Do not check whether either is true in the real world. Answer all six questions for every pair.</p>
+
+<div class="bar">
+  <span class="grow" id="progress"></span>
+  <button id="prev" type="button">Previous</button>
+  <button id="next" type="button">Next</button>
+  <button id="todo" type="button">Next unanswered</button>
+</div>
+
+<div class="card" id="facts"></div>
+<div class="card" id="questions"></div>
+<div class="card">
+  <label for="notes">Notes (optional)</label>
+  <textarea id="notes"></textarea>
+</div>
+
+<div class="bar">
+  <span class="grow" id="status"></span>
+  <button id="download" type="button" class="primary">Download CSV</button>
+</div>
+
+<details>
+  <summary>Full instructions</summary>
+  <pre id="rubric"></pre>
+</details>
+</main>
+
+<script id="data" type="application/json">{"build_id": "96044c348d3322b6", "rows": [{"review_id": "P000", "subset": "sh_32k", "fact_a": "Christianity was founded in the city of Taipei.", "fact_b": "Christianity was founded by Jesus Christ."}, {"review_id": "P001", "subset": "sh_64k", "fact_a": "placekicker is associated with the sport of American football.", "fact_b": "placekicker is associated with the sport of rugby."}, {"review_id": "P002", "subset": "sh_32k", "fact_a": "goalkeeper is associated with the sport of association football.", "fact_b": "goalkeeper is associated with the sport of Gaelic football."}, {"review_id": "P003", "subset": "sh_64k", "fact_a": "João Gilberto is famous for The Girl from Ipanema.", "fact_b": "João Gilberto is famous for Angel."}, {"review_id": "P004", "subset": "sh_64k", "fact_a": "Kingdom of England is located in the continent of North America.", "fact_b": "England is located in the continent of Europe."}, {"review_id": "P005", "subset": "sh_64k", "fact_a": "Henri Grégoire is affiliated with the religion of Catholic Church.", "fact_b": "Henri Grégoire is affiliated with the religion of Christianity."}, {"review_id": "P006", "subset": "sh_32k", "fact_a": "John Evelyn is a citizen of Kingdom of England.", "fact_b": "John Evelyn is a citizen of Poland."}, {"review_id": "P007", "subset": "sh_64k", "fact_a": "William Waynflete speaks the language of English.", "fact_b": "William Waynflete speaks the language of Latin."}, {"review_id": "P008", "subset": "sh_64k", "fact_a": "center is associated with the sport of basketball.", "fact_b": "center is associated with the sport of rugby union."}, {"review_id": "P009", "subset": "sh_64k", "fact_a": "The univeristy where Samuel Beckett was educated is Trinity College Dublin.", "fact_b": "The univeristy where Brian O'Nolan was educated is University College Dublin."}, {"review_id": "P010", "subset": "sh_64k", "fact_a": "Kingdom of Etruria is affiliated with the religion of Catholic Church.", "fact_b": "Kingdom of Etruria is affiliated with the religion of Christianity."}, {"review_id": "P011", "subset": "sh_64k", "fact_a": "Ken Burns speaks the language of English.", "fact_b": "Ken Burns speaks the language of German."}, {"review_id": "P012", "subset": "sh_64k", "fact_a": "John E. Sununu is affiliated with the religion of Catholic Church.", "fact_b": "John E. Sununu is affiliated with the religion of Christianity."}, {"review_id": "P013", "subset": "sh_64k", "fact_a": "Ronald D. Moore speaks the language of English.", "fact_b": "Ronald D. Moore speaks the language of Dutch."}, {"review_id": "P014", "subset": "sh_64k", "fact_a": "The headquarters of Blizzard Entertainment is located in the city of Irvine.", "fact_b": "The headquarters of Blizzard Entertainment is located in the city of Knoxville."}, {"review_id": "P015", "subset": "sh_64k", "fact_a": "Lord Voldemort was created by J. K. Rowling.", "fact_b": "Lord Voldemort was created by Wilbert Awdry."}, {"review_id": "P016", "subset": "sh_64k", "fact_a": "William Shakespeare works in the field of playwright.", "fact_b": "William Shakespeare works in the field of businessperson."}, {"review_id": "P017", "subset": "sh_32k", "fact_a": "John E. Sununu is affiliated with the religion of Catholic Church.", "fact_b": "John E. Sununu is affiliated with the religion of Christianity."}, {"review_id": "P018", "subset": "sh_32k", "fact_a": "Ireland is located in the continent of Europe.", "fact_b": "England is located in the continent of South America."}, {"review_id": "P019", "subset": "sh_64k", "fact_a": "Gladys George is a citizen of United States of America.", "fact_b": "Estelle Getty is a citizen of United States of America."}, {"review_id": "P020", "subset": "sh_64k", "fact_a": "London is located in the continent of Europe.", "fact_b": "Great Britain is located in the continent of Asia."}, {"review_id": "P021", "subset": "sh_32k", "fact_a": "Leo I the Thracian is affiliated with the religion of Christianity.", "fact_b": "Leo I the Thracian is affiliated with the religion of Methodism."}, {"review_id": "P022", "subset": "sh_32k", "fact_a": "Allen Ginsberg is famous for Howl.", "fact_b": "Allen Ginsberg is famous for Natya Shastra."}, {"review_id": "P023", "subset": "sh_64k", "fact_a": "Jump5 was created in the country of United States of America.", "fact_b": "Jump5 was created in the country of Republic of Cyprus."}, {"review_id": "P024", "subset": "sh_32k", "fact_a": "Joseph Wright of Derby speaks the language of English.", "fact_b": "Joseph Wright of Derby speaks the language of Russian."}, {"review_id": "P025", "subset": "sh_64k", "fact_a": "bluegrass music was created in the country of United States of America.", "fact_b": "bluegrass music was created in the country of Indonesia."}, {"review_id": "P026", "subset": "sh_64k", "fact_a": "The author of The Call of Cthulhu is H. P. Lovecraft.", "fact_b": "The author of Little Women is H. P. Lovecraft."}, {"review_id": "P027", "subset": "sh_64k", "fact_a": "WWE Superstars was created by Vince McMahon.", "fact_b": "WWE Tough Enough was created by William Shakespeare."}, {"review_id": "P028", "subset": "sh_32k", "fact_a": "Nature Boy was performed by Nat King Cole.", "fact_b": "Nature Boy was performed by Donovan."}, {"review_id": "P029", "subset": "sh_64k", "fact_a": "Paris is located in the continent of Europe.", "fact_b": "Germany is located in the continent of Africa."}, {"review_id": "P030", "subset": "sh_64k", "fact_a": "Neil Simon speaks the language of English.", "fact_b": "Neil Simon speaks the language of Japanese."}, {"review_id": "P031", "subset": "sh_64k", "fact_a": "Michael Lewis speaks the language of English.", "fact_b": "Michael Lewis speaks the language of French."}, {"review_id": "P032", "subset": "sh_64k", "fact_a": "Antonio Conte is associated with the sport of association football.", "fact_b": "Antonio Conte is associated with the sport of rugby union."}, {"review_id": "P033", "subset": "sh_64k", "fact_a": "Sam Robards speaks the language of English.", "fact_b": "Sam Robards speaks the language of German."}, {"review_id": "P034", "subset": "sh_32k", "fact_a": "Ken Burns's child is Sarah Burns.", "fact_b": "Ken Burns's child is Louis Joseph, Prince of Condé."}, {"review_id": "P035", "subset": "sh_64k", "fact_a": "The type of music that Mike Watt plays is punk rock.", "fact_b": "The type of music that Mike Watt plays is alternative rock."}, {"review_id": "P036", "subset": "sh_64k", "fact_a": "Aníbal Sánchez is associated with the sport of baseball.", "fact_b": "Aníbal Sánchez is associated with the sport of association football."}, {"review_id": "P037", "subset": "sh_32k", "fact_a": "outfielder is associated with the sport of baseball.", "fact_b": "outfielder is associated with the sport of cricket."}, {"review_id": "P038", "subset": "sh_6k", "fact_a": "Hugh Hefner is famous for Playboy.", "fact_b": "Hugh Hefner is famous for The Vampyre."}, {"review_id": "P039", "subset": "sh_6k", "fact_a": "The type of music that Michael Mantler plays is jazz.", "fact_b": "The type of music that Michael Mantler plays is post-punk."}, {"review_id": "P040", "subset": "sh_64k", "fact_a": "The Man Show was created in the country of United States of America.", "fact_b": "The Man Show was created in the country of United Kingdom."}, {"review_id": "P041", "subset": "sh_32k", "fact_a": "T. S. Eliot speaks the language of English.", "fact_b": "T. S. Eliot speaks the language of French."}, {"review_id": "P042", "subset": "sh_64k", "fact_a": "Alta IF is associated with the sport of association football.", "fact_b": "Alta IF is associated with the sport of baseball."}, {"review_id": "P043", "subset": "sh_64k", "fact_a": "Fyodor Dostoyevsky speaks the language of Russian.", "fact_b": "Fyodor Dostoyevsky died in the city of Los Angeles."}, {"review_id": "P044", "subset": "sh_32k", "fact_a": "Shaun Udal is a citizen of United Kingdom.", "fact_b": "Shaun Udal is a citizen of Denmark."}, {"review_id": "P045", "subset": "sh_64k", "fact_a": "Max Eastman is a citizen of United States of America.", "fact_b": "Max Eastman is a citizen of Austria."}, {"review_id": "P046", "subset": "sh_6k", "fact_a": "Natalie Portman is affiliated with the religion of Judaism.", "fact_b": "Natalie Portman is affiliated with the religion of interdenominational organization."}, {"review_id": "P047", "subset": "sh_32k", "fact_a": "Laurence Olivier worked in the city of London.", "fact_b": "Laurence Olivier worked in the city of Washington, D.C.."}, {"review_id": "P048", "subset": "sh_6k", "fact_a": "The Prime Minister of Sweden is Stefan Löfven.", "fact_b": "The Prime Minister of Sweden is Pedro Pierluisi."}, {"review_id": "P049", "subset": "sh_64k", "fact_a": "Kemba Walker plays the position of goaltender.", "fact_b": "Kenley Jansen plays the position of shooting guard."}, {"review_id": "P050", "subset": "sh_32k", "fact_a": "2009 WNBA season is associated with the sport of association football.", "fact_b": "2004 NBA Draft is associated with the sport of association football."}, {"review_id": "P051", "subset": "sh_32k", "fact_a": "Caesarius of Arles is affiliated with the religion of Catholic Church.", "fact_b": "Caesarius of Arles is affiliated with the religion of Christianity."}, {"review_id": "P052", "subset": "sh_64k", "fact_a": "The origianl broadcaster of Charlie's Angels is American Broadcasting Company.", "fact_b": "The origianl broadcaster of Soap is American Broadcasting Company."}, {"review_id": "P053", "subset": "sh_32k", "fact_a": "The Prime Minister of Sweden is Pedro Pierluisi.", "fact_b": "The name of the current head of the Sweden government is Gro Harlem Brundtland."}, {"review_id": "P054", "subset": "sh_64k", "fact_a": "Derek Bok is employed by Harvard University.", "fact_b": "Derek Bok is employed by MI5."}, {"review_id": "P055", "subset": "sh_64k", "fact_a": "The type of music that John McVie plays is rock music.", "fact_b": "The type of music that John McVie plays is rap rock."}, {"review_id": "P056", "subset": "sh_64k", "fact_a": "The Prime Minister of Malta is Joseph Muscat.", "fact_b": "The Prime Minister of Malta is Pietro Parolin."}, {"review_id": "P057", "subset": "sh_32k", "fact_a": "The origianl broadcaster of The Drew Carey Show is American Broadcasting Company.", "fact_b": "The origianl broadcaster of China Beach is American Broadcasting Company."}, {"review_id": "P058", "subset": "sh_64k", "fact_a": "The type of music that Josh Homme plays is rock music.", "fact_b": "The type of music that Josh Homme plays is hardcore punk."}, {"review_id": "P059", "subset": "sh_64k", "fact_a": "The Sky at Night was written in the language of English.", "fact_b": "The original language of The Sky at Night is Filipino."}], "label_cols": ["same_referent", "same_relation", "context_overlap", "values_incompatible", "update_conflict", "strict_conflict"], "sheet_cols": ["review_id", "subset", "fact_a", "fact_b", "same_referent", "same_relation", "context_overlap", "values_incompatible", "update_conflict", "strict_conflict", "notes"], "short": {"same_referent": "Both sentences are about the same real-world entity.", "same_relation": "Both assert the same attribute or relation, even if phrased differently.", "context_overlap": "The propositions apply under compatible or overlapping validity conditions.", "values_incompatible": "The two values cannot both occupy the same slot under the same context.", "update_conflict": "With one current value per (entity, attribute) slot, one sentence replaces the other's value. Yes exactly when the four checks above are all yes.", "strict_conflict": "The two sentences cannot both be true at the same time in the real world."}, "rubric": "# Human review — annotator instructions\n\nYou are labelling pairs of sentences from a fact store. Do **not** check whether\neither sentence is true in the real world; decide whether the two sentences\nexpress conflicting propositions. Work alone, do not consult the other\nannotator, and do not open `human_review_key.json`.\n\nFor each pair, first identify what each sentence asserts — subject, attribute\n(relation), value, and any validity context (time, place, population,\norganization, condition) — then answer yes/no in each column:\n\n- `same_referent`: both sentences are about the same real-world entity\n  (aliases, abbreviations and different surface strings can name one entity).\n- `same_relation`: both assert the same attribute or relation, even if phrased\n  differently.\n- `context_overlap`: the propositions apply under compatible or overlapping\n  validity conditions.\n- `values_incompatible`: the two values cannot both occupy the same slot under\n  the same context. Paraphrases, aliases, one value containing the other, and\n  values that can coexist are **compatible** (answer no). Do not answer yes\n  merely because the strings differ.\n- `update_conflict`: under a memory-store convention with one current value\n  per (entity, attribute) slot, one sentence replaces the other's value. This\n  is yes exactly when the four checks above are all yes, even if the relation\n  is naturally multi-valued (citizenships, children, languages, ...).\n- `strict_conflict`: the two sentences cannot both be true at the same time in\n  the real world. This is yes only when `update_conflict` is yes **and** the\n  relation admits a single value at a time.\n\nWrite `yes` or `no` in every label cell (no blanks, no \"unsure\"); use `notes`\nfor anything you want to flag. Save the file with the same columns.\n"}</script>
+<script>
+(function () {
+  var D = JSON.parse(document.getElementById("data").textContent);
+  var rows = D.rows, cols = D.label_cols, sheetCols = D.sheet_cols;
+  var storeKey = "pilot-review-" + D.build_id;
+  var answers = {}, at = 0;
+
+  try { answers = JSON.parse(localStorage.getItem(storeKey) || "{}") || {}; } catch (e) { answers = {}; }
+  function save() { try { localStorage.setItem(storeKey, JSON.stringify(answers)); } catch (e) {} }
+  function rec(rid) { if (!answers[rid]) { answers[rid] = {}; } return answers[rid]; }
+  function complete(rid) {
+    var a = answers[rid] || {};
+    return cols.every(function (c) { return a[c] === "yes" || a[c] === "no"; });
+  }
+  function nDone() { return rows.filter(function (r) { return complete(r.review_id); }).length; }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text !== undefined) { e.textContent = text; }
+    return e;
+  }
+
+  function render() {
+    var r = rows[at], a = rec(r.review_id);
+    document.getElementById("progress").textContent =
+      "Pair " + (at + 1) + " of " + rows.length + " (" + r.review_id + ", " + r.subset + ")  |  " +
+      nDone() + " complete";
+
+    var f = document.getElementById("facts");
+    f.textContent = "";
+    [["A", r.fact_a], ["B", r.fact_b]].forEach(function (p) {
+      var line = el("p", "fact");
+      line.appendChild(el("span", "tag", p[0]));
+      line.appendChild(document.createTextNode(p[1]));
+      f.appendChild(line);
+    });
+
+    var q = document.getElementById("questions");
+    q.textContent = "";
+    cols.forEach(function (c) {
+      var row = el("div", "q"), left = el("div"), yn = el("div", "yn");
+      left.appendChild(el("code", "", c));
+      left.appendChild(el("p", "", D.short[c] || ""));
+      [["yes", "y", "Yes"], ["no", "n", "No"]].forEach(function (o) {
+        var b = el("button", o[1], o[2]);
+        b.type = "button";
+        b.setAttribute("aria-pressed", a[c] === o[0] ? "true" : "false");
+        b.setAttribute("aria-label", c + ": " + o[2]);
+        b.addEventListener("click", function () {
+          a[c] = o[0];
+          save();
+          render();
+        });
+        yn.appendChild(b);
+      });
+      row.appendChild(left);
+      row.appendChild(yn);
+      q.appendChild(row);
+    });
+    document.getElementById("notes").value = a.notes || "";
+  }
+
+  function go(i) { at = Math.max(0, Math.min(rows.length - 1, i)); render(); window.scrollTo(0, 0); }
+
+  document.getElementById("notes").addEventListener("input", function (ev) {
+    rec(rows[at].review_id).notes = ev.target.value;
+    save();
+  });
+  document.getElementById("prev").addEventListener("click", function () { go(at - 1); });
+  document.getElementById("next").addEventListener("click", function () { go(at + 1); });
+  document.getElementById("todo").addEventListener("click", function () {
+    for (var k = 1; k <= rows.length; k++) {
+      var i = (at + k) % rows.length;
+      if (!complete(rows[i].review_id)) { go(i); return; }
+    }
+    document.getElementById("status").textContent = "Every pair is complete.";
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.target && ev.target.tagName === "TEXTAREA") { return; }
+    if (ev.key === "ArrowLeft") { go(at - 1); }
+    if (ev.key === "ArrowRight") { go(at + 1); }
+  });
+
+  function cell(v) { return '"' + String(v === undefined || v === null ? "" : v).replace(/"/g, '""') + '"'; }
+  document.getElementById("download").addEventListener("click", function () {
+    var lines = [sheetCols.join(",")];
+    rows.forEach(function (r) {
+      var a = answers[r.review_id] || {};
+      lines.push(sheetCols.map(function (c) {
+        if (c === "review_id" || c === "subset" || c === "fact_a" || c === "fact_b") { return cell(r[c]); }
+        return cell(a[c]);
+      }).join(","));
+    });
+    var missing = rows.length - nDone();
+    var name = missing ? "pilot_sheet.partial.csv" : "pilot_sheet.filled.csv";
+    var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    document.getElementById("status").textContent = missing
+      ? "Saved " + name + ". " + missing + " pairs are incomplete; the scorer rejects blank cells."
+      : "Saved " + name + ". All " + rows.length + " pairs are complete.";
+  });
+
+  document.getElementById("rubric").textContent = D.rubric;
+  for (var i = 0; i < rows.length; i++) { if (!complete(rows[i].review_id)) { at = i; break; } }
+  render();
+})();
+</script>
+</body>
+</html>

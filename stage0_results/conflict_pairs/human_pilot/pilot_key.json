@@ -1,0 +1,319 @@
+{
+ "what": "review_id -> pair; the annotator does not open this file before finishing",
+ "seed": 20261122,
+ "n": 60,
+ "build_id": "96044c348d3322b6",
+ "by_stratum": {
+  "disputed": 50,
+  "control": 10
+ },
+ "by_tier": {
+  "discovered_unverified": 13,
+  "update_only_fork": 35,
+  "rejected": 2,
+  "negative": 5,
+  "core": 5
+ },
+ "rows": {
+  "P000": {
+   "pair_id": "sh_32k:475-763",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P001": {
+   "pair_id": "sh_64k:358-1634",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P002": {
+   "pair_id": "sh_32k:1099-2019",
+   "tier": "rejected",
+   "stratum": "disputed"
+  },
+  "P003": {
+   "pair_id": "sh_64k:375-778",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P004": {
+   "pair_id": "sh_64k:1413-3053",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P005": {
+   "pair_id": "sh_64k:766-1668",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P006": {
+   "pair_id": "sh_32k:31-224",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P007": {
+   "pair_id": "sh_64k:599-2381",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P008": {
+   "pair_id": "sh_64k:2409-2808",
+   "tier": "rejected",
+   "stratum": "disputed"
+  },
+  "P009": {
+   "pair_id": "sh_64k:2816-3965",
+   "tier": "negative",
+   "stratum": "control"
+  },
+  "P010": {
+   "pair_id": "sh_64k:219-4080",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P011": {
+   "pair_id": "sh_64k:2189-3251",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P012": {
+   "pair_id": "sh_64k:180-515",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P013": {
+   "pair_id": "sh_64k:2540-4222",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P014": {
+   "pair_id": "sh_64k:3285-3513",
+   "tier": "core",
+   "stratum": "control"
+  },
+  "P015": {
+   "pair_id": "sh_64k:3066-3096",
+   "tier": "core",
+   "stratum": "control"
+  },
+  "P016": {
+   "pair_id": "sh_64k:21-4168",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P017": {
+   "pair_id": "sh_32k:1069-1290",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P018": {
+   "pair_id": "sh_32k:1655-1850",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P019": {
+   "pair_id": "sh_64k:989-4330",
+   "tier": "negative",
+   "stratum": "control"
+  },
+  "P020": {
+   "pair_id": "sh_64k:668-2468",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P021": {
+   "pair_id": "sh_32k:268-651",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P022": {
+   "pair_id": "sh_32k:1073-1560",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P023": {
+   "pair_id": "sh_64k:554-2954",
+   "tier": "core",
+   "stratum": "control"
+  },
+  "P024": {
+   "pair_id": "sh_32k:1558-1845",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P025": {
+   "pair_id": "sh_64k:2677-4115",
+   "tier": "core",
+   "stratum": "control"
+  },
+  "P026": {
+   "pair_id": "sh_64k:612-4307",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P027": {
+   "pair_id": "sh_64k:1887-2365",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P028": {
+   "pair_id": "sh_32k:848-2270",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P029": {
+   "pair_id": "sh_64k:614-4323",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P030": {
+   "pair_id": "sh_64k:1852-4255",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P031": {
+   "pair_id": "sh_64k:24-2084",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P032": {
+   "pair_id": "sh_64k:243-2802",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P033": {
+   "pair_id": "sh_64k:2973-3681",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P034": {
+   "pair_id": "sh_32k:1136-1424",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P035": {
+   "pair_id": "sh_64k:2583-4033",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P036": {
+   "pair_id": "sh_64k:1024-2205",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P037": {
+   "pair_id": "sh_32k:618-1801",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P038": {
+   "pair_id": "sh_6k:145-189",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P039": {
+   "pair_id": "sh_6k:289-298",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P040": {
+   "pair_id": "sh_64k:2676-4394",
+   "tier": "core",
+   "stratum": "control"
+  },
+  "P041": {
+   "pair_id": "sh_32k:374-937",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P042": {
+   "pair_id": "sh_64k:503-3876",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P043": {
+   "pair_id": "sh_64k:1612-2880",
+   "tier": "negative",
+   "stratum": "control"
+  },
+  "P044": {
+   "pair_id": "sh_32k:518-1123",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P045": {
+   "pair_id": "sh_64k:3074-4473",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P046": {
+   "pair_id": "sh_6k:68-410",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P047": {
+   "pair_id": "sh_32k:1124-1621",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P048": {
+   "pair_id": "sh_6k:82-276",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P049": {
+   "pair_id": "sh_64k:1966-3825",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P050": {
+   "pair_id": "sh_32k:1479-1541",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P051": {
+   "pair_id": "sh_32k:540-1296",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P052": {
+   "pair_id": "sh_64k:3893-4555",
+   "tier": "negative",
+   "stratum": "control"
+  },
+  "P053": {
+   "pair_id": "sh_32k:538-1816",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P054": {
+   "pair_id": "sh_64k:1057-1490",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P055": {
+   "pair_id": "sh_64k:1139-1541",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P056": {
+   "pair_id": "sh_64k:2959-4242",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  },
+  "P057": {
+   "pair_id": "sh_32k:1872-2221",
+   "tier": "negative",
+   "stratum": "control"
+  },
+  "P058": {
+   "pair_id": "sh_64k:1575-4329",
+   "tier": "update_only_fork",
+   "stratum": "disputed"
+  },
+  "P059": {
+   "pair_id": "sh_64k:2976-4499",
+   "tier": "discovered_unverified",
+   "stratum": "disputed"
+  }
+ }
+}
