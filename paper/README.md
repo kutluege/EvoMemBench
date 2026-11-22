@@ -19,6 +19,7 @@ geometry" (E. Kutlu, Ş. Özönder), being prepared for *Natural Language Proces
 | `journal/FORMAT_BRIEF.md` | The format and conversion brief the source was built from (2026-10-09). |
 | `journal/SKILL.md` | Working rules for manuscript edits, paper-facing experiments and code. Loaded through `.claude/skills/nlp-journal/`. |
 | `journal/WEEKLY_PLAN_NOTES.md` | Open decisions and proposed work items, input to the week-by-week plan. |
+| `journal/YAPILANLAR.md` | Dated log of work completed for the submission (Turkish). Only finished, checked work is entered. |
 | `PROTOCOL_GENERALISATION.md` | Protocol for the new-set evaluation. Draft, not registered. |
 
 Build: `pdflatex main_nlp`, `bibtex main_nlp`, `pdflatex main_nlp`, `pdflatex main_nlp`,
