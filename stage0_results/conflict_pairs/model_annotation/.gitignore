@@ -1,0 +1,3 @@
+# Regenerable: python hnav/labeling/audit_model_annotator.py batches --stage 2
+# (deterministic given the seed and the committed stage-1 labels). 8 MB of text already in the gold file.
+batches/stage2/
