@@ -48,6 +48,14 @@ Gate (fixed in advance: update_conflict ≥ 0.85, every other field ≥ 0.8; 20 
 | update_conflict | 5417 | 0.940 | 0.880 |
 | strict_conflict | 5417 | 0.764 | 0.429 |
 
+## Consistency
+
+- 5417 labelled rows are 4062 distinct sentence pairs (a pair can occur in several subsets under different ids).
+- Sentence pairs labelled more than once: 1183; identical on all six labels in 1183.
+- Of these, labelled in different batches: 1164; identical in 1164.
+- Pairs where both sentences parse: 5400. `same_referent` equals "same subject string" in 5400; `same_relation` equals "same template" in 5394.
+- Same template and same value: 1613, of which labelled incompatible: 0. Same template and different value: 3473, of which labelled compatible (alias or containment): 55.
+
 ## Rows departing from the written rubric's derivation rules
 
 none

@@ -5,6 +5,37 @@
   "heldout": 20,
   "stage1": 5397
  },
+ "repeated_text": {
+  "n_rows": 5417,
+  "n_distinct_texts": 4062,
+  "repeated_texts": {
+   "n": 1183,
+   "k": 1183,
+   "rate": 1.0,
+   "wilson95": [
+    0.9967632923570844,
+    1.0
+   ]
+  },
+  "repeated_in_different_batches": {
+   "n": 1164,
+   "k": 1164,
+   "rate": 1.0,
+   "wilson95": [
+    0.9967106332870105,
+    1.0
+   ]
+  }
+ },
+ "parser_slots": {
+  "n_both_parse": 5400,
+  "same_referent_equals_same_subject": 5400,
+  "same_relation_equals_same_template": 5394,
+  "same_template_and_same_value": 1613,
+  "of_which_values_incompatible": 0,
+  "same_template_different_value": 3473,
+  "of_which_values_compatible": 55
+ },
  "heldout_vs_human": {
   "same_referent": {
    "n": 20,

@@ -45,8 +45,20 @@ stage 1   the balanced evaluation set (all positives and their cosine-matched
           negatives) plus the `rejected` and `discovered_unverified` tiers,
           minus the pilot pairs; shuffled together, so a batch does not reveal
           a pair's tier.
-stage 2   every other audited negative. These batches are all one tier, so
-          blindness to the tier is weaker there; say so when reporting.
+stage 2   every other audited negative. On their own these batches would be
+          all one tier, so each one also carries `N_SENTINEL` sentinel rows:
+          stage-1 pairs from the other tiers, under new review ids, mixed in
+          at random positions. A worker cannot tell them apart, so a batch is
+          never uniformly "no", and `ingest` compares each sentinel with the
+          label the same pair received in stage 1. Sentinel rows are a check
+          on the worker, not new labels; they are kept out of MODEL_LABELS.
+
+Consistency
+-----------
+Many sentence pairs occur in more than one subset under different pair ids,
+so the same text is labelled several times, usually by different workers.
+`ingest` reports how often those repeats received identical labels, and how
+the model's referent and relation labels line up with the parser's slots.
 
     python hnav/labeling/audit_model_annotator.py split --sheet <filled pilot csv>
     python hnav/labeling/audit_model_annotator.py batches [--stage 1|2|all]
@@ -85,6 +97,7 @@ OUT = DIR / "model_annotation"
 SEED = 20261122
 N_HELDOUT = 20
 BATCH_SIZE = 100
+N_SENTINEL = 10
 TIERS = ["core", "update_only_fork", "rejected", "discovered_unverified", "negative"]
 STAGE_PREFIX = {1: "a", 2: "b"}
 BATCH_COLS = ["review_id", "fact_a", "fact_b"]
@@ -221,13 +234,29 @@ def split(args) -> int:
 # ── batches ──────────────────────────────────────────────────────────────────
 
 def make_batches(gold: list[dict], exclude: set[str], stage: int, seed: int = SEED,
-                 batch_size: int = BATCH_SIZE) -> list[list[dict]]:
+                 batch_size: int = BATCH_SIZE, sentinels: list[dict] | None = None,
+                 n_sentinel: int = 0) -> list[list[dict]]:
+    """Blind batches of `batch_size` new pairs, plus `n_sentinel` sentinel rows per batch."""
     pool = sorted((g for g in gold if stage_of(g) == stage and g["pair_id"] not in exclude),
                   key=lambda g: g["pair_id"])
-    random.Random(f"{seed}:stage{stage}").shuffle(pool)   # order carries no tier information
-    rows = [{"review_id": f"{STAGE_PREFIX[stage]}{i + 1:05d}", "pair_id": g["pair_id"],
-             "fact_a": g["fact_a"], "fact_b": g["fact_b"]} for i, g in enumerate(pool)]
-    return [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+    rng = random.Random(f"{seed}:stage{stage}")
+    rng.shuffle(pool)                                     # order carries no tier information
+    chunks = [pool[i:i + batch_size] for i in range(0, len(pool), batch_size)]
+    if sentinels and n_sentinel:
+        spool = sorted(sentinels, key=lambda g: g["pair_id"])
+        srng = random.Random(f"{seed}:stage{stage}:sentinels")
+        for chunk in chunks:
+            chunk += srng.sample(spool, min(n_sentinel, len(spool)))
+            srng.shuffle(chunk)
+    out, i = [], 0
+    for chunk in chunks:
+        rows = []
+        for g in chunk:
+            i += 1
+            rows.append({"review_id": f"{STAGE_PREFIX[stage]}{i:05d}", "pair_id": g["pair_id"],
+                         "fact_a": g["fact_a"], "fact_b": g["fact_b"]})
+        out.append(rows)
+    return out
 
 
 def batches(args) -> int:
@@ -241,13 +270,21 @@ def batches(args) -> int:
     if (key["seed"], key["batch_size"]) != (args.seed, args.batch_size):
         raise SystemExit(f"{key_path} was built with another seed or batch size")
     for s in stages:
-        bs = make_batches(gold, pilot, s, args.seed, args.batch_size)
+        sent = []
+        if s == 2 and args.n_sentinel:
+            merged, _, _ = collect(args.out_dir)
+            done1 = {m["pair_id"] for m in merged.values() if m["group"] == "stage1"}
+            sent = [g for g in gold if g["pair_id"] in done1 and g["tier"] != "negative"]
+            if not sent:
+                raise SystemExit("stage 2 needs stage-1 labels for its sentinel rows; none found")
+        bs = make_batches(gold, pilot, s, args.seed, args.batch_size, sent, args.n_sentinel)
         for i, rows in enumerate(bs, start=1):
             _write_csv(args.out_dir / "batches" / f"stage{s}" / f"batch_{i:03d}.csv", BATCH_COLS, rows)
         key["stages"][str(s)] = {
             f"batch_{i:03d}": {r["review_id"]: r["pair_id"] for r in rows}
             for i, rows in enumerate(bs, start=1)}
-        print(f"stage {s}: {sum(map(len, bs))} pairs in {len(bs)} batches")
+        print(f"stage {s}: {sum(map(len, bs))} rows in {len(bs)} batches"
+              + (f" ({args.n_sentinel} sentinel rows per batch)" if sent else ""))
     _write_json(key_path, key)
     return 0
 
@@ -289,27 +326,37 @@ def batch_index(out_dir: pathlib.Path) -> list[tuple[str, str, dict[str, str]]]:
     return idx
 
 
-def collect(out_dir: pathlib.Path) -> tuple[dict[str, dict], list[dict]]:
-    """Read every label file. Returns ({review_id: labels + pair_id + group}, per-batch status)."""
+def collect(out_dir: pathlib.Path) -> tuple[dict[str, dict], list[dict], dict[str, dict]]:
+    """Read every label file.
+
+    Returns ({review_id: labels + pair_id + group + batch}, per-batch status,
+    sentinel rows in the same shape). A stage-2 row is a sentinel when its
+    pair belongs to stage 1.
+    """
     merged: dict[str, dict] = {}
+    sentinels: dict[str, dict] = {}
     status = []
-    for group, name, ids in batch_index(out_dir):
+    index = batch_index(out_dir)
+    stage1_pairs = {pid for group, _, ids in index if group == "stage1" for pid in ids.values()}
+    for group, name, ids in index:
         path = out_dir / "labels" / group / f"{name}.csv"
         st = {"group": group, "batch": name, "n": len(ids), "state": "missing", "error": None}
         if path.exists():
             try:
                 rows = read_labels(path, set(ids))
                 for rid, lab in rows.items():
-                    merged[rid] = dict(lab, pair_id=ids[rid], group=group)
+                    is_sentinel = group == "stage2" and ids[rid] in stage1_pairs
+                    (sentinels if is_sentinel else merged)[rid] = dict(
+                        lab, pair_id=ids[rid], group=group, batch=f"{group}/{name}")
                 st["state"] = "done"
             except ValueError as e:
                 st["state"], st["error"] = "invalid", str(e)
         status.append(st)
-    return merged, status
+    return merged, status, sentinels
 
 
 def status(args) -> int:
-    _, st = collect(args.out_dir)
+    _, st, _ = collect(args.out_dir)
     for g in sorted({s["group"] for s in st}):
         sel = [s for s in st if s["group"] == g]
         c = Counter(s["state"] for s in sel)
@@ -336,7 +383,7 @@ def assign_batches(status_rows: list[dict], group: str, workers: int) -> list[li
 
 
 def assign(args) -> int:
-    _, st = collect(args.out_dir)
+    _, st, _ = collect(args.out_dir)
     parts = assign_batches(st, args.group, args.workers)
     if not parts:
         print(f"{args.group}: nothing left to assign")
@@ -362,10 +409,68 @@ def heldout_gate(hv: dict, n_scored: int, n_heldout: int) -> dict:
             "failed_fields": failed, "passed": complete and not failed}
 
 
+def _six(m: dict) -> tuple:
+    return tuple(m[c] for c in LABEL_COLS)
+
+
+def repeated_text(merged: dict[str, dict], gold: dict[str, dict]) -> dict:
+    """How consistently one sentence pair is labelled when it occurs under several pair ids."""
+    groups: dict[frozenset, list[dict]] = {}
+    for m in merged.values():
+        g = gold[m["pair_id"]]
+        groups.setdefault(frozenset((g["fact_a"], g["fact_b"])), []).append(m)
+    rep_ = [v for v in groups.values() if len(v) > 1]
+    cross = [v for v in rep_ if len({m["batch"] for m in v}) > 1]
+    same = lambda v: len({_six(m) for m in v}) == 1                      # noqa: E731
+    return {"n_rows": len(merged), "n_distinct_texts": len(groups),
+            "repeated_texts": _rate(sum(map(same, rep_)), len(rep_)),
+            "repeated_in_different_batches": _rate(sum(map(same, cross)), len(cross))}
+
+
+def parser_slots(merged: dict[str, dict], gold: dict[str, dict]) -> dict:
+    """Model labels against the parser's slots, on pairs where both sentences parse."""
+    out = {"n_both_parse": 0,
+           "same_referent_equals_same_subject": 0, "same_relation_equals_same_template": 0,
+           "same_template_and_same_value": 0, "of_which_values_incompatible": 0,
+           "same_template_different_value": 0, "of_which_values_compatible": 0}
+    for m in merged.values():
+        p = gold[m["pair_id"]]["parser"]
+        if not p.get("both_parse"):
+            continue
+        out["n_both_parse"] += 1
+        out["same_referent_equals_same_subject"] += m["same_referent"] == bool(p["same_subject"])
+        out["same_relation_equals_same_template"] += m["same_relation"] == bool(p["same_relation"])
+        if p["same_relation"]:
+            if p["same_object"]:
+                out["same_template_and_same_value"] += 1
+                out["of_which_values_incompatible"] += m["values_incompatible"]
+            else:
+                out["same_template_different_value"] += 1
+                out["of_which_values_compatible"] += not m["values_incompatible"]
+    return out
+
+
+def sentinel_check(sentinels: dict[str, dict], merged: dict[str, dict]) -> dict:
+    """Sentinel rows of stage 2 against the stage-1 label of the same pair."""
+    ref = {m["pair_id"]: m for m in merged.values() if m["group"] == "stage1"}
+    rows = [(s, ref[s["pair_id"]]) for s in sentinels.values() if s["pair_id"] in ref]
+    bad = Counter(s["batch"] for s, r in rows if _six(s) != _six(r))
+    return {"n": len(rows),
+            "all_six_identical": _rate(sum(_six(s) == _six(r) for s, r in rows), len(rows)),
+            "update_conflict_identical": _rate(
+                sum(s["update_conflict"] == r["update_conflict"] for s, r in rows), len(rows)),
+            "n_batches": len({s["batch"] for s, _ in rows}),
+            "batches_with_a_mismatch": dict(sorted(bad.items()))}
+
+
 def score(merged: dict[str, dict], gold: dict[str, dict], human: dict[str, dict] | None,
-          heldout_rows: dict[str, dict] | None) -> dict:
+          heldout_rows: dict[str, dict] | None, sentinels: dict[str, dict] | None = None) -> dict:
     rep: dict = {"annotator": ANNOTATOR, "n_labelled": len(merged),
                  "n_by_group": Counter(m["group"] for m in merged.values())}
+    rep["repeated_text"] = repeated_text(merged, gold)
+    rep["parser_slots"] = parser_slots(merged, gold)
+    if sentinels:
+        rep["sentinels"] = sentinel_check(sentinels, merged)
 
     if human is not None and heldout_rows:
         ids = sorted(h for h in heldout_rows if h in merged)
@@ -458,13 +563,36 @@ def render_md(rep: dict, status_rows: list[dict]) -> str:
         for f in LABEL_COLS:
             p = rep["field_vs_judge"][f]
             L.append(f"| {f} | {p['n']} | {_f(p['agreement'])} | {_f(p['kappa'])} |")
+    rt, ps = rep["repeated_text"], rep["parser_slots"]
+    L += ["", "## Consistency", "",
+          f"- {rt['n_rows']} labelled rows are {rt['n_distinct_texts']} distinct sentence pairs "
+          "(a pair can occur in several subsets under different ids).",
+          f"- Sentence pairs labelled more than once: {rt['repeated_texts']['n']}; identical on all "
+          f"six labels in {rt['repeated_texts']['k']}.",
+          f"- Of these, labelled in different batches: {rt['repeated_in_different_batches']['n']}; "
+          f"identical in {rt['repeated_in_different_batches']['k']}.",
+          f"- Pairs where both sentences parse: {ps['n_both_parse']}. `same_referent` equals "
+          f"\"same subject string\" in {ps['same_referent_equals_same_subject']}; `same_relation` "
+          f"equals \"same template\" in {ps['same_relation_equals_same_template']}.",
+          f"- Same template and same value: {ps['same_template_and_same_value']}, of which labelled "
+          f"incompatible: {ps['of_which_values_incompatible']}. Same template and different value: "
+          f"{ps['same_template_different_value']}, of which labelled compatible (alias or "
+          f"containment): {ps['of_which_values_compatible']}."]
+    if "sentinels" in rep:
+        sc = rep["sentinels"]
+        L += ["", "## Stage-2 sentinel rows", "",
+              f"{sc['n']} sentinel rows in {sc['n_batches']} batches (stage-1 pairs relabelled under "
+              f"new ids). All six labels equal to the stage-1 label: {sc['all_six_identical']['k']} "
+              f"({_f(sc['all_six_identical']['rate'])}); `update_conflict` equal: "
+              f"{sc['update_conflict_identical']['k']}. Batches with a mismatch: "
+              f"{sc['batches_with_a_mismatch'] or 'none'}."]
     L += ["", "## Rows departing from the written rubric's derivation rules", "",
           str(dict(rep["rubric_departures"]) or "none"), ""]
     return "\n".join(L)
 
 
 def ingest(args) -> int:
-    merged, st = collect(args.out_dir)
+    merged, st, sentinels = collect(args.out_dir)
     bad = [s for s in st if s["state"] == "invalid"]
     for s in bad:
         print(f"INVALID {s['group']}/{s['batch']}: {s['error']}", file=sys.stderr)
@@ -473,7 +601,7 @@ def ingest(args) -> int:
     gold = {g["pair_id"]: g for g in read_jsonl(args.gold)}
     hk = args.out_dir / "heldout_key.json"
     human = read_sheet(args.sheet) if args.sheet and pathlib.Path(args.sheet).exists() else None
-    rep = score(merged, gold, human, _read_json(hk)["rows"] if hk.exists() else None)
+    rep = score(merged, gold, human, _read_json(hk)["rows"] if hk.exists() else None, sentinels)
     rep["batches"] = st
     _write_csv(args.out_dir / "MODEL_LABELS.csv", ["review_id", "pair_id", "group"] + LABEL_COLS + ["notes"],
                [dict({c: _yn(m[c]) for c in LABEL_COLS}, review_id=rid, pair_id=m["pair_id"],
@@ -504,6 +632,8 @@ def main(argv: list[str] | None = None) -> int:
         if name == "batches":
             p.add_argument("--stage", choices=["1", "2", "all"], default="1")
             p.add_argument("--batch-size", type=int, default=BATCH_SIZE)
+            p.add_argument("--n-sentinel", type=int, default=N_SENTINEL,
+                           help="sentinel rows per stage-2 batch (stage 1 has none)")
     args = ap.parse_args(argv)
     return {"split": split, "batches": batches, "status": status, "assign": assign,
             "ingest": ingest}[args.cmd](args)

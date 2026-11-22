@@ -23,7 +23,8 @@ def _gold_row(i: int, tier: str, in_eval: bool, judge_update: bool, same_key: bo
             "gold_update": tier in ("core", "update_only_fork"), "gold_strict": tier == "core",
             "fact_a": f"Item {i} has value left.", "fact_b": f"Item {i} has value right.",
             "judge": dict({c: judge_update for c in LABEL_COLS}),
-            "parser": {"same_key": same_key}}
+            "parser": {"same_key": same_key, "both_parse": True, "same_subject": same_key,
+                       "same_relation": True, "same_object": False}}
 
 
 def _gold() -> list[dict]:
@@ -103,7 +104,7 @@ def test_batch_files_are_blind(tmp_path):
     gold, gp, kp, sp, _ = _setup(tmp_path)
     out = tmp_path / "out"
     assert ma.main(["batches", "--gold", str(gp), "--key", str(kp), "--out-dir", str(out),
-                    "--stage", "all", "--batch-size", "10"]) == 0
+                    "--stage", "all", "--batch-size", "10", "--n-sentinel", "0"]) == 0
     files = sorted((out / "batches").rglob("*.csv"))
     assert len(files) == 4 + 3                      # 36 -> 4 batches, 30 -> 3 batches
     for p in files:
@@ -247,3 +248,75 @@ def test_assign_gives_disjoint_contiguous_lists_of_unfinished_batches():
     assert sorted(len(p) for p in parts) == [2, 2, 2, 3]
     assert ma.assign_batches(st, "stage1", 20) == [[b] for b in flat]          # more workers than batches
     assert ma.assign_batches([], "stage1", 3) == []
+
+
+def test_stage2_batches_carry_sentinels_and_ingest_checks_them(tmp_path):
+    gold, gp, kp, sp, key = _setup(tmp_path)
+    out = tmp_path / "out"
+    common = ["--key", str(kp), "--out-dir", str(out)]
+    # stage 2 refuses to build before stage 1 has labels to draw sentinels from
+    ma.main(["batches", "--gold", str(gp), "--stage", "1", "--batch-size", "18"] + common)
+    with pytest.raises(SystemExit, match="sentinel"):
+        ma.main(["batches", "--gold", str(gp), "--stage", "2", "--batch-size", "18"] + common)
+
+    tier = {g["pair_id"]: g["tier"] for g in gold}
+    k1 = json.loads((out / "batch_key.json").read_text(encoding="utf-8"))["stages"]["1"]
+    truth = {pid: (YES6 if tier[pid] in ("core", "update_only_fork") else NO6)
+             for b in k1.values() for pid in b.values()}
+    for name, b in k1.items():                             # 36 stage-1 pairs in two batches
+        _labels(out / "labels" / "stage1" / f"{name}.csv", {rid: truth[pid] for rid, pid in b.items()})
+
+    ma.main(["batches", "--gold", str(gp), "--stage", "2", "--batch-size", "18",
+             "--n-sentinel", "3"] + common)
+    k2 = json.loads((out / "batch_key.json").read_text(encoding="utf-8"))["stages"]["2"]
+    assert len(k2) == 2                                    # 30 new pairs: 18 + 12, plus 3 sentinels each
+    b1 = k2["batch_001"]
+    assert len(b1) == 18 + 3 and len(k2["batch_002"]) == 12 + 3
+    sent1 = {rid: pid for rid, pid in b1.items() if pid in truth}
+    assert len(sent1) == 3 and all(tier[pid] != "negative" for pid in sent1.values())
+    new = [pid for b in k2.values() for pid in b.values() if pid not in truth]
+    assert len(new) == 30 == len(set(new)) and all(tier[p] == "negative" for p in new)
+    blind = (out / "batches" / "stage2" / "batch_001.csv").read_text(encoding="utf-8")
+    assert blind.splitlines()[0] == "review_id,fact_a,fact_b" and blind.count("\n") == 22
+
+    # the worker answers every sentinel as in stage 1, except one in batch_001
+    wrong = sorted(sent1)[0]
+    lab = {rid: (truth[pid] if pid in truth else NO6) for rid, pid in b1.items()}
+    lab[wrong] = NO6 if truth[b1[wrong]] is YES6 else YES6
+    _labels(out / "labels" / "stage2" / "batch_001.csv", lab)
+    _labels(out / "labels" / "stage2" / "batch_002.csv",
+            {rid: (truth[pid] if pid in truth else NO6) for rid, pid in k2["batch_002"].items()})
+
+    assert ma.main(["ingest", "--gold", str(gp), "--sheet", str(tmp_path / "absent.csv")] + common) == 0
+    rep = json.loads((out / "MODEL_ANNOTATION_SUMMARY.json").read_text(encoding="utf-8"))
+    assert rep["n_labelled"] == 36 + 30                    # sentinel rows are not labels
+    sc = rep["sentinels"]
+    assert sc["n"] == 6 and sc["all_six_identical"]["k"] == 5
+    assert sc["batches_with_a_mismatch"] == {"stage2/batch_001": 1}
+    merged = list(csv.DictReader(open(out / "MODEL_LABELS.csv", encoding="utf-8")))
+    assert len(merged) == 66 and len({r["pair_id"] for r in merged}) == 66
+
+
+def test_repeated_text_and_parser_slot_counts():
+    gold = {"p1": {"fact_a": "A", "fact_b": "B", "parser": {"both_parse": True, "same_subject": True,
+                                                           "same_relation": True, "same_object": False}},
+            "p2": {"fact_a": "B", "fact_b": "A", "parser": {"both_parse": True, "same_subject": True,
+                                                           "same_relation": True, "same_object": False}},
+            "p3": {"fact_a": "A", "fact_b": "B", "parser": {"both_parse": False}},
+            "p4": {"fact_a": "C", "fact_b": "C", "parser": {"both_parse": True, "same_subject": False,
+                                                           "same_relation": True, "same_object": True}},
+            "p5": {"fact_a": "C", "fact_b": "C", "parser": {"both_parse": True, "same_subject": False,
+                                                           "same_relation": True, "same_object": True}}}
+    yes = {c: True for c in LABEL_COLS}
+    no = {c: False for c in LABEL_COLS}
+    merged = {"r1": dict(yes, pair_id="p1", batch="s/1"), "r2": dict(yes, pair_id="p2", batch="s/2"),
+              "r3": dict(no, pair_id="p3", batch="s/2"),          # same text as p1/p2, other labels
+              "r4": dict(no, pair_id="p4", batch="s/3"), "r5": dict(no, pair_id="p5", batch="s/3")}
+    rt = ma.repeated_text(merged, gold)
+    assert rt["n_rows"] == 5 and rt["n_distinct_texts"] == 2
+    assert (rt["repeated_texts"]["k"], rt["repeated_texts"]["n"]) == (1, 2)       # {C,C} agrees, {A,B} does not
+    assert (rt["repeated_in_different_batches"]["k"], rt["repeated_in_different_batches"]["n"]) == (0, 1)
+    ps = ma.parser_slots(merged, gold)
+    assert ps["n_both_parse"] == 4 and ps["same_referent_equals_same_subject"] == 4
+    assert ps["same_template_and_same_value"] == 2 and ps["of_which_values_incompatible"] == 0
+    assert ps["same_template_different_value"] == 2 and ps["of_which_values_compatible"] == 0

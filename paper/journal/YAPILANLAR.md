@@ -33,4 +33,51 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   1. aşama için 5.397 çiftlik 54 kör parti üretildi
   (`stage0_results/conflict_pairs/model_annotation/batches/stage1/`): dengeli değerlendirme
   kümesi ile `rejected` ve `discovered_unverified` katmanları, pilot çiftleri hariç.
-  Etiketleme henüz yapılmadı.
+  (commit `1ece964`, `61295b6`).
+- **İnsan etiketlemesi 60 çifte yapıldı.** Tek etiketleyici (Ege Kutlu), kör, altı alan;
+  Türkçe arayüz, İngilizce kayıt. Tartışmalı 50 çiftin 38'inde `update_conflict` ayrıştırıcıyla,
+  12'sinde GPT-5-mini hakemiyle aynı yönde; 10 kontrol çiftinin 10'unda ikisiyle de aynı.
+  Hakemle en çok ayrışılan alan `values_incompatible` (60'ta 27 uyum). Dosyalar:
+  `stage0_results/conflict_pairs/human_pilot/pilot_sheet.filled.csv`, `PILOT_SUMMARY.md`.
+  Alınan dosyada her satır fazladan bir tırnak katmanına sarılıydı (bir tablo programında
+  yeniden kaydedilmiş); katman kaldırıldı, cümleler boş formla birebir doğrulandı, alınan hâli
+  `pilot_sheet.filled.as_saved.csv` olarak duruyor (commit `c6cf01b`).
+- **Claude Fable 5.2 insan seçimlerine göre kalibre edildi ve yönerge bir skill dosyasına
+  kaydedildi.** `.claude/skills/pair-labelling/SKILL.md`: insanın kararlarından çıkarılan
+  kurallar ve 60 çiftin tamamı örnek olarak. "Kalibre" burada yönerge ve örnekle yönlendirme
+  demektir; modelin ağırlıkları değişmedi, ince ayar yapılmadı. Her kural "insan etiketinde
+  gözlendi" ya da "yazılı ölçütten çıkarıldı" diye işaretli; `strict_conflict` tablosundaki 37
+  ilişkiden 15'i gözleme, 22'si çıkarıma dayanıyor.
+- **Ayrı tutulan 20 çiftte kör sınama geçti.** Yönerge önce 60 çiftin 40'ından yazıldı ve
+  sınamadan önce commit edildi (`c6cf01b`); bir alt ajan (Fable 5.2, effort medium) kalan 20
+  çifti insan etiketini görmeden etiketledi. İnsanla uyum: `update_conflict` 20/20, altı alanın
+  tamamı 19/20 (tek fark `strict_conflict`, P059). Önceden sabitlenen ölçüt (0,85 ve 0,80)
+  geçildi. Örnek küçük: 20/20 için Wilson %95 alt sınırı 0,84. Sınamadan sonra yönergeye 20
+  çift örnek olarak eklendi ve `strict` tablosunda bir satır değişti (commit `1920811`); bu son
+  sürüm görülmemiş insan etiketiyle ayrıca sınanmadı.
+- **Alt ajanlar 1. aşamadaki bütün çiftleri bu yönergeyle etiketledi.** Arka planda paralel
+  çalışan 9 alt ajan (Fable 5.2, effort medium), her biri 6 parti, toplam 5.397 çift; 54 etiket
+  dosyasının hepsi geçerli (commit `0699a61`). Her ajan bir partiyi (100 çift) okuyup 100
+  satırını tek adımda yazdı; ajan başına süre 159–172 saniye. Ajanlar genel amaçlı tipteydi
+  (kısıtlı `pair-annotator` tipi oturumda yüklenmedi); "kod çalıştırma, başka dosya açma"
+  kuralı talimata ve ajanların kendi raporuna dayanıyor. Sonuç
+  (`stage0_results/conflict_pairs/model_annotation/MODEL_ANNOTATION_SUMMARY.md`; sayılar ayrı
+  tutulan 20 çifti de içerir):
+
+  | Katman | Etiketlenen | Model `update_conflict` = evet | Ayrıştırıcıyla uyum | Hakemle uyum |
+  |---|---|---|---|---|
+  | core | 2.385 | 2.383 | 0,999 | 0,999 |
+  | update_only_fork | 259 | 229 | 0,884 | 0,116 |
+  | rejected | 11 | 11 | 1,000 | 0,000 |
+  | discovered_unverified | 96 | 14 | 0,854 | 0,146 |
+  | negative (değerlendirme kümesi) | 2.666 | 0 | 1,000 | 1,000 |
+
+  Tutarlılık: aynı cümle çifti farklı alt kümelerde farklı kimlikle yer aldığı için 1.164 çift
+  farklı partilerde birden çok kez etiketlendi; altı etiketin tamamı 1.164'ünde aynı. İki cümlenin
+  de ayrıştığı 5.400 çiftte `same_referent` her zaman "özne dizgesi aynı" ile, `same_relation`
+  5.394'ünde "şablon aynı" ile örtüşüyor. Yani model etiketi, insanın kuralının ölçekli
+  uygulamasıdır; ayrıştırıcıdan ayrıldığı yer kapsama ve eş ad durumlarıdır (aynı şablon, farklı
+  değer olan 3.473 çiftin 55'i uyumlu sayıldı).
+  Sınırlar: bunlar model etiketidir, insan etiketi değildir; altın veri seti değişmedi.
+  `strict_conflict` hakemin `gold_strict` etiketiyle core katmanında yalnızca 0,496 uyumlu,
+  çünkü insan "tek değerli" ilişkiyi dar tanımlıyor ve tablonun çoğu çıkarım.
