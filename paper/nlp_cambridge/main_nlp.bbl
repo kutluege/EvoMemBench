@@ -1,0 +1,743 @@
+\begin{thebibliography}{}
+
+\bibitem[Ait-Saada and Nadif, 2023]{aitsaada2023anisotropy}
+{\bf Ait-Saada, M.} \textbf{and} {\bf Nadif, M.} (2023).
+\newblock Is anisotropy truly harmful? {A} case study on text clustering.
+\newblock In {\em Proceedings of the 61st Annual Meeting of the Association for
+  Computational Linguistics (Volume 2: Short Papers)}, pp. 1194--1203.
+  Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2023.acl-short.103}.
+
+\bibitem[Alchourr{\'o}n et~al., 1985]{alchourron1985logic}
+{\bf Alchourr{\'o}n, C.~E.}, {\bf G{\"a}rdenfors, P.}, \textbf{and} {\bf
+  Makinson, D.} (1985).
+\newblock On the logic of theory change: Partial meet contraction and revision
+  functions.
+\newblock {\em The Journal of Symbolic Logic}, 50(2):510--530.
+\newblock \url{https://doi.org/10.2307/2274239}.
+
+\bibitem[Bansal et~al., 2004]{bansal2004correlation}
+{\bf Bansal, N.}, {\bf Blum, A.}, \textbf{and} {\bf Chawla, S.} (2004).
+\newblock Correlation clustering.
+\newblock {\em Machine Learning}, 56.
+\newblock \url{https://doi.org/10.1023/B:MACH.0000033116.57574.95}.
+
+\bibitem[Bavaresco et~al., 2025]{bavaresco2025llms}
+{\bf Bavaresco, A.}, {\bf Bernardi, R.}, {\bf Bertolazzi, L.}, {\bf Elliott,
+  D.}, {\bf Fern{\'a}ndez, R.}, {\bf Gatt, A.}, {\bf Ghaleb, E.}, {\bf
+  Giulianelli, M.}, {\bf Hanna, M.}, {\bf Koller, A.}, {\bf Martins, A. F.~T.},
+  {\bf Mondorf, P.}, {\bf Neplenbroek, V.}, {\bf Pezzelle, S.}, {\bf Plank,
+  B.}, {\bf Schlangen, D.}, {\bf Suglia, A.}, {\bf Surikuchi, A.~K.}, {\bf
+  Takmaz, E.}, \textbf{and} {\bf Testoni, A.} (2025).
+\newblock {LLMs} instead of human judges? {A} large scale empirical study
+  across 20 {NLP} evaluation tasks.
+\newblock In {\em Proceedings of the 63rd Annual Meeting of the Association for
+  Computational Linguistics (Volume 2: Short Papers)}, pp. 238--255.
+  Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2025.acl-short.20}.
+
+\bibitem[Belcak et~al., 2025]{belcak2025small}
+{\bf Belcak, P.}, {\bf Heinrich, G.}, {\bf Diao, S.}, {\bf Fu, Y.}, {\bf Dong,
+  X.}, {\bf Muralidharan, S.}, {\bf Lin, Y.~C.}, \textbf{and} {\bf Molchanov,
+  P.} (2025).
+\newblock Small language models are the future of agentic {AI}.
+\newblock arXiv preprint arXiv:2506.02153.
+
+\bibitem[Belinkov, 2022]{belinkov2022probing}
+{\bf Belinkov, Y.} (2022).
+\newblock Probing classifiers: Promises, shortcomings, and advances.
+\newblock {\em Computational Linguistics}, 48(1):207--219.
+\newblock \url{https://doi.org/10.1162/coli_a_00422}.
+
+\bibitem[Bi{\'s} et~al., 2021]{bis2021much}
+{\bf Bi{\'s}, D.}, {\bf Podkorytov, M.}, \textbf{and} {\bf Liu, X.} (2021).
+\newblock Too much in common: Shifting of embeddings in transformer language
+  models and its implications.
+\newblock In {\em Proceedings of the 2021 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies}, pp. 5117--5130. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2021.naacl-main.403}.
+
+\bibitem[Bowman et~al., 2015]{bowman2015large}
+{\bf Bowman, S.~R.}, {\bf Angeli, G.}, {\bf Potts, C.}, \textbf{and} {\bf
+  Manning, C.~D.} (2015).
+\newblock A large annotated corpus for learning natural language inference.
+\newblock In {\em Proceedings of the 2015 Conference on Empirical Methods in
+  Natural Language Processing}, pp. 632--642. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/D15-1075}.
+
+\bibitem[Chhikara et~al., 2025]{chhikara2025mem0}
+{\bf Chhikara, P.}, {\bf Khant, D.}, {\bf Aryan, S.}, {\bf Singh, T.},
+  \textbf{and} {\bf Yadav, D.} (2025).
+\newblock {Mem0}: Building production-ready {AI} agents with scalable long-term
+  memory.
+\newblock In {\em {ECAI} 2025 -- 28th European Conference on Artificial
+  Intelligence, Including 14th Conference on Prestigious Applications of
+  Intelligent Systems ({PAIS} 2025)}, volume 413 of {\em Frontiers in
+  Artificial Intelligence and Applications}, pp. 2993--3000. IOS Press.
+\newblock \url{https://doi.org/10.3233/FAIA251160}.
+
+\bibitem[Church et~al., 2024]{church2024emerging}
+{\bf Church, K.~W.}, {\bf Sun, J.}, {\bf Yue, R.}, {\bf Vickers, P.}, {\bf
+  Saba, W.}, \textbf{and} {\bf Chandrasekar, R.} (2024).
+\newblock Emerging trends: a gentle introduction to {RAG}.
+\newblock {\em Natural Language Engineering}, 30(4):870--881.
+\newblock \url{https://doi.org/10.1017/S1351324924000044}.
+
+\bibitem[Clopper and Pearson, 1934]{clopper1934}
+{\bf Clopper, C.~J.} \textbf{and} {\bf Pearson, E.~S.} (1934).
+\newblock The use of confidence or fiducial limits illustrated in the case of
+  the binomial.
+\newblock {\em Biometrika}, 26(4):404--413.
+\newblock \url{https://doi.org/10.1093/biomet/26.4.404}.
+
+\bibitem[Cuconasu et~al., 2024]{cuconasu2024power}
+{\bf Cuconasu, F.}, {\bf Trappolini, G.}, {\bf Siciliano, F.}, {\bf Filice,
+  S.}, {\bf Campagnano, C.}, {\bf Maarek, Y.}, {\bf Tonellotto, N.},
+  \textbf{and} {\bf Silvestri, F.} (2024).
+\newblock The power of noise: Redefining retrieval for {RAG} systems.
+\newblock In {\em Proceedings of the 47th International {ACM} {SIGIR}
+  Conference on Research and Development in Information Retrieval}. Association
+  for Computing Machinery.
+\newblock \url{https://doi.org/10.1145/3626772.3657834}.
+
+\bibitem[de~Marneffe et~al., 2008]{demarneffe2008finding}
+{\bf de~Marneffe, M.-C.}, {\bf Rafferty, A.~N.}, \textbf{and} {\bf Manning,
+  C.~D.} (2008).
+\newblock Finding contradictions in text.
+\newblock In {\em Proceedings of ACL-08: HLT}, pp. 1039--1047. Association for
+  Computational Linguistics.
+\newblock \url{https://aclanthology.org/P08-1118/}.
+
+\bibitem[Dhingra et~al., 2022]{dhingra2022timeaware}
+{\bf Dhingra, B.}, {\bf Cole, J.~R.}, {\bf Eisenschlos, J.~M.}, {\bf Gillick,
+  D.}, {\bf Eisenstein, J.}, \textbf{and} {\bf Cohen, W.~W.} (2022).
+\newblock Time-aware language models as temporal knowledge bases.
+\newblock {\em Transactions of the Association for Computational Linguistics},
+  10:257--273.
+\newblock \url{https://doi.org/10.1162/tacl_a_00459}.
+
+\bibitem[Dietterich, 1998]{dietterich1998approximate}
+{\bf Dietterich, T.~G.} (1998).
+\newblock Approximate statistical tests for comparing supervised classification
+  learning algorithms.
+\newblock {\em Neural Computation}, 10(7):1895--1923.
+\newblock \url{https://doi.org/10.1162/089976698300017197}.
+
+\bibitem[Dror et~al., 2018]{dror2018hitchhiker}
+{\bf Dror, R.}, {\bf Baumer, G.}, {\bf Shlomov, S.}, \textbf{and} {\bf
+  Reichart, R.} (2018).
+\newblock The hitchhiker's guide to testing statistical significance in natural
+  language processing.
+\newblock In {\em Proceedings of the 56th Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers)}. Association for
+  Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/P18-1128}.
+
+\bibitem[Efron and Tibshirani, 1994]{efron1993bootstrap}
+{\bf Efron, B.} \textbf{and} {\bf Tibshirani, R.~J.} (1994).
+\newblock {\em An Introduction to the Bootstrap}.
+\newblock Chapman and Hall/CRC.
+\newblock \url{https://doi.org/10.1201/9780429246593}.
+
+\bibitem[Ethayarajh, 2019]{ethayarajh2019contextual}
+{\bf Ethayarajh, K.} (2019).
+\newblock How contextual are contextualized word representations? {C}omparing
+  the geometry of {BERT}, {ELMo}, and {GPT-2} embeddings.
+\newblock In {\em Proceedings of the 2019 Conference on Empirical Methods in
+  Natural Language Processing and the 9th International Joint Conference on
+  Natural Language Processing (EMNLP-IJCNLP)}, pp. 55--65. Association for
+  Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/D19-1006}.
+
+\bibitem[Farquhar et~al., 2024]{farquhar2024semantic}
+{\bf Farquhar, S.}, {\bf Kossen, J.}, {\bf Kuhn, L.}, \textbf{and} {\bf Gal,
+  Y.} (2024).
+\newblock Detecting hallucinations in large language models using semantic
+  entropy.
+\newblock {\em Nature}, 630(8017):625--630.
+\newblock \url{https://doi.org/10.1038/s41586-024-07421-0}.
+
+\bibitem[{Gemma Team}, 2025]{gemmateam2025gemma3}
+{\bf {Gemma Team}} (2025).
+\newblock {Gemma 3} technical report.
+\newblock arXiv preprint arXiv:2503.19786.
+
+\bibitem[Gilardi et~al., 2023]{gilardi2023chatgpt}
+{\bf Gilardi, F.}, {\bf Alizadeh, M.}, \textbf{and} {\bf Kubli, M.} (2023).
+\newblock {ChatGPT} outperforms crowd workers for text-annotation tasks.
+\newblock {\em Proceedings of the National Academy of Sciences}, 120(30).
+\newblock \url{https://doi.org/10.1073/pnas.2305016120}.
+
+\bibitem[Godey et~al., 2024]{godey2024anisotropy}
+{\bf Godey, N.}, {\bf Clergerie, {\'E}.}, \textbf{and} {\bf Sagot, B.} (2024).
+\newblock Anisotropy is inherent to self-attention in transformers.
+\newblock In {\em Proceedings of the 18th Conference of the European Chapter of
+  the Association for Computational Linguistics (Volume 1: Long Papers)}, pp.
+  35--48. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2024.eacl-long.3}.
+
+\bibitem[{Google}, n.d.]{gemma4card}
+{\bf {Google}} (n.d.).
+\newblock gemma-4-{E2B}-it, model card.
+\newblock \url{https://huggingface.co/google/gemma-4-E2B-it}.
+\newblock \confirm{access date}.
+
+\bibitem[Guo and Vosoughi, 2025]{guo2025serial}
+{\bf Guo, X.} \textbf{and} {\bf Vosoughi, S.} (2025).
+\newblock Serial position effects of large language models.
+\newblock In {\em Findings of the Association for Computational Linguistics:
+  ACL 2025}, pp. 927--953. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2025.findings-acl.52}.
+
+\bibitem[Gururangan et~al., 2018]{gururangan2018annotation}
+{\bf Gururangan, S.}, {\bf Swayamdipta, S.}, {\bf Levy, O.}, {\bf Schwartz,
+  R.}, {\bf Bowman, S.}, \textbf{and} {\bf Smith, N.~A.} (2018).
+\newblock Annotation artifacts in natural language inference data.
+\newblock In {\em Proceedings of the 2018 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies, Volume 2 (Short Papers)}. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/N18-2017}.
+
+\bibitem[Hanley and Lippman-Hand, 1983]{hanley1983zero}
+{\bf Hanley, J.~A.} \textbf{and} {\bf Lippman-Hand, A.} (1983).
+\newblock If nothing goes wrong, is everything all right? {I}nterpreting zero
+  numerators.
+\newblock {\em JAMA}, 249(13):1743--1745.
+\newblock \url{https://doi.org/10.1001/jama.1983.03330370053031}.
+
+\bibitem[Hassanzadeh et~al., 2009]{hassanzadeh2009framework}
+{\bf Hassanzadeh, O.}, {\bf Chiang, F.}, {\bf Lee, H.~C.}, \textbf{and} {\bf
+  Miller, R.~J.} (2009).
+\newblock Framework for evaluating clustering algorithms in duplicate
+  detection.
+\newblock {\em Proceedings of the VLDB Endowment}, 2(1):1282--1293.
+\newblock \url{https://doi.org/10.14778/1687627.1687771}.
+
+\bibitem[He et~al., 2023]{he2023debertav3}
+{\bf He, P.}, {\bf Gao, J.}, \textbf{and} {\bf Chen, W.} (2023).
+\newblock {DeBERTaV3}: Improving {DeBERTa} using {ELECTRA}-style pre-training
+  with gradient-disentangled embedding sharing.
+\newblock In {\em The Eleventh International Conference on Learning
+  Representations ({ICLR})}.
+\newblock arXiv:2111.09543.
+
+\bibitem[Hewitt and Liang, 2019]{hewitt2019control}
+{\bf Hewitt, J.} \textbf{and} {\bf Liang, P.} (2019).
+\newblock Designing and interpreting probes with control tasks.
+\newblock In {\em Proceedings of the 2019 Conference on Empirical Methods in
+  Natural Language Processing and the 9th International Joint Conference on
+  Natural Language Processing (EMNLP-IJCNLP)}. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/D19-1275}.
+
+\bibitem[Holm, 1979]{holm1979}
+{\bf Holm, S.} (1979).
+\newblock A simple sequentially rejective multiple test procedure.
+\newblock {\em Scandinavian Journal of Statistics}, 6:65--70.
+\newblock \confirm{reference not verified against a publisher page}.
+
+\bibitem[Hou et~al., 2024]{hou2024anisotropic}
+{\bf Hou, F.}, {\bf Wang, R.}, {\bf Ng, S.-K.}, {\bf Zhu, F.}, {\bf Witbrock,
+  M.}, {\bf Cahan, S.~F.}, {\bf Chen, L.}, \textbf{and} {\bf Jia, X.} (2024).
+\newblock Anisotropic span embeddings and the negative impact of higher-order
+  inference for coreference resolution: An empirical analysis.
+\newblock {\em Natural Language Engineering}, 30(6):1301--1322.
+\newblock \url{https://doi.org/10.1017/S1351324924000019}.
+
+\bibitem[Hsieh et~al., 2024]{hsieh2024found}
+{\bf Hsieh, C.-Y.}, {\bf Chuang, Y.-S.}, {\bf Li, C.-L.}, {\bf Wang, Z.}, {\bf
+  Le, L.}, {\bf Kumar, A.}, {\bf Glass, J.}, {\bf Ratner, A.}, {\bf Lee,
+  C.-Y.}, {\bf Krishna, R.}, \textbf{and} {\bf Pfister, T.} (2024).
+\newblock Found in the middle: Calibrating positional attention bias improves
+  long context utilization.
+\newblock In {\em Findings of the Association for Computational Linguistics:
+  ACL 2024}, pp. 14982--14995. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2024.findings-acl.890}.
+
+\bibitem[Hu et~al., 2026]{hu2026memoryagentbench}
+{\bf Hu, Y.}, {\bf Wang, Y.}, \textbf{and} {\bf McAuley, J.} (2026).
+\newblock Evaluating memory in {LLM} agents via incremental multi-turn
+  interactions.
+\newblock In {\em The Fourteenth International Conference on Learning
+  Representations ({ICLR})}.
+\newblock \url{https://openreview.net/forum?id=DT7JyQC3MR}.
+
+\bibitem[Huang et~al., 2021]{huang2021whiteningbert}
+{\bf Huang, J.}, {\bf Tang, D.}, {\bf Zhong, W.}, {\bf Lu, S.}, {\bf Shou, L.},
+  {\bf Gong, M.}, {\bf Jiang, D.}, \textbf{and} {\bf Duan, N.} (2021).
+\newblock {WhiteningBERT}: An easy unsupervised sentence embedding approach.
+\newblock In {\em Findings of the Association for Computational Linguistics:
+  EMNLP 2021}, pp. 238--244. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2021.findings-emnlp.23}.
+
+\bibitem[Kang et~al., 2025]{kang2025memoryos}
+{\bf Kang, J.}, {\bf Ji, M.}, {\bf Zhao, Z.}, \textbf{and} {\bf Bai, T.}
+  (2025).
+\newblock Memory {OS} of {AI} agent.
+\newblock In {\em Proceedings of the 2025 Conference on Empirical Methods in
+  Natural Language Processing}, pp. 25961--25970. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2025.emnlp-main.1318}.
+
+\bibitem[Kuhn et~al., 2023]{kuhn2023semantic}
+{\bf Kuhn, L.}, {\bf Gal, Y.}, \textbf{and} {\bf Farquhar, S.} (2023).
+\newblock Semantic uncertainty: Linguistic invariances for uncertainty
+  estimation in natural language generation.
+\newblock In {\em The Eleventh International Conference on Learning
+  Representations ({ICLR})}.
+\newblock \url{https://openreview.net/forum?id=VD-AYtP0dve}.
+
+\bibitem[Kwon et~al., 2023]{kwon2023vllm}
+{\bf Kwon, W.}, {\bf Li, Z.}, {\bf Zhuang, S.}, {\bf Sheng, Y.}, {\bf Zheng,
+  L.}, {\bf Yu, C.~H.}, {\bf Gonzalez, J.~E.}, {\bf Zhang, H.}, \textbf{and}
+  {\bf Stoica, I.} (2023).
+\newblock Efficient memory management for large language model serving with
+  {PagedAttention}.
+\newblock In {\em Proceedings of the 29th Symposium on Operating Systems
+  Principles (SOSP '23)}, pp. 611--626.
+\newblock \url{https://doi.org/10.1145/3600006.3613165}.
+
+\bibitem[Levy et~al., 2015]{levy2015supervised}
+{\bf Levy, O.}, {\bf Remus, S.}, {\bf Biemann, C.}, \textbf{and} {\bf Dagan,
+  I.} (2015).
+\newblock Do supervised distributional methods really learn lexical inference
+  relations?
+\newblock In {\em Proceedings of the 2015 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies}, pp. 970--976. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.3115/v1/N15-1098}.
+
+\bibitem[Lewis et~al., 2020]{lewis2020retrieval}
+{\bf Lewis, P.}, {\bf Perez, E.}, {\bf Piktus, A.}, {\bf Petroni, F.}, {\bf
+  Karpukhin, V.}, {\bf Goyal, N.}, {\bf K{\"u}ttler, H.}, {\bf Lewis, M.}, {\bf
+  Yih, W.-t.}, {\bf Rockt{\"a}schel, T.}, {\bf Riedel, S.}, \textbf{and} {\bf
+  Kiela, D.} (2020).
+\newblock Retrieval-augmented generation for knowledge-intensive {NLP} tasks.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~33.
+\newblock
+  \url{https://proceedings.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html}.
+
+\bibitem[Li et~al., 2020]{li2020sentence}
+{\bf Li, B.}, {\bf Zhou, H.}, {\bf He, J.}, {\bf Wang, M.}, {\bf Yang, Y.},
+  \textbf{and} {\bf Li, L.} (2020).
+\newblock On the sentence embeddings from pre-trained language models.
+\newblock In {\em Proceedings of the 2020 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2020.emnlp-main.733}.
+
+\bibitem[Liu et~al., 2024]{liu2024lost}
+{\bf Liu, N.~F.}, {\bf Lin, K.}, {\bf Hewitt, J.}, {\bf Paranjape, A.}, {\bf
+  Bevilacqua, M.}, {\bf Petroni, F.}, \textbf{and} {\bf Liang, P.} (2024).
+\newblock Lost in the middle: How language models use long contexts.
+\newblock {\em Transactions of the Association for Computational Linguistics},
+  12:157--173.
+\newblock \url{https://doi.org/10.1162/tacl_a_00638}.
+
+\bibitem[Longpre et~al., 2021]{longpre2021entity}
+{\bf Longpre, S.}, {\bf Perisetla, K.}, {\bf Chen, A.}, {\bf Ramesh, N.}, {\bf
+  DuBois, C.}, \textbf{and} {\bf Singh, S.} (2021).
+\newblock Entity-based knowledge conflicts in question answering.
+\newblock In {\em Proceedings of the 2021 Conference on Empirical Methods in
+  Natural Language Processing}. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2021.emnlp-main.565}.
+
+\bibitem[Maharana et~al., 2024]{maharana2024locomo}
+{\bf Maharana, A.}, {\bf Lee, D.-H.}, {\bf Tulyakov, S.}, {\bf Bansal, M.},
+  {\bf Barbieri, F.}, \textbf{and} {\bf Fang, Y.} (2024).
+\newblock Evaluating very long-term conversational memory of {LLM} agents.
+\newblock In {\em Proceedings of the 62nd Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers)}, pp. 13851--13870.
+  Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2024.acl-long.747}.
+
+\bibitem[McCoy et~al., 2019]{mccoy2019right}
+{\bf McCoy, R.~T.}, {\bf Pavlick, E.}, \textbf{and} {\bf Linzen, T.} (2019).
+\newblock Right for the wrong reasons: Diagnosing syntactic heuristics in
+  natural language inference.
+\newblock In {\em Proceedings of the 57th Annual Meeting of the Association for
+  Computational Linguistics}. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/P19-1334}.
+
+\bibitem[McNemar, 1947]{mcnemar1947note}
+{\bf McNemar, Q.} (1947).
+\newblock Note on the sampling error of the difference between correlated
+  proportions or percentages.
+\newblock {\em Psychometrika}, 12(2):153--157.
+\newblock \url{https://doi.org/10.1007/BF02295996}.
+
+\bibitem[{Microsoft} et~al., 2025]{abouelenin2025phi4mini}
+{\bf {Microsoft}}, {\bf Abouelenin, A.}, {\bf Ashfaq, A.}, {\bf Atkinson, A.},
+  {\bf Awadalla, H.}, {\bf Bach, N.}, {\bf Bao, J.}, {\bf Benhaim, A.}, {\bf
+  Cai, M.}, {\bf Chaudhary, V.}, {\bf Chen, C.}, {\bf Chen, D.}, {\bf Chen,
+  D.}, {\bf Chen, J.}, {\bf Chen, W.}, {\bf Chen, Y.-C.}, {\bf Chen, Y.-l.},
+  {\bf Dai, Q.}, {\bf Dai, X.}, {\bf Fan, R.}, {\bf Gao, M.}, {\bf Gao, M.},
+  {\bf Garg, A.}, {\bf Goswami, A.}, {\bf Hao, J.}, {\bf Hendy, A.}, {\bf Hu,
+  Y.}, {\bf Jin, X.}, {\bf Khademi, M.}, {\bf Kim, D.}, {\bf Kim, Y.~J.}, {\bf
+  Lee, G.}, {\bf Li, J.}, {\bf Li, Y.}, {\bf Liang, C.}, {\bf Lin, X.}, {\bf
+  Lin, Z.}, {\bf Liu, M.}, {\bf Liu, Y.}, {\bf Lopez, G.}, {\bf Luo, C.}, {\bf
+  Madan, P.}, {\bf Mazalov, V.}, {\bf Mitra, A.}, {\bf Mousavi, A.}, {\bf
+  Nguyen, A.}, {\bf Pan, J.}, {\bf Perez-Becker, D.}, {\bf Platin, J.}, {\bf
+  Portet, T.}, {\bf Qiu, K.}, {\bf Ren, B.}, {\bf Ren, L.}, {\bf Roy, S.}, {\bf
+  Shang, N.}, {\bf Shen, Y.}, {\bf Singhal, S.}, {\bf Som, S.}, {\bf Song, X.},
+  {\bf Sych, T.}, {\bf Vaddamanu, P.}, {\bf Wang, S.}, {\bf Wang, Y.}, {\bf
+  Wang, Z.}, {\bf Wu, H.}, {\bf Xu, H.}, {\bf Xu, W.}, {\bf Yang, Y.}, {\bf
+  Yang, Z.}, {\bf Yu, D.}, {\bf Zabir, I.}, {\bf Zhang, J.}, {\bf Zhang,
+  L.~L.}, {\bf Zhang, Y.}, \textbf{and} {\bf Zhou, X.} (2025).
+\newblock {Phi-4-Mini} technical report: Compact yet powerful multimodal
+  language models via mixture-of-{LoRAs}.
+\newblock arXiv preprint arXiv:2503.01743.
+
+\bibitem[Mikolov et~al., 2013]{mikolov2013linguistic}
+{\bf Mikolov, T.}, {\bf Yih, W.-t.}, \textbf{and} {\bf Zweig, G.} (2013).
+\newblock Linguistic regularities in continuous space word representations.
+\newblock In {\em Proceedings of the 2013 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies}, pp. 746--751. Association for Computational Linguistics.
+\newblock \url{https://aclanthology.org/N13-1090/}.
+
+\bibitem[Mu and Viswanath, 2018]{mu2018allbutthetop}
+{\bf Mu, J.} \textbf{and} {\bf Viswanath, P.} (2018).
+\newblock All-but-the-top: Simple and effective postprocessing for word
+  representations.
+\newblock In {\em International Conference on Learning Representations
+  ({ICLR})}.
+\newblock \url{https://openreview.net/forum?id=HkuGJ3kCb}.
+
+\bibitem[Packer et~al., 2023]{packer2023memgpt}
+{\bf Packer, C.}, {\bf Wooders, S.}, {\bf Lin, K.}, {\bf Fang, V.}, {\bf Patil,
+  S.~G.}, {\bf Stoica, I.}, \textbf{and} {\bf Gonzalez, J.~E.} (2023).
+\newblock {MemGPT}: Towards {LLMs} as operating systems.
+\newblock arXiv preprint arXiv:2310.08560.
+
+\bibitem[Pakhomov and Nijkamp, 2026]{pakhomov2026bookkeeping}
+{\bf Pakhomov, E.} \textbf{and} {\bf Nijkamp, E.} (2026).
+\newblock Bookkeeping, composition, or unreachable gold? {R}eading
+  {MemoryAgentBench}'s conflict-resolution scores against a frozen last-write
+  resolver.
+\newblock arXiv preprint arXiv:2610.09193.
+\newblock IAB Workshop at NeurIPS 2026 (non-archival).
+
+\bibitem[Park et~al., 2023]{park2023generative}
+{\bf Park, J.~S.}, {\bf O'Brien, J.}, {\bf Cai, C.~J.}, {\bf Morris, M.~R.},
+  {\bf Liang, P.}, \textbf{and} {\bf Bernstein, M.~S.} (2023).
+\newblock Generative agents: Interactive simulacra of human behavior.
+\newblock In {\em Proceedings of the 36th Annual {ACM} Symposium on User
+  Interface Software and Technology ({UIST} '23)}. Association for Computing
+  Machinery.
+\newblock \url{https://doi.org/10.1145/3586183.3606763}.
+
+\bibitem[Park et~al., 2024]{park2024linear}
+{\bf Park, K.}, {\bf Choe, Y.~J.}, \textbf{and} {\bf Veitch, V.} (2024).
+\newblock The linear representation hypothesis and the geometry of large
+  language models.
+\newblock In {\em Proceedings of the 41st International Conference on Machine
+  Learning}, volume 235 of {\em Proceedings of Machine Learning Research}, pp.
+  39643--39666. PMLR.
+\newblock \url{https://proceedings.mlr.press/v235/park24c.html}.
+
+\bibitem[Patel, 2026]{patel2026supersede}
+{\bf Patel, V.} (2026).
+\newblock Supersede: Diagnosing and training the memory-update gap in {LLM}
+  agents.
+\newblock arXiv preprint arXiv:2606.27472.
+
+\bibitem[Pedregosa et~al., 2011]{pedregosa2011sklearn}
+{\bf Pedregosa, F.}, {\bf Varoquaux, G.}, {\bf Gramfort, A.}, {\bf Michel, V.},
+  {\bf Thirion, B.}, {\bf Grisel, O.}, {\bf Blondel, M.}, {\bf Prettenhofer,
+  P.}, {\bf Weiss, R.}, {\bf Dubourg, V.}, {\bf Vanderplas, J.}, {\bf Passos,
+  A.}, {\bf Cournapeau, D.}, {\bf Brucher, M.}, {\bf Perrot, M.}, \textbf{and}
+  {\bf Duchesnay, {\'E}.} (2011).
+\newblock Scikit-learn: Machine learning in {P}ython.
+\newblock {\em Journal of Machine Learning Research}, 12:2825--2830.
+\newblock \url{https://jmlr.org/papers/v12/pedregosa11a.html}.
+
+\bibitem[Poliak et~al., 2018]{poliak2018hypothesis}
+{\bf Poliak, A.}, {\bf Naradowsky, J.}, {\bf Haldar, A.}, {\bf Rudinger, R.},
+  \textbf{and} {\bf Van~Durme, B.} (2018).
+\newblock Hypothesis only baselines in natural language inference.
+\newblock In {\em Proceedings of the Seventh Joint Conference on Lexical and
+  Computational Semantics}, pp. 180--191. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/S18-2023}.
+
+\bibitem[{Qwen Team}, n.d.]{qwen35card}
+{\bf {Qwen Team}} (n.d.).
+\newblock {Qwen3.5-9B}, model card.
+\newblock \url{https://huggingface.co/Qwen/Qwen3.5-9B}.
+\newblock \confirm{access date}.
+
+\bibitem[Rasmussen et~al., 2025]{rasmussen2025zep}
+{\bf Rasmussen, P.}, {\bf Paliychuk, P.}, {\bf Beauvais, T.}, {\bf Ryan, J.},
+  \textbf{and} {\bf Chalef, D.} (2025).
+\newblock Zep: A temporal knowledge graph architecture for agent memory.
+\newblock arXiv preprint arXiv:2501.13956.
+
+\bibitem[Reddy and Challaram, 2026]{reddy2026reliable}
+{\bf Reddy, V.} \textbf{and} {\bf Challaram, S.~R.} (2026).
+\newblock Reliable post-retrieval assembly for agent memory: Separating
+  evidence extraction from policy execution.
+\newblock arXiv preprint arXiv:2606.01435.
+\newblock Lifelong Agent Workshop at COLM 2026 (poster).
+
+\bibitem[Reimers and Gurevych, 2019]{reimers2019sentencebert}
+{\bf Reimers, N.} \textbf{and} {\bf Gurevych, I.} (2019).
+\newblock Sentence-{BERT}: Sentence embeddings using {S}iamese {BERT}-networks.
+\newblock In {\em Proceedings of the 2019 Conference on Empirical Methods in
+  Natural Language Processing and the 9th International Joint Conference on
+  Natural Language Processing (EMNLP-IJCNLP)}, pp. 3982--3992. Association for
+  Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/D19-1410}.
+
+\bibitem[Shen et~al., 2026]{shen2026revoked}
+{\bf Shen, Y.~T.}, {\bf Toyoda, K.}, \textbf{and} {\bf Leung, A.} (2026).
+\newblock Revoked but still authoritative: An empirical study of revocation
+  enforcement in agent-memory systems.
+\newblock arXiv preprint arXiv:2609.08258.
+
+\bibitem[Shi et~al., 2023]{shi2023large}
+{\bf Shi, F.}, {\bf Chen, X.}, {\bf Misra, K.}, {\bf Scales, N.}, {\bf Dohan,
+  D.}, {\bf Chi, E.~H.}, {\bf Sch{\"a}rli, N.}, \textbf{and} {\bf Zhou, D.}
+  (2023).
+\newblock Large language models can be easily distracted by irrelevant context.
+\newblock In {\em Proceedings of the 40th International Conference on Machine
+  Learning}, volume 202 of {\em Proceedings of Machine Learning Research}, pp.
+  31210--31227. PMLR.
+\newblock \url{https://proceedings.mlr.press/v202/shi23a.html}.
+
+\bibitem[Su et~al., 2021]{su2021whitening}
+{\bf Su, J.}, {\bf Cao, J.}, {\bf Liu, W.}, \textbf{and} {\bf Ou, Y.} (2021).
+\newblock Whitening sentence representations for better semantics and faster
+  retrieval.
+\newblock arXiv preprint arXiv:2103.15316.
+
+\bibitem[Su et~al., 2024]{su2024conflictbank}
+{\bf Su, Z.}, {\bf Zhang, J.}, {\bf Qu, X.}, {\bf Zhu, T.}, {\bf Li, Y.}, {\bf
+  Sun, J.}, {\bf Li, J.}, {\bf Zhang, M.}, \textbf{and} {\bf Cheng, Y.} (2024).
+\newblock {ConflictBank}: A benchmark for evaluating the influence of knowledge
+  conflicts in {LLMs}.
+\newblock In {\em Advances in Neural Information Processing Systems 37 (NeurIPS
+  2024), Datasets and Benchmarks Track}, pp. 103242--103268.
+\newblock \url{https://doi.org/10.52202/079017-3280}.
+
+\bibitem[Sumers et~al., 2024]{sumers2024cognitive}
+{\bf Sumers, T.~R.}, {\bf Yao, S.}, {\bf Narasimhan, K.}, \textbf{and} {\bf
+  Griffiths, T.~L.} (2024).
+\newblock Cognitive architectures for language agents.
+\newblock {\em Transactions on Machine Learning Research}.
+\newblock arXiv:2309.02427.
+
+\bibitem[Timkey and van Schijndel, 2021]{timkey2021bark}
+{\bf Timkey, W.} \textbf{and} {\bf van Schijndel, M.} (2021).
+\newblock All bark and no bite: Rogue dimensions in transformer language models
+  obscure representational quality.
+\newblock In {\em Proceedings of the 2021 Conference on Empirical Methods in
+  Natural Language Processing}. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2021.emnlp-main.372}.
+
+\bibitem[Vylomova et~al., 2016]{vylomova2016take}
+{\bf Vylomova, E.}, {\bf Rimell, L.}, {\bf Cohn, T.}, \textbf{and} {\bf
+  Baldwin, T.} (2016).
+\newblock Take and took, gaggle and goose, book and read: Evaluating the
+  utility of vector differences for lexical relation learning.
+\newblock In {\em Proceedings of the 54th Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers)}, pp. 1671--1682.
+  Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/P16-1158}.
+
+\bibitem[Wang et~al., 2024]{wang2024fair}
+{\bf Wang, P.}, {\bf Li, L.}, {\bf Chen, L.}, {\bf Cai, Z.}, {\bf Zhu, D.},
+  {\bf Lin, B.}, {\bf Cao, Y.}, {\bf Kong, L.}, {\bf Liu, Q.}, {\bf Liu, T.},
+  \textbf{and} {\bf Sui, Z.} (2024).
+\newblock Large language models are not fair evaluators.
+\newblock In {\em Proceedings of the 62nd Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers)}. Association for
+  Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2024.acl-long.511}.
+
+\bibitem[Wang et~al., 2026]{wang2026evomembench}
+{\bf Wang, Y.}, {\bf Zhang, Z.}, {\bf Chi, M.}, {\bf Yu, K.}, {\bf Li, Y.},
+  {\bf Peng, M.}, {\bf Tong, B.}, {\bf Zhang, C.}, {\bf Zhou, Y.}, \textbf{and}
+  {\bf Li, J.} (2026).
+\newblock {EvoMemBench}: Benchmarking agent memory from a self-evolving
+  perspective.
+\newblock arXiv preprint arXiv:2605.18421.
+
+\bibitem[Wei et~al., 2026]{wei2026fademem}
+{\bf Wei, L.}, {\bf Peng, X.}, {\bf Dong, X.}, {\bf Xie, N.}, \textbf{and} {\bf
+  Wang, B.} (2026).
+\newblock {FadeMem}: Biologically-inspired forgetting for efficient agent
+  memory.
+\newblock arXiv preprint arXiv:2601.18642.
+
+\bibitem[Wilie et~al., 2024]{wilie2024belief}
+{\bf Wilie, B.}, {\bf Cahyawijaya, S.}, {\bf Ishii, E.}, {\bf He, J.},
+  \textbf{and} {\bf Fung, P.} (2024).
+\newblock Belief revision: The adaptability of large language models reasoning.
+\newblock In {\em Proceedings of the 2024 Conference on Empirical Methods in
+  Natural Language Processing}, pp. 10480--10496. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2024.emnlp-main.586}.
+
+\bibitem[Williams et~al., 2018]{williams2018broad}
+{\bf Williams, A.}, {\bf Nangia, N.}, \textbf{and} {\bf Bowman, S.~R.} (2018).
+\newblock A broad-coverage challenge corpus for sentence understanding through
+  inference.
+\newblock In {\em Proceedings of the 2018 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies, Volume 1 (Long Papers)}, pp. 1112--1122. Association for
+  Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/N18-1101}.
+
+\bibitem[Wilson, 1927]{wilson1927}
+{\bf Wilson, E.~B.} (1927).
+\newblock Probable inference, the law of succession, and statistical inference.
+\newblock {\em Journal of the American Statistical Association},
+  22(158):209--212.
+\newblock \url{https://doi.org/10.1080/01621459.1927.10502953}.
+
+\bibitem[Wu et~al., 2025]{wu2025longmemeval}
+{\bf Wu, D.}, {\bf Wang, H.}, {\bf Yu, W.}, {\bf Zhang, Y.}, {\bf Chang,
+  K.-W.}, \textbf{and} {\bf Yu, D.} (2025).
+\newblock {LongMemEval}: Benchmarking chat assistants on long-term interactive
+  memory.
+\newblock In {\em The Thirteenth International Conference on Learning
+  Representations ({ICLR})}.
+\newblock \url{https://openreview.net/forum?id=pZiyCaVuti}.
+
+\bibitem[Wu et~al., 2024]{wu2024clasheval}
+{\bf Wu, K.}, {\bf Wu, E.}, \textbf{and} {\bf Zou, J.} (2024).
+\newblock {ClashEval}: Quantifying the tug-of-war between an {LLM}'s internal
+  prior and external evidence.
+\newblock In {\em Advances in Neural Information Processing Systems 37 (NeurIPS
+  2024), Datasets and Benchmarks Track}.
+\newblock
+  \url{https://proceedings.neurips.cc/paper_files/paper/2024/hash/3aa291abc426d7a29fb08418c1244177-Abstract-Datasets_and_Benchmarks_Track.html}.
+
+\bibitem[Xie et~al., 2024]{xie2024adaptive}
+{\bf Xie, J.}, {\bf Zhang, K.}, {\bf Chen, J.}, {\bf Lou, R.}, \textbf{and}
+  {\bf Su, Y.} (2024).
+\newblock Adaptive chameleon or stubborn sloth: Revealing the behavior of large
+  language models in knowledge conflicts.
+\newblock In {\em The Twelfth International Conference on Learning
+  Representations ({ICLR})}.
+\newblock \url{https://openreview.net/forum?id=auKAUJZMO6}.
+
+\bibitem[Xu et~al., 2025a]{xu2024sparsecl}
+{\bf Xu, H.}, {\bf Lin, Z.}, {\bf Chang, K.-W.}, {\bf Sun, Y.}, \textbf{and}
+  {\bf Indyk, P.} (2025a).
+\newblock Contradiction retrieval via contrastive learning with sparsity.
+\newblock In {\em Proceedings of the 42nd International Conference on Machine
+  Learning}, volume 267 of {\em Proceedings of Machine Learning Research}, pp.
+  69478--69506. PMLR.
+\newblock \url{https://proceedings.mlr.press/v267/xu25s.html}.
+
+\bibitem[Xu et~al., 2024]{xu2024knowledge}
+{\bf Xu, R.}, {\bf Qi, Z.}, {\bf Guo, Z.}, {\bf Wang, C.}, {\bf Wang, H.}, {\bf
+  Zhang, Y.}, \textbf{and} {\bf Xu, W.} (2024).
+\newblock Knowledge conflicts for {LLMs}: A survey.
+\newblock In {\em Proceedings of the 2024 Conference on Empirical Methods in
+  Natural Language Processing}, pp. 8541--8565. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2024.emnlp-main.486}.
+
+\bibitem[Xu et~al., 2025b]{xu2025amem}
+{\bf Xu, W.}, {\bf Liang, Z.}, {\bf Mei, K.}, {\bf Gao, H.}, {\bf Tan, J.},
+  \textbf{and} {\bf Zhang, Y.} (2025b).
+\newblock {A-Mem}: Agentic memory for {LLM} agents.
+\newblock In {\em Advances in Neural Information Processing Systems 38 (NeurIPS
+  2025)}.
+\newblock
+  \url{https://proceedings.neurips.cc/paper_files/paper/2025/hash/19909c36f51abc4856b4560aff3d36d6-Abstract-Conference.html}.
+
+\bibitem[Yadav, 2026]{yadav2026temporal}
+{\bf Yadav, N.} (2026).
+\newblock Temporal validity in retrieval memory: Eliminating stale-fact errors
+  for {AI} agents over evolving knowledge.
+\newblock arXiv preprint arXiv:2606.26511.
+
+\bibitem[Yan et~al., 2026]{yan2026memoryr1}
+{\bf Yan, S.}, {\bf Yang, X.}, {\bf Huang, Z.}, {\bf Nie, E.}, {\bf Ding, Z.},
+  {\bf Li, Z.}, {\bf Ma, X.}, {\bf Bi, J.}, {\bf Kersting, K.}, {\bf Pan,
+  J.~Z.}, {\bf Schuetze, H.}, {\bf Tresp, V.}, \textbf{and} {\bf Ma, Y.}
+  (2026).
+\newblock {Memory-R1}: Enhancing large language model agents to manage and
+  utilize memories via reinforcement learning.
+\newblock In {\em Proceedings of the 64th Annual Meeting of the Association for
+  Computational Linguistics (Volume 1: Long Papers)}, pp. 12805--12825.
+  Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2026.acl-long.583}.
+
+\bibitem[Yang et~al., 2025]{yang2025qwen3}
+{\bf Yang, A.}, {\bf Li, A.}, {\bf Yang, B.}, {\bf Zhang, B.}, {\bf Hui, B.},
+  {\bf Zheng, B.}, {\bf Yu, B.}, {\bf Gao, C.}, {\bf Huang, C.}, {\bf Lv, C.},
+  {\bf Zheng, C.}, {\bf Liu, D.}, {\bf Zhou, F.}, {\bf Huang, F.}, {\bf Hu,
+  F.}, {\bf Ge, H.}, {\bf Wei, H.}, {\bf Lin, H.}, {\bf Tang, J.}, {\bf Yang,
+  J.}, {\bf Tu, J.}, {\bf Zhang, J.}, {\bf Yang, J.}, {\bf Yang, J.}, {\bf
+  Zhou, J.}, {\bf Zhou, J.}, {\bf Lin, J.}, {\bf Dang, K.}, {\bf Bao, K.}, {\bf
+  Yang, K.}, {\bf Yu, L.}, {\bf Deng, L.}, {\bf Li, M.}, {\bf Xue, M.}, {\bf
+  Li, M.}, {\bf Zhang, P.}, {\bf Wang, P.}, {\bf Zhu, Q.}, {\bf Men, R.}, {\bf
+  Gao, R.}, {\bf Liu, S.}, {\bf Luo, S.}, {\bf Li, T.}, {\bf Tang, T.}, {\bf
+  Yin, W.}, {\bf Ren, X.}, {\bf Wang, X.}, {\bf Zhang, X.}, {\bf Ren, X.}, {\bf
+  Fan, Y.}, {\bf Su, Y.}, {\bf Zhang, Y.}, {\bf Zhang, Y.}, {\bf Wan, Y.}, {\bf
+  Liu, Y.}, {\bf Wang, Z.}, {\bf Cui, Z.}, {\bf Zhang, Z.}, {\bf Zhou, Z.},
+  \textbf{and} {\bf Qiu, Z.} (2025).
+\newblock {Qwen3} technical report.
+\newblock arXiv preprint arXiv:2505.09388.
+
+\bibitem[Yu et~al., 2023]{yu2023characterizing}
+{\bf Yu, Q.}, {\bf Merullo, J.}, \textbf{and} {\bf Pavlick, E.} (2023).
+\newblock Characterizing mechanisms for factual recall in language models.
+\newblock In {\em Proceedings of the 2023 Conference on Empirical Methods in
+  Natural Language Processing}, pp. 9924--9959. Association for Computational
+  Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2023.emnlp-main.615}.
+
+\bibitem[Zhang et~al., 2025a]{zhang2025qwen3embedding}
+{\bf Zhang, Y.}, {\bf Li, M.}, {\bf Long, D.}, {\bf Zhang, X.}, {\bf Lin, H.},
+  {\bf Yang, B.}, {\bf Xie, P.}, {\bf Yang, A.}, {\bf Liu, D.}, {\bf Lin, J.},
+  {\bf Huang, F.}, \textbf{and} {\bf Zhou, J.} (2025a).
+\newblock {Qwen3 Embedding}: Advancing text embedding and reranking through
+  foundation models.
+\newblock arXiv preprint arXiv:2506.05176.
+
+\bibitem[Zhang et~al., 2025b]{zhang2025survey}
+{\bf Zhang, Z.}, {\bf Dai, Q.}, {\bf Bo, X.}, {\bf Ma, C.}, {\bf Li, R.}, {\bf
+  Chen, X.}, {\bf Zhu, J.}, {\bf Dong, Z.}, \textbf{and} {\bf Wen, J.-R.}
+  (2025b).
+\newblock A survey on the memory mechanism of large language model-based
+  agents.
+\newblock {\em {ACM} Transactions on Information Systems}, 43(6):155:1--155:47.
+\newblock \url{https://doi.org/10.1145/3748302}.
+
+\bibitem[Zheng et~al., 2023]{zheng2023judging}
+{\bf Zheng, L.}, {\bf Chiang, W.-L.}, {\bf Sheng, Y.}, {\bf Zhuang, S.}, {\bf
+  Wu, Z.}, {\bf Zhuang, Y.}, {\bf Lin, Z.}, {\bf Li, Z.}, {\bf Li, D.}, {\bf
+  Xing, E.~P.}, {\bf Zhang, H.}, {\bf Gonzalez, J.~E.}, \textbf{and} {\bf
+  Stoica, I.} (2023).
+\newblock Judging {LLM}-as-a-judge with {MT-Bench} and {Chatbot Arena}.
+\newblock In {\em Advances in Neural Information Processing Systems 36 (NeurIPS
+  2023), Datasets and Benchmarks Track}.
+\newblock
+  \url{https://proceedings.neurips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html}.
+
+\bibitem[Zhong et~al., 2023]{zhong2023mquake}
+{\bf Zhong, Z.}, {\bf Wu, Z.}, {\bf Manning, C.~D.}, {\bf Potts, C.},
+  \textbf{and} {\bf Chen, D.} (2023).
+\newblock {MQuAKE}: Assessing knowledge editing in language models via
+  multi-hop questions.
+\newblock In {\em Proceedings of the 2023 Conference on Empirical Methods in
+  Natural Language Processing}. Association for Computational Linguistics.
+\newblock \url{https://doi.org/10.18653/v1/2023.emnlp-main.971}.
+
+\bibitem[Zhou et~al., 2026]{zhou2026tepa}
+{\bf Zhou, Y.}, {\bf Ouyang, Y.}, {\bf Zheng, K.}, \textbf{and} {\bf Xiang, S.}
+  (2026).
+\newblock {TEPA}: Revoking stale memories for conflict-robust language agents.
+\newblock arXiv preprint arXiv:2608.07429.
+
+\end{thebibliography}
