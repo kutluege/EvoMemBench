@@ -123,3 +123,23 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   - Sınır: sayfa yalnızca ayrışan çiftleri içerir; altın ile modelin uyuştuğu çiftler hakkında bir
     şey söylemez. Model pilot etiketleyicinin okumasına göre kalibre edildiği için, incelemeyi aynı
     kişi yaparsa sonuç modelden bağımsız olmaz.
+- **Ayrışma sayfası dolduruldu ve puanlandı.** Tek etiketleyici, 40 cümle çifti, boş hücre yok,
+  yazılı ölçütün türetme kurallarından sapan satır yok. Dosyalar:
+  `stage0_results/conflict_pairs/disagreement_review/disagreement_sheet.filled.csv`,
+  `DISAGREEMENT_SUMMARY.md`.
+  - `update_conflict`: 40 cümle çiftinin 39'unda (57 kimliğin 56'sında) insan modelle aynı yönde,
+    1'inde altınla. Pilotta görülmemiş 30 cümle çiftinde 29 (41 kimliğin 40'ı). Tek istisna D005
+    (country music / bluegrass music): model alt tür sayıp "uyumlu" dedi, insan "uyumsuz" dedi.
+  - Katmana göre (kimlik): fork 30'da 29, core 2'de 2, rejected 11'de 11, discovered_unverified
+    14'te 14 modelden yana.
+  - Zıt altın etiket taşıyan 5 cümle çiftinin 5'ine insan "çatışma" dedi.
+  - Pilotta etiketlenmiş 10 metinde insan `update_conflict` için kendi pilot etiketiyle 10/10 aynı.
+  - `strict_conflict` kararsız: pilottaki P059 ile aynı metinde (D002) insan bu kez "evet" dedi
+    (pilotta "hayır"), dil ilişkili üç yeni satırda da "evet" (D003, D007, D014) ve vatandaşlıkta
+    bir "evet" (D006). Model bu beşinde "hayır" diyor; yönergedeki tabloda "original language of"
+    satırı P059'dan sonra "tek değerli değil"e çevrilmişti. Yeni 30 metinde `strict_conflict` uyumu
+    26/30.
+  - İnsan etiketi olan her metinde insan, kalanında altın (= model) alınırsa çıkan birleşik
+    `update_conflict` seti modelden 1 çiftte, mevcut `gold_update`'ten 65 çiftte ayrılıyor: fork 34 ve
+    core 2 "çatışma değil"e (36'sı değerlendirme kümesinde), rejected 12 ve discovered_unverified 17
+    "çatışma"ya. Bu set dosyaya yazılmadı; altın veri seti değişmedi.

@@ -1,0 +1,255 @@
+{
+ "n_rows": 40,
+ "n_disputed_pairs": 57,
+ "annotators": 1,
+ "rows_seen_in_pilot": 10,
+ "human_update_yes_rows": 19,
+ "human_strict_yes_rows": 12,
+ "rows_departing_from_rubric": [],
+ "update_conflict_by_group": {
+  "all disputed pairs": {
+   "n": 57,
+   "sides_with_gold": {
+    "n": 57,
+    "k": 1,
+    "rate": 0.017543859649122806,
+    "wilson95": [
+     0.003103664651408093,
+     0.09290749178567684
+    ]
+   },
+   "sides_with_model": {
+    "n": 57,
+    "k": 56,
+    "rate": 0.9824561403508771,
+    "wilson95": [
+     0.9070925082143229,
+     0.9968963353485918
+    ]
+   }
+  },
+  "in evaluation set": {
+   "n": 32,
+   "sides_with_gold": {
+    "n": 32,
+    "k": 1,
+    "rate": 0.03125,
+    "wilson95": [
+     0.005537860164003122,
+     0.15744263820012558
+    ]
+   },
+   "sides_with_model": {
+    "n": 32,
+    "k": 31,
+    "rate": 0.96875,
+    "wilson95": [
+     0.8425573617998744,
+     0.9944621398359969
+    ]
+   }
+  },
+  "outside evaluation set": {
+   "n": 25,
+   "sides_with_gold": {
+    "n": 25,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     1.3877787807814457e-17,
+     0.13319225093904846
+    ]
+   },
+   "sides_with_model": {
+    "n": 25,
+    "k": 25,
+    "rate": 1.0,
+    "wilson95": [
+     0.8668077490609515,
+     0.9999999999999999
+    ]
+   }
+  },
+  "gold yes, model no": {
+   "n": 32,
+   "sides_with_gold": {
+    "n": 32,
+    "k": 1,
+    "rate": 0.03125,
+    "wilson95": [
+     0.005537860164003122,
+     0.15744263820012558
+    ]
+   },
+   "sides_with_model": {
+    "n": 32,
+    "k": 31,
+    "rate": 0.96875,
+    "wilson95": [
+     0.8425573617998744,
+     0.9944621398359969
+    ]
+   }
+  },
+  "gold no, model yes": {
+   "n": 25,
+   "sides_with_gold": {
+    "n": 25,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     1.3877787807814457e-17,
+     0.13319225093904846
+    ]
+   },
+   "sides_with_model": {
+    "n": 25,
+    "k": 25,
+    "rate": 1.0,
+    "wilson95": [
+     0.8668077490609515,
+     0.9999999999999999
+    ]
+   }
+  },
+  "text new to the pilot": {
+   "n": 41,
+   "sides_with_gold": {
+    "n": 41,
+    "k": 1,
+    "rate": 0.024390243902439025,
+    "wilson95": [
+     0.004318531568912411,
+     0.1259506205577423
+    ]
+   },
+   "sides_with_model": {
+    "n": 41,
+    "k": 40,
+    "rate": 0.975609756097561,
+    "wilson95": [
+     0.8740493794422576,
+     0.9956814684310874
+    ]
+   }
+  },
+  "text labelled in the pilot": {
+   "n": 16,
+   "sides_with_gold": {
+    "n": 16,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.1936076805344365
+    ]
+   },
+   "sides_with_model": {
+    "n": 16,
+    "k": 16,
+    "rate": 1.0,
+    "wilson95": [
+     0.8063923194655637,
+     1.0
+    ]
+   }
+  },
+  "core": {
+   "n": 2,
+   "sides_with_gold": {
+    "n": 2,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.6576197724933469
+    ]
+   },
+   "sides_with_model": {
+    "n": 2,
+    "k": 2,
+    "rate": 1.0,
+    "wilson95": [
+     0.34238022750665303,
+     1.0
+    ]
+   }
+  },
+  "update_only_fork": {
+   "n": 30,
+   "sides_with_gold": {
+    "n": 30,
+    "k": 1,
+    "rate": 0.03333333333333333,
+    "wilson95": [
+     0.005908590381612455,
+     0.16670390991409173
+    ]
+   },
+   "sides_with_model": {
+    "n": 30,
+    "k": 29,
+    "rate": 0.9666666666666667,
+    "wilson95": [
+     0.8332960900859082,
+     0.9940914096183874
+    ]
+   }
+  },
+  "rejected": {
+   "n": 11,
+   "sides_with_gold": {
+    "n": 11,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.2588329669680317
+    ]
+   },
+   "sides_with_model": {
+    "n": 11,
+    "k": 11,
+    "rate": 1.0,
+    "wilson95": [
+     0.7411670330319684,
+     1.0
+    ]
+   }
+  },
+  "discovered_unverified": {
+   "n": 14,
+   "sides_with_gold": {
+    "n": 14,
+    "k": 0,
+    "rate": 0.0,
+    "wilson95": [
+     1.3877787807814457e-17,
+     0.2153108027376358
+    ]
+   },
+   "sides_with_model": {
+    "n": 14,
+    "k": 14,
+    "rate": 1.0,
+    "wilson95": [
+     0.7846891972623643,
+     1.0
+    ]
+   }
+  }
+ },
+ "rows_with_opposite_gold_labels": {
+  "n": 5,
+  "human_update_yes": 5,
+  "review_ids": [
+   "D024",
+   "D026",
+   "D032",
+   "D037",
+   "D038"
+  ]
+ },
+ "build_id": "ed00850cfaa54998",
+ "seed": 20261123
+}
