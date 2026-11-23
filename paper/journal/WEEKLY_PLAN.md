@@ -11,6 +11,53 @@ repository, **GPU** = a run on the GPU machine.
 Trust labels are those of the readiness report: **[J]** journal rule, **[S n/8]** seen in n of 8
 sampled papers, **[I]** inference.
 
+## 0. Where the work stands (end of 23 November) and what is missing
+
+Work stopped here on 23 November and resumes on 24 November. Nothing below is done yet. Items
+1–4 are the ones that hold other work up.
+
+**Missing, in the order to take them up**
+
+1. **The definition of `strict_conflict` is not settled.** Two readings are on the table and the
+   author has not chosen:
+   - *the decision of 23 November:* yes when the two sentences cannot both be true, which
+     includes mutually exclusive values of a multi-valued relation (US and ancient Rome
+     citizenship);
+   - *a relation table only:* yes exactly for the relations declared single-valued; then those
+     two pairs are "no".
+   Until this is chosen there is no final `strict_conflict` label for any pair. The model labels
+   on disk follow an older table and are not final.
+2. **The decision table does not exist yet** (stage 0 of the annotation protocol). C prepares it
+   first thing: one row per relation (37), with the number of update-conflict pairs, the current
+   model label and the author's own earlier answers, and an empty yes/no column; plus one row for
+   the rule on mutually exclusive values and one for what counts as containment. E and Ş fill it.
+   It replaces the `strict_conflict` reference sheet, of which only 12 rows were the author's own.
+3. **Rubric v2 is not written.** C drafts it from the five ambiguities of rubric v1
+   (`PROTOCOL_ANNOTATION.md` §6.2); E and Ş approve. The second annotator cannot start without it.
+4. **Neither protocol is registered.**
+   - `PROTOCOL_ANNOTATION.md` (draft v0.1): E and Ş read and approve; stages 0, 5 and 6 are
+     prospective only if it is registered before they start.
+   - `PROTOCOL_GENERALISATION.md` (draft v0.1): still needs the additions listed under Week 0,
+     the three placeholders (`[MODEL]`, `[ENCODER]`, `[HARDWARE]`) and the margin for "comparable".
+   - Both are to be registered on 26 November, before any test record is generated.
+5. **The hosted reference model is not chosen:** Sonnet 5.5 with Haiku 5.5 as a second point
+   (proposed), or Haiku 5.5 alone. Whether the subscription's terms allow the run is unchecked.
+6. **The stage 5 sheets do not exist:** the validation sample (40 disputed, 110 agreement, 50
+   test-set pairs) is not drawn, and the two-question page that records time per pair is not built.
+   The 50 test-set pairs wait for the test set.
+7. **The email to the editorial office has not been sent.**
+8. **The main-text budget tags, the method's name and the push decision are open.**
+9. **Nothing of Weeks 1–7 has started:** no test set, no calibration split, no hosted-model
+   runner, no baselines, no comparator, no cost measurement.
+
+**Done and usable as it is**
+
+- Human seed (60 pairs) and review of all disagreements (40 sentence pairs), both by the author.
+- Model labels for all other pairs on five fields; `update_conflict` differs from the released
+  label on 57 pair ids, and the author sided with the model on 56.
+- Tools: blind labelling pages, scorers, batch builder and ingest, with tests.
+- Annotation protocol, draft; this plan; the log in `YAPILANLAR.md`.
+
 ## 1. What the paper claims
 
 Decided with the author on 23 November. Each claim lists what already supports it and what is
