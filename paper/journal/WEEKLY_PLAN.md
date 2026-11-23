@@ -13,50 +13,58 @@ sampled papers, **[I]** inference.
 
 ## 0. Where the work stands (end of 23 November) and what is missing
 
-Work stopped here on 23 November and resumes on 24 November. Nothing below is done yet. Items
-1–4 are the ones that hold other work up.
+Work stopped here on 23 November and resumes on 24 November. Overnight the Claude session
+prepared everything on its side; what is left needs the authors.
 
-**Missing, in the order to take them up**
+**Waiting for the authors, in the order to take them up**
 
-1. **The definition of `strict_conflict` is not settled.** Two readings are on the table and the
-   author has not chosen:
-   - *the decision of 23 November:* yes when the two sentences cannot both be true, which
-     includes mutually exclusive values of a multi-valued relation (US and ancient Rome
-     citizenship);
-   - *a relation table only:* yes exactly for the relations declared single-valued; then those
-     two pairs are "no".
-   Until this is chosen there is no final `strict_conflict` label for any pair. The model labels
-   on disk follow an older table and are not final.
-2. **The decision table does not exist yet** (stage 0 of the annotation protocol). C prepares it
-   first thing: one row per relation (37), with the number of update-conflict pairs, the current
-   model label and the author's own earlier answers, and an empty yes/no column; plus one row for
-   the rule on mutually exclusive values and one for what counts as containment. E and Ş fill it.
-   It replaces the `strict_conflict` reference sheet, of which only 12 rows were the author's own.
-3. **Rubric v2 is not written.** C drafts it from the five ambiguities of rubric v1
-   (`PROTOCOL_ANNOTATION.md` §6.2); E and Ş approve. The second annotator cannot start without it.
-4. **Neither protocol is registered.**
-   - `PROTOCOL_ANNOTATION.md` (draft v0.1): E and Ş read and approve; stages 0, 5 and 6 are
-     prospective only if it is registered before they start.
-   - `PROTOCOL_GENERALISATION.md` (draft v0.1): still needs the additions listed under Week 0,
-     the three placeholders (`[MODEL]`, `[ENCODER]`, `[HARDWARE]`) and the margin for "comparable".
-   - Both are to be registered on 26 November, before any test record is generated.
-5. **The hosted reference model is not chosen:** Sonnet 5.5 with Haiku 5.5 as a second point
-   (proposed), or Haiku 5.5 alone. Whether the subscription's terms allow the run is unchecked.
-6. **The stage 5 sheets do not exist:** the validation sample (40 disputed, 110 agreement, 50
-   test-set pairs) is not drawn, and the two-question page that records time per pair is not built.
-   The 50 test-set pairs wait for the test set.
-7. **The email to the editorial office has not been sent.**
-8. **The main-text budget tags, the method's name and the push decision are open.**
-9. **Nothing of Weeks 1–7 has started:** no test set, no calibration split, no hosted-model
-   runner, no baselines, no comparator, no cost measurement.
+1. **Fill the decision table for `strict_conflict`.** It now exists:
+   `stage0_results/conflict_pairs/strict_review/DECISION_TABLE.md` (to read) and
+   `decision_table.csv` (to fill): six rule decisions D1–D6 and 40 relations in four groups.
+   D4 is the open question of 23 November: do two values that exclude each other make a strict
+   conflict in a multi-valued relation (US and ancient Rome citizenship), or does the relation
+   alone decide? Until the table is filled no pair has a final `strict_conflict` label; the
+   model labels on disk follow an older table.
+2. **Approve rubric v2.** Draft: `paper/RUBRIC_V2.md`. Four choices are marked [R1]–[R4] (two
+   wordings of one attribute; office titles; what counts as containment; unknown containment),
+   and its `strict_conflict` paragraph is completed from the decision table. The second
+   annotator cannot start without it.
+3. **Approve and register the two protocols on 26 November,** before any test record is
+   generated.
+   - `paper/PROTOCOL_ANNOTATION.md` (draft v0.1): read and approve.
+   - `paper/PROTOCOL_GENERALISATION.md` (draft v0.1) with the additions written out in
+     `paper/PROTOCOL_GENERALISATION_ADDITIONS.md`: merge them and fix five values: `[MODEL]`,
+     `[ENCODER]`, `[HARDWARE]`, `[HOSTED]`, `[MARGIN]`. A suggestion stands beside each.
+4. **Choose the hosted reference model** (`[HOSTED]` above): Sonnet 5.5 with Haiku 5.5 as a
+   second point (proposed), or Haiku 5.5 alone. Check that the subscription's terms allow an
+   automated run of about 1,800 calls per model.
+5. **Send the email to the editorial office.**
+6. **Main-text budget tags, the method's name, the push decision.**
+
+**Ready, waiting only for the steps above**
+
+- **Stage 5 sheets.** The tool is built and tested (`hnav/labeling/audit_validation.py`): it
+  draws the sample, builds a two-question page that records the seconds spent on each pair, and
+  scores two annotators. A dry run on the real data gives 150 sentence pairs (40 disputed, 40
+  core, 40 look-alike, 15 update-only, 15 quarantined; every pool is large enough); the 50
+  test-set pairs are added when the test set exists. The sheets are **not** drawn yet: the tool
+  refuses a rubric that is still a draft, and the sample is drawn after registration.
+- **Applying the decision table** is a small step once it is filled: a lookup for the relations
+  decided by rule, and a model pass only if D4 is answered yes.
+
+**Not started: everything of Weeks 1–7.** No test set, no calibration split, no hosted-model
+runner, no baselines, no comparator, no cost measurement.
 
 **Done and usable as it is**
 
-- Human seed (60 pairs) and review of all disagreements (40 sentence pairs), both by the author.
+- Human seed (60 pairs) and review of all disagreements (40 sentence pairs), both by the first
+  author.
 - Model labels for all other pairs on five fields; `update_conflict` differs from the released
-  label on 57 pair ids, and the author sided with the model on 56.
-- Tools: blind labelling pages, scorers, batch builder and ingest, with tests.
-- Annotation protocol, draft; this plan; the log in `YAPILANLAR.md`.
+  label on 57 pair ids, and the first author sided with the model on 56.
+- Tools: blind labelling pages, scorers, batch builder and ingest, decision table, validation
+  sample and page, all with tests.
+- Drafts: annotation protocol, rubric v2, additions to the generalisation protocol, this plan.
+  The log is in `YAPILANLAR.md`.
 
 ## 1. What the paper claims
 

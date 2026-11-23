@@ -209,3 +209,27 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   `strict_conflict` sayfasının dışarıda bırakılması. Etiketleyici, 60 çiftlik pilot sayfasını ve 40
   çiftlik ayrışma sayfasını kendisinin doldurduğunu bildirdi (23 Kasım); protokolün §6.7'sine
   böyle yazıldı. Bu iki sayfada çift başına süre kaydı yok, dayanak etiketleyicinin beyanı.
+- **`strict_conflict` karar tablosu hazırlandı (protokolün 0. aşaması; doldurulmayı bekliyor).**
+  `hnav/labeling/strict_decision_table.py`, 3 test; `strict_review/DECISION_TABLE.md` (okumak
+  için) ve `decision_table.csv` (doldurmak için). Altı kural kararı (D1–D6) ve 40 ilişki, onları
+  tek değerli yapacak gerekçeye göre dört grupta: tanım gereği tek (6 ilişki, 283 çift kimliği),
+  bir anda tek sahibi olan (12 ilişki, 494), birden çok değer olağan (20 ilişki, 1.851), aynı
+  ilişkinin iki ifadesi (2, 9). Toplam 2.637 çift kimliği, 1.692 cümle çifti. Her ilişkinin
+  yanında ilk yönergedeki model yanıtı ve birinci yazarın kendi önceki yanıtları var. Gruplama,
+  23 Kasım denetiminde görülen tutarsızlığı (aynı gerekçeye iki ayrı yanıt) önlemek için.
+- **Ölçütün ikinci sürümü taslak olarak yazıldı.** `paper/RUBRIC_V2.md`. İlk ölçütün açık bıraktığı
+  beş noktayı kapatıyor; dört seçim ([R1]–[R4]) ve `strict_conflict` paragrafı yazarların onayını
+  ve karar tablosunu bekliyor. Örnekler uydurma, veri setinden değil.
+- **Genelleme protokolüne eklenecek metin yazıldı.** `paper/PROTOCOL_GENERALISATION_ADDITIONS.md`:
+  iki baseline, üretici karşılaştırıcı, maliyet, barındırılan referans model ve onun için önceden
+  sabitlenen ifade kuralı, çift düzeyinde okuyucu karşılaştırması, etiket duyarlılığı. Protokolün
+  v0.1 metnine dokunulmadı; beş değer kayıtta sabitlenecek.
+- **5. aşamanın aracı yazıldı; örneklem henüz çekilmedi.** `hnav/labeling/audit_validation.py`, 6
+  test. Örneklemi çeker, her çifte harcanan süreyi ve tamamlanma anını kaydeden iki soruluk sayfayı
+  üretir, iki etiketleyiciyi puanlar (κ, her kaynağa karşı uyum, uyuşan katmanlarda hata üst
+  sınırı, süre özeti). Gerçek veride kuru koşu: 150 cümle çifti (40 tartışmalı, 40 core, 40 benzer
+  negatif, 15 update-only, 15 karantina); uygun havuzlar sırasıyla 1.497, 132, 113 ve 59. Sayfanın
+  süre kodu sahte bir tarayıcı ortamında denendi: iki çiftte 7 ve 4 saniye, sekmenin gizli kaldığı
+  100 saniye sayılmadı. Araç, taslak hâldeki bir ölçütle sayfa üretmeyi reddediyor; örneklem
+  protokol kaydından sonra çekilecek.
+
