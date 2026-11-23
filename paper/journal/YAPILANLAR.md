@@ -233,3 +233,14 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   100 saniye sayılmadı. Araç, taslak hâldeki bir ölçütle sayfa üretmeyi reddediyor; örneklem
   protokol kaydından sonra çekilecek.
 
+## 2026-11-24
+
+- **Devir notu yazıldı ve dal GitHub'a gönderildi.** `paper/journal/DEVIR_NOTU.md`: kararlar,
+  yapılanlar, yapılacaklar, açık kararlar, çalışma kuralları ve depoyla birlikte gelmeyenler; iş
+  başka bir bilgisayardan sürdürülecek. `CLAUDE.md`'ye bu nota yönlendiren bir bölüm eklendi.
+  Yalnızca ilk bilgisayarın geçici klasöründe duran betikler depoya alındı:
+  `strict_review/audit_scripts/` (23 Kasım denetiminin betikleri) ve
+  `conflict_pairs/nli_preliminary/` (NLI ön ölçümünün seçim ve koşu betikleri, özet tablo; seçim
+  betiğinin ilk koşudaki 2.135 çifti aynen ürettiği doğrulandı). NLI'ın çift başına skorları
+  bilerek depoya alınmadı.
+

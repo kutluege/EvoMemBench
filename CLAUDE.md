@@ -24,6 +24,20 @@ code. `hnav/BUILD_NOTES.md` records what was built and what is deliberately unte
 `hnav/NEXT_STEPS.md` is the operational checklist and **overrides `hnav/prompts/PROMPT_B_remote_run.md`
 wherever they disagree**.
 
+## Current work: journal submission (read first when resuming)
+
+The paper is being prepared for *Natural Language Processing* (Cambridge), submission target
+14 January 2027. The state of that work is kept in files, not in chat:
+
+- `paper/journal/DEVIR_NOTU.md` — handoff note of 24 November 2026 (Turkish): decisions, what
+  is done, what is open, working rules, and what did not travel with the repository.
+- `paper/journal/WEEKLY_PLAN.md` — the plan; Section 0 is the current state, Section 8 the open
+  decisions. Keep Section 0 current.
+- `paper/journal/YAPILANLAR.md` — dated log of finished, checked work (Turkish).
+
+The author writes Turkish and wants replies in Turkish. The repository is public: commit
+locally after each task, push only when the author asks in that turn.
+
 ## Thesis framing — binding (user decisions 2026-09-17)
 
 **`THESIS_CLAIMS.md` is the binding statement of what the thesis claims.** Read it before

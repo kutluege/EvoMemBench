@@ -1,0 +1,254 @@
+{
+ "The headquarters of | is located in the city of": {
+  "ids": 70,
+  "texts": 46,
+  "model_yes_ids": 70,
+  "model_yes_texts": 46
+ },
+ "The capital of | is": {
+  "ids": 67,
+  "texts": 38,
+  "model_yes_ids": 67,
+  "model_yes_texts": 38
+ },
+ "plays the position of": {
+  "ids": 136,
+  "texts": 96,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "was created by": {
+  "ids": 93,
+  "texts": 59,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "was developed by": {
+  "ids": 74,
+  "texts": 49,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The univeristy where | was educated is": {
+  "ids": 74,
+  "texts": 46,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The official language of | is": {
+  "ids": 47,
+  "texts": 26,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "is affiliated with the religion of": {
+  "ids": 161,
+  "texts": 110,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The chairperson of | is": {
+  "ids": 39,
+  "texts": 24,
+  "model_yes_ids": 39,
+  "model_yes_texts": 24
+ },
+ "was created in the country of": {
+  "ids": 121,
+  "texts": 69,
+  "model_yes_ids": 121,
+  "model_yes_texts": 69
+ },
+ "The company that produced | is": {
+  "ids": 35,
+  "texts": 22,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "is married to": {
+  "ids": 91,
+  "texts": 56,
+  "model_yes_ids": 91,
+  "model_yes_texts": 56
+ },
+ "was founded by": {
+  "ids": 116,
+  "texts": 73,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The director of | is": {
+  "ids": 26,
+  "texts": 13,
+  "model_yes_ids": 26,
+  "model_yes_texts": 13
+ },
+ "is a citizen of": {
+  "ids": 331,
+  "texts": 228,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "was founded in the city of": {
+  "ids": 26,
+  "texts": 15,
+  "model_yes_ids": 26,
+  "model_yes_texts": 15
+ },
+ "is associated with the sport of": {
+  "ids": 224,
+  "texts": 135,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "'s child is": {
+  "ids": 30,
+  "texts": 18,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The author of | is": {
+  "ids": 150,
+  "texts": 99,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "is famous for": {
+  "ids": 47,
+  "texts": 35,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "was born in the city of": {
+  "ids": 48,
+  "texts": 32,
+  "model_yes_ids": 48,
+  "model_yes_texts": 32
+ },
+ "was written in the language of": {
+  "ids": 34,
+  "texts": 24,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "was performed by": {
+  "ids": 94,
+  "texts": 63,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "is located in the continent of": {
+  "ids": 71,
+  "texts": 41,
+  "model_yes_ids": 71,
+  "model_yes_texts": 41
+ },
+ "works in the field of": {
+  "ids": 32,
+  "texts": 18,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The type of music that | plays is": {
+  "ids": 52,
+  "texts": 34,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "speaks the language of": {
+  "ids": 48,
+  "texts": 32,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "died in the city of": {
+  "ids": 52,
+  "texts": 29,
+  "model_yes_ids": 52,
+  "model_yes_texts": 29
+ },
+ "The chief executive officer of | is": {
+  "ids": 43,
+  "texts": 23,
+  "model_yes_ids": 43,
+  "model_yes_texts": 23
+ },
+ "worked in the city of": {
+  "ids": 30,
+  "texts": 21,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "is employed by": {
+  "ids": 43,
+  "texts": 30,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The origianl broadcaster of | is": {
+  "ids": 29,
+  "texts": 24,
+  "model_yes_ids": 29,
+  "model_yes_texts": 24
+ },
+ "The name of the current head of the | government is": {
+  "ids": 36,
+  "texts": 22,
+  "model_yes_ids": 36,
+  "model_yes_texts": 22
+ },
+ "The head coach of | is": {
+  "ids": 18,
+  "texts": 13,
+  "model_yes_ids": 18,
+  "model_yes_texts": 13
+ },
+ "The name of the current head of state in | is": {
+  "ids": 26,
+  "texts": 13,
+  "model_yes_ids": 26,
+  "model_yes_texts": 13
+ },
+ "The original language of | is": {
+  "ids": 7,
+  "texts": 5,
+  "model_yes_ids": 0,
+  "model_yes_texts": 0
+ },
+ "The original language of | is / was written in the language of": {
+  "ids": 4,
+  "texts": 4,
+  "model_yes_ids": 1,
+  "model_yes_texts": 1
+ },
+ "unparsed[The President of | is]": {
+  "ids": 2,
+  "texts": 1,
+  "model_yes_ids": 2,
+  "model_yes_texts": 1
+ },
+ "unparsed[The Prime Minister of | is]": {
+  "ids": 2,
+  "texts": 1,
+  "model_yes_ids": 2,
+  "model_yes_texts": 1
+ },
+ "The name of the current head of the | government is / unparsed[The Prime Minister of | is]": {
+  "ids": 5,
+  "texts": 3,
+  "model_yes_ids": 5,
+  "model_yes_texts": 3
+ },
+ "unparsed[OTHER: The Illinois Attorney General is Ben Carson.] / unparsed[OTHER: The Illinois Attorney General is Lisa Madigan.]": {
+  "ids": 1,
+  "texts": 1,
+  "model_yes_ids": 1,
+  "model_yes_texts": 1
+ },
+ "The Governor of | is": {
+  "ids": 2,
+  "texts": 1,
+  "model_yes_ids": 2,
+  "model_yes_texts": 1
+ }
+}
