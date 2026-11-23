@@ -199,9 +199,6 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   dışında boş bir klasörden tek seferlik komut satırı çağrılarıyla yapılacak (hangi model: Sonnet
   5.5 ve ikinci nokta olarak Haiku 5.5 önerildi, yazarın onayı bekleniyor); `strict_conflict`
   işi, referans sayfasıyla ilgili iki soru yanıtlanana kadar bekliyor.
-
-## 2026-11-24
-
 - **Etiketleme protokolü yazıldı (taslak v0.1, kayıtlı değil).** `paper/PROTOCOL_ANNOTATION.md`.
   Yedi aşama: kurallar (ölçüt v2 ve karar tablosu), insan tohumu (60 çift), kalibrasyon ve ayrı
   tutulan sınama, modelle ölçekleme, ayrışmaların insan incelemesi, iki etiketleyiciyle bağımsız
@@ -209,6 +206,6 @@ Buraya yalnızca bitmiş ve kontrol edilmiş iş yazılır; planlanan ve süren 
   kayıttır ve öyle yazıldı; 0, 5 ve 6. aşamalar başlamadan sabitleniyor. Sapmalar bölümünde:
   önceden kayıt olmaması, ölçüt v1'in belirsizlikleri, tek etiketleyici, etiketleyicilerin yazar
   olması, model işçilerinin körlüğünün talimata dayanması, 91 satırı modelle doldurulan
-  `strict_conflict` sayfasının dışarıda bırakılması. İki insan sayfasının (60 ve 40 çift) tamamen
-  elle doldurulduğu yazarın onayını bekliyor; onaya kadar o sonuçlar insan etiketi olarak
-  raporlanmaz.
+  `strict_conflict` sayfasının dışarıda bırakılması. Etiketleyici, 60 çiftlik pilot sayfasını ve 40
+  çiftlik ayrışma sayfasını kendisinin doldurduğunu bildirdi (23 Kasım); protokolün §6.7'sine
+  böyle yazıldı. Bu iki sayfada çift başına süre kaydı yok, dayanak etiketleyicinin beyanı.

@@ -1,6 +1,6 @@
 # Pair-label annotation: protocol
 
-**DRAFT v0.1, 24 Nov 2026, not yet registered.** E. Kutlu, Ş. Özönder. Stages 1–4 were carried
+**DRAFT v0.1, 23 Nov 2026, not yet registered.** E. Kutlu, Ş. Özönder. Stages 1–4 were carried
 out on 22–23 November, before this text was written; for them this document is a record, not a
 plan. Stages 0, 5 and 6 are still to come and are fixed here before they start. To be registered
 together with `PROTOCOL_GENERALISATION.md`; later changes are dated amendments.
@@ -81,15 +81,15 @@ agreed label, with an upper bound on that error rate.
 6. **A `strict_conflict` reference sheet of 23 November is excluded.** Twelve of its 103 rows
    were labelled by annotator A; the other 91 were filled by a language model at A's request.
    The sheet is kept as received and used for nothing.
-7. **Provenance of the two human sheets.** Stage 1 sheet (60 pairs): `[CONFIRM: filled by
-   annotator A alone, without model assistance]`. Stage 4 sheet (40 pairs): `[CONFIRM: same]`.
-   The results of §5 are reported as human labels only once both are confirmed.
+7. **Provenance of the two human sheets.** Annotator A states (23 November 2026) that he filled
+   the stage 1 sheet (60 pairs) and the stage 4 sheet (40 pairs) himself. Neither sheet carries
+   per-item timing, so this rests on his statement; the stage 5 page records it.
 8. **No NLI score is shown to any annotator, human or model.** The method under study verifies
    with an NLI model.
 
 ## 7. What the paper may say
 
-Once stage 5 is done and §6.7 is confirmed: one annotator labelled a seed of 60 pairs; a
+Once stage 5 is done: one annotator labelled a seed of 60 pairs; a
 guideline written from 40 of them was checked on the other 20; a large language model then
 labelled the remaining 54,509 pairs under that guideline; every pair on which it differed from
 the released label was reviewed by the annotator; a second annotator independently labelled
