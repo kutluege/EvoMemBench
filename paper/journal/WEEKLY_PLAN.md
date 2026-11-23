@@ -185,10 +185,12 @@ annotation (Weeks 1–3).
   - `strict_conflict`: the two sentences cannot both be true of the entity at the same time.
 - [ ] **E, Ş** Final protocol text. Add to the draft (`paper/PROTOCOL_GENERALISATION.md`):
   - the full baseline list, with raw cosine + recency and the serial-sorted page;
-  - the generative comparator, the cost measurement and the second encoder (text ready in
-    `WEEKLY_PLAN_NOTES.md` §2.2), with `[MODEL]`, `[ENCODER]` and `[HARDWARE]` filled in;
-  - **New:** the large-model reference run and its reporting rule (Section 1);
+  - the generative comparator, the cost measurement and the second encoder, with `[MODEL]`,
+    `[ENCODER]` and `[HARDWARE]` filled in;
+  - **New:** the large-model reference run and its reporting rule (Section 1), with `[HOSTED]`
+    and `[MARGIN]` filled in;
   - **New:** the pair-level reader comparison, as a secondary analysis with no success claim;
+  - all of these are written out, ready to merge, in `paper/PROTOCOL_GENERALISATION_ADDITIONS.md`;
   - **Changed:** the label-validation design of Section 2, item 2, including what counts as a
     label correction;
   - the phenomenon threshold and the rules for reading negative results.
@@ -270,8 +272,8 @@ Days 3–6, transfer
       published scores the manuscript cites; the author asked first for Haiku 5.5 and has not
       yet confirmed the proposal. If usage limits bind, the second model runs on the three
       original stores only.
-- [ ] **C** Each cell is run three times, because the temperature cannot be set through this
-      route; report mean and range.
+- [ ] **C** One run per cell; the 64K store is run three times, because the temperature cannot
+      be set through this route. Report mean and range there. About 1,800 calls per model in all.
 - [ ] **C** Record for every call: model identifier, Claude Code version, flags, date, input and
       output tokens, latency. A subscription has no price per call, so cost per question is
       computed from the measured tokens and the public list price on the day of the run, and
